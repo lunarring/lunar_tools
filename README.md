@@ -15,8 +15,9 @@ audio_recorder.stop_recording()
 
 ## SpeechDetector
 ```python
+import lunar_tools as lt
 import time
-speech_detector = SpeechDetector(init_audiorecorder=True)
+speech_detector = lt.SpeechDetector(init_audiorecorder=True)
 speech_detector.start_recording()
 time.sleep(3)
 speech_detector.stop_recording()
