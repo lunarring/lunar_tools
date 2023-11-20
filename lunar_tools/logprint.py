@@ -32,7 +32,6 @@ class Logger:
             self.console.print(message, style=f"bold {color}")
         else:
             self.console.print(message)
-        
         # Temporarily disable console handlers, log the message, then re-enable
         console_handlers = [h for h in self.logger.handlers if isinstance(h, RichHandler)]
         for h in console_handlers:
@@ -46,6 +45,4 @@ class Logger:
 if __name__ == "__main__":
     # Example usage
     logger = Logger()  # No filename provided, will use default
-    logger.print("Hello, world!", "green")
-    logger.print("Warning message", "yellow")
-    logger.print("Error message", "red")
+    logger.print("Test...")
