@@ -29,7 +29,8 @@ speech_detector.stop_recording()
 # Image gen
 ## Generate Images with Dall-e-3
 ```python
-dalle3 = Dalle3ImageGenerator()
+import lunar_tools as lt
+dalle3 = lt.Dalle3ImageGenerator()
 image, revised_prompt = dalle3.generate("a beautiful red house with snow on the roof, a chimney with smoke")
 ```
 
