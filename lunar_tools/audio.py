@@ -57,3 +57,14 @@ class AudioRecorder:
             self.is_recording = False
             self.thread.join()
 
+
+class Whisper:
+    def __init__(self, client=None, logger=None):
+        if client is None:
+            api_key = os.environ.get("OPENAI_API_KEY")
+            if not api_key:
+                raise ValueError("No OPENAI_API_KEY found in environment variables")
+            self.client = OpenAI(api_key=api_key)
+        else:
+            self.client = client
+        self.logger = logger if logger else Logger()
