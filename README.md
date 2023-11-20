@@ -1,3 +1,6 @@
+# Introduction
+Welcome to Lunar Tools, a comprehensive toolkit designed to fascilitate the programming of interactive exhibitions. Our suite of simple, modular tools is crafted to offer a seamless and hopefully bug-free experience for both exhibitors and visitors.
+
 # Installation
 pip install git+https://github.com/lunarring/lunar_tools
 
