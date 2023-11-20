@@ -4,7 +4,7 @@ from datetime import datetime
 from rich.console import Console
 from rich.logging import RichHandler
 
-class Logger:
+class LogPrint:
     def __init__(self, filename=None):
         # Determine the filename based on current date and time if not provided
         if filename is None:
@@ -44,5 +44,5 @@ class Logger:
 
 if __name__ == "__main__":
     # Example usage
-    logger = Logger()  # No filename provided, will use default
+    logger = LogPrint(filename="test.txt")  # No filename provided, will use default
     logger.print("Test...")
