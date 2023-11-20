@@ -60,7 +60,7 @@ class Dalle3ImageGenerator:
             self.logger.print(f"An error occurred: {e}")
 
 
-# if __name__ == "__main__":
-#     # Example usage
-#     dalle3 = Dalle3ImageGenerator()
-#     image, revised_prompt = dalle3.generate("a beautiful blue house")
+if __name__ == "__main__":
+    # Example usage
+    dalle3 = Dalle3ImageGenerator()
+    image, revised_prompt = dalle3.generate("a beautiful red house with snow on the roof, a chimney with smoke")
