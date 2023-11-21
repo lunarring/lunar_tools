@@ -8,7 +8,7 @@ import threading
 import os
 import time
 from openai import OpenAI
-from .logprint import LogPrint
+from lunar_tools.logprint import LogPrint
 
 
 class AudioRecorder:
@@ -144,7 +144,7 @@ class SpeechDetector:
             self.client = client
         self.logger = logger if logger else LogPrint()
         
-        if client is None:
+        if audio_recorder is None:
             self.audio_recorder = AudioRecorder(logger=logger)
         else:
             self.audio_recorder = audio_recorder

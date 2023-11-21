@@ -11,6 +11,8 @@ class LogPrint:
             now = datetime.now()
             filename = f"logs/{now.strftime('%y%m%d_%H%M')}.txt"
             os.makedirs(os.path.dirname(filename), exist_ok=True)
+            
+        self.filename = filename
 
         self.console = Console()
         self.logger = logging.getLogger(__name__)
@@ -22,7 +24,7 @@ class LogPrint:
         self.logger.addHandler(rich_handler)
 
         # File handler without color formatting
-        file_handler = logging.FileHandler(filename, mode='w')
+        file_handler = logging.FileHandler(self.filename, mode='w')
         file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
         self.logger.addHandler(file_handler)
 
@@ -44,5 +46,5 @@ class LogPrint:
 
 if __name__ == "__main__":
     # Example usage
-    logger = LogPrint(filename="test.txt")  # No filename provided, will use default
+    logger = LogPrint()  # No filename provided, will use default
     logger.print("Test...")

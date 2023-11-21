@@ -7,7 +7,7 @@ import time
 import os
 from PIL import Image
 from openai import OpenAI
-from .logprint import LogPrint
+from lunar_tools.logprint import LogPrint
 
 
 class Dalle3ImageGenerator:

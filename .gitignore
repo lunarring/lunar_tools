@@ -2,7 +2,8 @@
 __pycache__/
 *.py[cod]
 *$py.class
-
+specific_filename.txt
+tmp_testlog.txt
 # C extensions
 *.so
 

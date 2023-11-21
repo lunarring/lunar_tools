@@ -21,8 +21,7 @@ class TestLogPrint(unittest.TestCase):
         logger = LogPrint()
         logger.print("Test log with default filename.")
         # Extract the filename from the logger
-        filename = logger.logger.handlers[1].baseFilename
-        self.assertTrue(os.path.exists(filename))
+        self.assertTrue(os.path.exists(logger.filename))
 
     def test_log_file_content(self):
         """Test if the log file contains the expected content."""

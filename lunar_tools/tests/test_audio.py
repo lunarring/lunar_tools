@@ -2,9 +2,10 @@ import unittest
 import os
 import time
 from pydub import AudioSegment
-from audio import AudioRecorder
 import sys
-sys.path.append(os.path.abspath('../lunar_tools'))
+sys.path.append(os.path.abspath('.'))
+sys.path.append(os.path.abspath('lunar_tools'))
+from audio import AudioRecorder
 
 class TestAudioRecorder(unittest.TestCase):
     """
