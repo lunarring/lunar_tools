@@ -10,20 +10,20 @@ pip install git+https://github.com/lunarring/lunar_tools
 import lunar_tools as lt
 import time
 audio_recorder = lt.AudioRecorder()
-audio_recorder = AudioRecorder()
 audio_recorder.start_recording("myvoice.mp3")
 time.sleep(3)
-audio_recorder.stop_recording()
+audio_recorder.stop_recording()    
 ```
 
 ## SpeechDetector
 ```python
 import lunar_tools as lt
 import time
-speech_detector = lt.SpeechDetector(init_audiorecorder=True)
+speech_detector = lt.SpeechDetector()
 speech_detector.start_recording()
 time.sleep(3)
-speech_detector.stop_recording()
+translation = speech_detector.stop_recording()
+print(f"translation: {translation}")
 ```
 
 # Image gen
