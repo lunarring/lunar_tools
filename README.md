@@ -34,3 +34,12 @@ dalle3 = lt.Dalle3ImageGenerator()
 image, revised_prompt = dalle3.generate("a beautiful red house with snow on the roof, a chimney with smoke")
 ```
 
+# Testing
+pip install pytest
+
+make sure you are in base folder
+```python
+pytest lunar_tools/tests/
+```
+
+
