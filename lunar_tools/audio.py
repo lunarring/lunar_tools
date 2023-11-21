@@ -143,7 +143,11 @@ class SpeechDetector:
         else:
             self.client = client
         self.logger = logger if logger else LogPrint()
-        self.audio_recorder = audio_recorder
+        
+        if client is None:
+            self.audio_recorder = AudioRecorder(logger=logger)
+        else:
+            self.audio_recorder = audio_recorder
 
     def start_recording(self, output_filename=None, max_time=None):
         """
@@ -196,7 +200,7 @@ class SpeechDetector:
 
 #%% EXAMPLE USE        
 if __name__ == "__main__":
-    speech_detector = SpeechDetector(init_audiorecorder=True)
+    speech_detector = SpeechDetector()
     speech_detector.start_recording()
     time.sleep(3)
     speech_detector.stop_recording()
