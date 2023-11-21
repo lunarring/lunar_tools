@@ -6,7 +6,7 @@ specific_filename.txt
 tmp_testlog.txt
 # C extensions
 *.so
-
+*.mp3
 # Distribution / packaging
 .Python
 build/

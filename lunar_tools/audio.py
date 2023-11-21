@@ -84,7 +84,7 @@ class AudioRecorder:
         self.stream.stop_stream()
         self.stream.close()
         self.audio.terminate()
-
+        
         # Convert to MP3
         raw_data = b''.join(self.frames)
         wav_audio = AudioSegment(
@@ -146,7 +146,7 @@ class SpeechDetector:
         else:
             self.client = client
         self.logger = logger if logger else LogPrint()
-        
+
         if audio_recorder is None:
             self.audio_recorder = AudioRecorder(logger=logger)
         else:
@@ -163,7 +163,7 @@ class SpeechDetector:
         """
         if self.audio_recorder is None:
             raise ValueError("Audio recorder is not available")
-        self.audio_recorder.start(output_filename, max_time)
+        self.audio_recorder.start_recording(output_filename, max_time)
 
     def stop_recording(self):
         """
@@ -174,7 +174,8 @@ class SpeechDetector:
         """
         if self.audio_recorder is None:
             raise ValueError("Audio recorder is not available")
-        self.audio_recorder.stop()
+        self.audio_recorder.stop_recording()
+        return self.translate(self.audio_recorder.output_filename)
 
     def translate(self, audio_filepath):
         """
@@ -203,9 +204,16 @@ class SpeechDetector:
 
 #%% EXAMPLE USE        
 if __name__ == "__main__":
+    # audio_recorder = AudioRecorder()
+    # audio_recorder.start_recording("myvoice.mp3")
+    # time.sleep(3)
+    # audio_recorder.stop_recording()
+    
+    
     speech_detector = SpeechDetector()
     speech_detector.start_recording()
     time.sleep(3)
-    speech_detector.stop_recording()
+    translation = speech_detector.stop_recording()
+    print(f"translation: {translation}")
     
     
