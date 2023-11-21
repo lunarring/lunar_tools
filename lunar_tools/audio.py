@@ -8,7 +8,7 @@ import threading
 import os
 import time
 from openai import OpenAI
-from logprint import Logger
+from .logprint import LogPrint
 
 
 class AudioRecorder:
