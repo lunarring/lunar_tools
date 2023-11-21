@@ -7,7 +7,7 @@ import time
 import os
 from PIL import Image
 from openai import OpenAI
-from logprint import Logger
+from .logprint import LogPrint
 
 
 class Dalle3ImageGenerator:
@@ -25,7 +25,7 @@ class Dalle3ImageGenerator:
         else:
             self.client = client
 
-        self.logger = logger if logger else Logger()
+        self.logger = logger if logger else LogPrint()
         self.model = model
         self.size = size
         self.quality = quality

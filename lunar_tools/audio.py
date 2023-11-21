@@ -142,7 +142,7 @@ class SpeechDetector:
             self.client = OpenAI(api_key=api_key)
         else:
             self.client = client
-        self.logger = logger if logger else Logger()
+        self.logger = logger if logger else LogPrint()
         self.audio_recorder = audio_recorder
 
     def start_recording(self, output_filename=None, max_time=None):
