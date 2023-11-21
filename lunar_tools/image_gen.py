@@ -6,6 +6,7 @@ from io import BytesIO
 import time
 import os
 from PIL import Image
+import numpy as np
 from openai import OpenAI
 from lunar_tools.logprint import LogPrint
 
@@ -30,37 +31,50 @@ class Dalle3ImageGenerator:
         self.size = size
         self.quality = quality
 
-    def generate(self, prompt):
-        try:
-            self.logger.print("Dalle3ImageGenerator: Starting image generation")
-            start_time = time.time()
+    def generate(self, prompt, simulation=False):
+        if simulation:
+            # Simulation mode: Generate a random image
+            width, height = map(int, self.size.split('x'))
+            image_array = np.random.randint(0, 255, (height, width, 3), dtype=np.uint8)
+            image = Image.fromarray(image_array, 'RGB')
+            self.logger.print("Dalle3ImageGenerator: Simulation mode - random image generated")
+            revised_prompt = "Simulation mode - no revised prompt"
+        else:
+            # Normal mode: Call the API to generate an image
+            try:
+                self.logger.print("Dalle3ImageGenerator: Starting image generation")
+                start_time = time.time()
 
-            response = self.client.images.generate(
-                model=self.model,
-                prompt=prompt,
-                size=self.size,
-                quality=self.quality,
-                n=1,
-            )
+                response = self.client.images.generate(
+                    model=self.model,
+                    prompt=prompt,
+                    size=self.size,
+                    quality=self.quality,
+                    n=1,
+                )
 
-            image_url = response.data[0].url
-            response_http = requests.get(image_url)
-            response_http.raise_for_status()
+                image_url = response.data[0].url
+                response_http = requests.get(image_url)
+                response_http.raise_for_status()
 
-            image_data = BytesIO(response_http.content)
-            image = Image.open(image_data)
-            end_time = time.time()
-            revised_prompt = response.data[0].revised_prompt
-            self.logger.print(f"Dalle3ImageGenerator: Generation complete. Time taken: {int(end_time - start_time)} seconds")
-            return image, revised_prompt
+                image_data = BytesIO(response_http.content)
+                image = Image.open(image_data)
+                end_time = time.time()
+                revised_prompt = response.data[0].revised_prompt
+                self.logger.print(f"Dalle3ImageGenerator: Generation complete. Time taken: {int(end_time - start_time)} seconds")
 
-        except requests.exceptions.RequestException as e:
-            self.logger.print(f"HTTP Request failed: {e}")
-        except Exception as e:
-            self.logger.print(f"An error occurred: {e}")
+            except requests.exceptions.RequestException as e:
+                self.logger.print(f"HTTP Request failed: {e}")
+                return None, None
+            except Exception as e:
+                self.logger.print(f"An error occurred: {e}")
+                return None, None
+
+        return image, revised_prompt
 
 
 if __name__ == "__main__":
     # Example usage
     dalle3 = Dalle3ImageGenerator()
-    image, revised_prompt = dalle3.generate("a beautiful red house with snow on the roof, a chimney with smoke")
+    image, revised_prompt = dalle3.generate("a beautiful red house with snow on the roof, a chimney with smoke", simulation=True)
+    image.show()
