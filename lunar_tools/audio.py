@@ -83,7 +83,6 @@ class AudioRecorder:
         self.logger.print("Finished recording.")
         self.stream.stop_stream()
         self.stream.close()
-        self.audio.terminate()
         
         # Convert to MP3
         raw_data = b''.join(self.frames)
@@ -209,8 +208,17 @@ if __name__ == "__main__":
     # time.sleep(3)
     # audio_recorder.stop_recording()
     
+    # audio_recorder.start_recording("myvoice2.mp3")
+    # time.sleep(3)
+    # audio_recorder.stop_recording()
+    
     
     speech_detector = SpeechDetector()
+    speech_detector.start_recording()
+    time.sleep(3)
+    translation = speech_detector.stop_recording()
+    print(f"translation: {translation}")
+    
     speech_detector.start_recording()
     time.sleep(3)
     translation = speech_detector.stop_recording()
