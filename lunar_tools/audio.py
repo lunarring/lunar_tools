@@ -25,6 +25,7 @@ class AudioRecorder:
         audio (pyaudio.PyAudio): PyAudio instance.
         stream (pyaudio.Stream): Audio stream.
         output_filename (str): Output file name.
+        logger: A logging instance. If None, a default logger will be used.
     """
 
     def __init__(
@@ -32,7 +33,8 @@ class AudioRecorder:
         audio_format=pyaudio.paInt16,
         channels=1,
         rate=44100,
-        chunk=1024
+        chunk=1024, 
+        logger=None
     ):
         """
         Initialize the audio recorder.
@@ -52,6 +54,7 @@ class AudioRecorder:
         self.audio = pyaudio.PyAudio()
         self.stream = None
         self.output_filename = None
+        self.logger = logger if logger else LogPrint()
 
     def _record(self, max_time=None):
         """
@@ -68,7 +71,7 @@ class AudioRecorder:
             input=True,
             frames_per_buffer=self.chunk
         )
-        print("Recording...")
+        self.logger.print("Recording...")
         self.frames = []
         start_time = time.time()
         while self.is_recording:
@@ -77,7 +80,7 @@ class AudioRecorder:
             data = self.stream.read(self.chunk)
             self.frames.append(data)
 
-        print("Finished recording.")
+        self.logger.print("Finished recording.")
         self.stream.stop_stream()
         self.stream.close()
         self.audio.terminate()
