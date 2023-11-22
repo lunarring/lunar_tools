@@ -203,25 +203,25 @@ class SpeechDetector:
 
 #%% EXAMPLE USE        
 if __name__ == "__main__":
-    # audio_recorder = AudioRecorder()
-    # audio_recorder.start_recording("myvoice.mp3")
-    # time.sleep(3)
-    # audio_recorder.stop_recording()
+    audio_recorder = AudioRecorder()
+    audio_recorder.start_recording("myvoice.mp3")
+    time.sleep(3)
+    audio_recorder.stop_recording()
     
     # audio_recorder.start_recording("myvoice2.mp3")
     # time.sleep(3)
     # audio_recorder.stop_recording()
     
     
-    speech_detector = SpeechDetector()
-    speech_detector.start_recording()
-    time.sleep(3)
-    translation = speech_detector.stop_recording()
-    print(f"translation: {translation}")
+    # speech_detector = SpeechDetector()
+    # speech_detector.start_recording()
+    # time.sleep(3)
+    # translation = speech_detector.stop_recording()
+    # print(f"translation: {translation}")
     
-    speech_detector.start_recording()
-    time.sleep(3)
-    translation = speech_detector.stop_recording()
-    print(f"translation: {translation}")
+    # speech_detector.start_recording()
+    # time.sleep(3)
+    # translation = speech_detector.stop_recording()
+    # print(f"translation: {translation}")
     
     

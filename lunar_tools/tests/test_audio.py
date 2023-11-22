@@ -3,9 +3,11 @@ import os
 import time
 from pydub import AudioSegment
 import sys
+import string
 sys.path.append(os.path.abspath('.'))
 sys.path.append(os.path.abspath('lunar_tools'))
 from audio import AudioRecorder
+from audio import SpeechDetector
 
 class TestAudioRecorder(unittest.TestCase):
     """
@@ -34,7 +36,27 @@ class TestAudioRecorder(unittest.TestCase):
         # Clean up: remove the test file
         os.remove(test_filename)
 
-    # Additional tests can be added here
+class TestSpeechDetector(unittest.TestCase):
+    def setUp(self):
+        # Set up the SpeechDetector instance
+        self.speech_detector = SpeechDetector()
 
+    def test_translate_myvoice(self):
+        # Test to ensure that translating 'myvoice.mp3' returns 'I am a butterfly'
+        audio_file = 'lunar_tools/tests/myvoice.mp3'
+        expected_transcript = 'I am a butterfly'
+        result = self.speech_detector.translate(audio_file)
+
+        # Strip punctuation from the result for comparison
+        result = result.translate(str.maketrans('', '', string.punctuation))
+
+        self.assertEqual(result, expected_transcript, f"Transcript does not match expected text. Got: {result}")
+
+
+    def test_translate_non_existent_file(self):
+        # Test to handle non-existent file error
+        with self.assertRaises(FileNotFoundError):
+            self.speech_detector.translate("non_existent_file.mp3")
 if __name__ == '__main__':
+    
     unittest.main()
