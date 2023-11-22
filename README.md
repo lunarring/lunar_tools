@@ -26,6 +26,15 @@ translation = speech_detector.stop_recording()
 print(f"translation: {translation}")
 ```
 
+# Logging and terminal printing
+```python
+import lunar_tools as lt
+logger = lt.LogPrint()  # No filename provided, will use default current_dir/logs/%y%m%d_%H%M
+logger.print("white")
+logger.print("red", "red")
+logger.print("green", "green")
+```    
+
 # Image gen
 ## Generate Images with Dall-e-3
 ```python
