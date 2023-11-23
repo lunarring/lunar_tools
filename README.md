@@ -26,14 +26,6 @@ translation = speech_detector.stop_recording()
 print(f"translation: {translation}")
 ```
 
-## Text2Speech
-```python
-import lunar_tools as lt
-text2speech = lt.Text2Speech()
-text2speech.change_voice("nova")
-text2speech.generate("hey there can you hear me?", "hervoice.mp3")
-```
-
 ## Play sounds
 ```python
 import lunar_tools as lt
@@ -43,6 +35,19 @@ player.play_sound("myvoice.mp3")
 The playback is threaded and does not block the main application. You can stop the playback via: 
 ```python
 player.stop_sound()
+```
+
+## Text2Speech
+```python
+import lunar_tools as lt
+text2speech = lt.Text2Speech()
+text2speech.change_voice("nova")
+text2speech.generate("hey there can you hear me?", "hervoice.mp3")
+```
+
+The Text2Speech can also directly generate and play back the sound via: 
+```python
+text2speech.play("hey there can you hear me?")
 ```
 
 # Logging and terminal printing
