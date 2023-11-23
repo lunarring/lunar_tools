@@ -199,19 +199,18 @@ class Speech2Text:
             )
         return transcript.text
 
+
 class Text2Speech:
-    def __init__(self, client=None, logger=None, text_source=None, voice_model="default"):
+    def __init__(
+        self, 
+        client=None, 
+        logger=None, 
+        text_source=None, 
+        voice_model="default", 
+        sound_player=None
+    ):
         """
-        Initialize the Text2Speech with an OpenAI client, a logger, a text source, and a default voice model.
-
-        Args:
-            client: An instance of OpenAI client. If None, it will be created using the OPENAI_API_KEY.
-            logger: A logging instance. If None, a default logger will be used.
-            text_source: An instance of a text source. If None, text input functionalities will be disabled.
-            voice_model: A default voice model. If None, a default voice model will be used.
-
-        Raises:
-            ValueError: If no OpenAI API key is found in the environment variables.
+        Initialize the Text2Speech with an OpenAI client, a logger, a text source, a default voice model, and optionally a sound player.
         """
         if client is None:
             api_key = os.environ.get("OPENAI_API_KEY")
@@ -221,22 +220,40 @@ class Text2Speech:
         else:
             self.client = client
         self.logger = logger if logger else LogPrint()
-        self.text_source = text_source
-        self.voice_model = voice_model
+        # Initialize the sound player only if provided
+        self.sound_player = sound_player
+        self.output_filename = None  # Initialize output filename
 
-    def generate_speech(self, text=None, output_filename=None):
+    def play(self, text=None):
+        """
+        Play a generated speech file. Instantiates SoundPlayer if it's not already.
+        """
+        self.generate(text)
+        if self.sound_player is None:
+            self.sound_player = SoundPlayer()
+        self.sound_player.play_sound(self.output_filename)
+
+    def stop(self):
+        """
+        Stop the currently playing speech file.
+        """
+        if self.sound_player:
+            self.sound_player.stop_sound()
+
+
+    def generate(self, text, output_filename=None):
         """
         Generate speech from text.
     
         Args:
-            text (str): The text to be converted into speech. If None, text from the text source is used.
+            text (str): The text to be converted into speech. 
             output_filename (str): The filename for the output file. If None, a default filename is used.
     
         Raises:
             ValueError: If the text source is not available.
         """
-        if self.text_source is None and text is None:
-            raise ValueError("Text source is not available")
+        if text is None or len(text)==0:
+            raise ValueError("text is invalid!")
         text = text if text is not None else self.text_source.get_text()
     
         response = self.client.audio.speech.create(
@@ -244,13 +261,10 @@ class Text2Speech:
             voice=self.voice_model,
             input=text
         )
-    
-        if output_filename is None:
-            output_filename = "output_speech.mp3"
-    
-        response.stream_to_file(output_filename)  # Change here: directly provide the file path
         
-        self.logger.print(f"Generated speech saved to {output_filename}")
+        self.output_filename = output_filename if output_filename else "output_speech.mp3"
+        response.stream_to_file(self.output_filename)
+        self.logger.print(f"Generated speech saved to {self.output_filename}")
 
 
     def change_voice(self, new_voice):
@@ -335,8 +349,8 @@ if __name__ == "__main__":
     
     # Example Usage
     text2speech = Text2Speech()
-    # text2speech.change_voice("nova")
-    # text2speech.generate_speech("hey what do you think shall we leave? That sounds really good OK", "/tmp/bla.mp3")
-    player = SoundPlayer()
-    player.play_sound("/tmp/bla.mp3")
-    player.stop_sound()
+    text2speech.change_voice("nova")
+    text2speech.play("hey what do you think shall we leave? That sounds really good OK")
+    # player = SoundPlayer()
+    # player.play_sound("/tmp/bla.mp3")
+    # player.stop_sound()

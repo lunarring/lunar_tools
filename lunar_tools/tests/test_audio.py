@@ -81,7 +81,7 @@ class TestText2Speech(unittest.TestCase):
         test_text = "Hello world"
         test_output_filename = "test_output.mp3"
         self.text2speech.change_voice("echo")
-        self.text2speech.generate_speech(text=test_text, output_filename=test_output_filename)
+        self.text2speech.generate(text=test_text, output_filename=test_output_filename)
         
         # Check if the file is created
         self.assertTrue(os.path.exists(test_output_filename))
