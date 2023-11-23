@@ -31,7 +31,7 @@ print(f"translation: {translation}")
 import lunar_tools as lt
 text2speech = lt.Text2Speech()
 text2speech.change_voice("nova")
-text2speech.generate_speech("hey there can you hear me?", "hervoice.mp3")
+text2speech.generate("hey there can you hear me?", "hervoice.mp3")
 ```
 
 ## Play sounds
