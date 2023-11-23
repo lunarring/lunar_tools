@@ -206,7 +206,7 @@ class Text2Speech:
         client=None, 
         logger=None, 
         text_source=None, 
-        voice_model="default", 
+        voice_model="nova", 
         sound_player=None
     ):
         """
@@ -223,6 +223,7 @@ class Text2Speech:
         # Initialize the sound player only if provided
         self.sound_player = sound_player
         self.output_filename = None  # Initialize output filename
+        self.voice_model = voice_model
 
     def play(self, text=None):
         """
