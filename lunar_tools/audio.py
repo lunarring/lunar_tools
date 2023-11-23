@@ -350,7 +350,7 @@ if __name__ == "__main__":
     # Example Usage
     text2speech = Text2Speech()
     text2speech.change_voice("nova")
-    text2speech.play("hey what do you think shall we leave? That sounds really good OK")
+    text2speech.play("test hello!")
     # player = SoundPlayer()
     # player.play_sound("/tmp/bla.mp3")
     # player.stop_sound()

@@ -1,5 +1,9 @@
 from setuptools import setup, find_packages
 
+# Read requirements.txt and store its contents in a list
+with open('requirements.txt') as f:
+    required = f.read().splitlines()
+
 setup(
     name='lunar_tools',
     version='0.0.3',
@@ -7,16 +11,7 @@ setup(
     url='https://github.com/lunarring/lunar_tools',
     description='Lunar Ring auxiliary tools and modules',
     long_description=open('README.md').read(),
-    install_requires=[
-        'openai==1.3.3',
-        'Pillow==10.1.0',
-        'PyAudio==0.2.14',
-        'pydub==0.25.1',
-        'requests==2.28.1',
-        'rich==13.7.0',
-        'setuptools==65.6.3',
-	'simpleaudio==1.0.4',
-    ],
-    dependency_links = [],
+    install_requires=required,  # Use the list from requirements.txt here
+    dependency_links=[],
     include_package_data=True,
 )
