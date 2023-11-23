@@ -46,5 +46,8 @@ class LogPrint:
 
 if __name__ == "__main__":
     # Example usage
-    logger = LogPrint()  # No filename provided, will use default
-    logger.print("Test...")
+    logger = LogPrint()  # No filename provided, will use default current_dir/logs/%y%m%d_%H%M
+    logger.print("white")
+    logger.print("red", "red")
+    logger.print("green", "green")
+    

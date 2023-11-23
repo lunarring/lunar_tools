@@ -9,6 +9,7 @@ import os
 import time
 from openai import OpenAI
 from lunar_tools.logprint import LogPrint
+import simpleaudio
 
 
 class AudioRecorder:
@@ -33,7 +34,7 @@ class AudioRecorder:
         audio_format=pyaudio.paInt16,
         channels=1,
         rate=44100,
-        chunk=1024, 
+        chunk=1024,
         logger=None
     ):
         """
@@ -124,10 +125,10 @@ class AudioRecorder:
             self.thread.join()
 
 
-class SpeechDetector:
+class Speech2Text:
     def __init__(self, client=None, logger=None, audio_recorder=None):
         """
-        Initialize the SpeechDetector with an OpenAI client, a logger, and an audio recorder.
+        Initialize the Speech2Text with an OpenAI client, a logger, and an audio recorder.
 
         Args:
             client: An instance of OpenAI client. If None, it will be created using the OPENAI_API_KEY.
@@ -198,22 +199,130 @@ class SpeechDetector:
             )
         return transcript.text
 
+class Text2Speech:
+    def __init__(self, client=None, logger=None, text_source=None, voice_model="default"):
+        """
+        Initialize the Text2Speech with an OpenAI client, a logger, a text source, and a default voice model.
+
+        Args:
+            client: An instance of OpenAI client. If None, it will be created using the OPENAI_API_KEY.
+            logger: A logging instance. If None, a default logger will be used.
+            text_source: An instance of a text source. If None, text input functionalities will be disabled.
+            voice_model: A default voice model. If None, a default voice model will be used.
+
+        Raises:
+            ValueError: If no OpenAI API key is found in the environment variables.
+        """
+        if client is None:
+            api_key = os.environ.get("OPENAI_API_KEY")
+            if not api_key:
+                raise ValueError("No OPENAI_API_KEY found in environment variables")
+            self.client = OpenAI(api_key=api_key)
+        else:
+            self.client = client
+        self.logger = logger if logger else LogPrint()
+        self.text_source = text_source
+        self.voice_model = voice_model
+
+    def generate_speech(self, text=None, output_filename=None):
+        """
+        Generate speech from text.
+    
+        Args:
+            text (str): The text to be converted into speech. If None, text from the text source is used.
+            output_filename (str): The filename for the output file. If None, a default filename is used.
+    
+        Raises:
+            ValueError: If the text source is not available.
+        """
+        if self.text_source is None and text is None:
+            raise ValueError("Text source is not available")
+        text = text if text is not None else self.text_source.get_text()
+    
+        response = self.client.audio.speech.create(
+            model="tts-1",
+            voice=self.voice_model,
+            input=text
+        )
+    
+        if output_filename is None:
+            output_filename = "output_speech.mp3"
+    
+        response.stream_to_file(output_filename)  # Change here: directly provide the file path
+        
+        self.logger.print(f"Generated speech saved to {output_filename}")
+
+
+    def change_voice(self, new_voice):
+        """
+        Change the voice model for speech generation.
+
+        Args:
+            new_voice (str): The new voice model to be used.
+        """
+        if new_voice in self.list_available_voices():
+            self.voice_model = new_voice
+            self.logger.print(f"Voice model changed to {new_voice}")
+        else:
+            raise ValueError(f"Voice '{new_voice}' is not a valid voice model.")
+
+    @staticmethod
+    def list_available_voices():
+        """
+        List the available voice models.
+
+        Returns:
+            list: A list of available voice models.
+        """
+        return ["alloy", "echo", "fable", "onyx", "nova", "shimmer"]
+
+
+class SoundPlayer:
+    def __init__(self):
+        self._play_thread = None
+        self._playback_object = None
+
+    def _play_sound_threaded(self, sound):
+        self._playback_object = simpleaudio.play_buffer(
+            sound.raw_data,
+            num_channels=sound.channels,
+            bytes_per_sample=sound.sample_width,
+            sample_rate=sound.frame_rate
+        )
+        self._playback_object.wait_done()  # Wait until sound has finished playing
+
+    def play_sound(self, file_path):
+        # Stop any currently playing sound
+        self.stop_sound()
+
+        # Load the sound file
+        sound = AudioSegment.from_file(file_path)
+
+        # Start a new thread for playing the sound
+        self._play_thread = threading.Thread(target=self._play_sound_threaded, args=(sound,))
+        self._play_thread.start()
+
+    def stop_sound(self):
+        if self._play_thread and self._play_thread.is_alive():
+            if self._playback_object:
+                self._playback_object.stop()
+            self._play_thread.join()
 
     
 
 #%% EXAMPLE USE        
 if __name__ == "__main__":
-    audio_recorder = AudioRecorder()
-    audio_recorder.start_recording("myvoice.mp3")
-    time.sleep(3)
-    audio_recorder.stop_recording()
+    # audio_recorder = AudioRecorder()
+    # audio_recorder.start_recording("myvoice.mp3")
+    # time.sleep(3)
+    # audio_recorder.stop_recording()
     
     # audio_recorder.start_recording("myvoice2.mp3")
     # time.sleep(3)
     # audio_recorder.stop_recording()
     
     
-    # speech_detector = SpeechDetector()
+    # speech_detector = Speech2Text()
     # speech_detector.start_recording()
     # time.sleep(3)
     # translation = speech_detector.stop_recording()
@@ -224,4 +333,10 @@ if __name__ == "__main__":
     # translation = speech_detector.stop_recording()
     # print(f"translation: {translation}")
     
-    
+    # Example Usage
+    text2speech = Text2Speech()
+    # text2speech.change_voice("nova")
+    # text2speech.generate_speech("hey what do you think shall we leave? That sounds really good OK", "/tmp/bla.mp3")
+    player = SoundPlayer()
+    player.play_sound("/tmp/bla.mp3")
+    player.stop_sound()

@@ -76,5 +76,7 @@ class Dalle3ImageGenerator:
 if __name__ == "__main__":
     # Example usage
     dalle3 = Dalle3ImageGenerator()
-    image, revised_prompt = dalle3.generate("a beautiful red house with snow on the roof, a chimney with smoke", simulation=True)
+    image, revised_prompt = dalle3.generate("realistic photo of a ")
+    image = image.resize((1024, 576))
+    image.save("/Users/jjj/glif/git_remote/generative-models/assets/fluid3.jpg")
     image.show()

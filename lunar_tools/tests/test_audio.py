@@ -7,7 +7,7 @@ import string
 sys.path.append(os.path.abspath('.'))
 sys.path.append(os.path.abspath('lunar_tools'))
 from audio import AudioRecorder
-from audio import SpeechDetector
+from audio import Speech2Text
 
 class TestAudioRecorder(unittest.TestCase):
     """
@@ -36,10 +36,10 @@ class TestAudioRecorder(unittest.TestCase):
         # Clean up: remove the test file
         os.remove(test_filename)
 
-class TestSpeechDetector(unittest.TestCase):
+class TestSpeech2Text(unittest.TestCase):
     def setUp(self):
-        # Set up the SpeechDetector instance
-        self.speech_detector = SpeechDetector()
+        # Set up the Speech2Text instance
+        self.speech_detector = Speech2Text()
 
     def test_translate_myvoice(self):
         # Test to ensure that translating 'myvoice.mp3' returns 'I am a butterfly'

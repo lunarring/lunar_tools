@@ -15,6 +15,7 @@ setup(
         'requests==2.28.1',
         'rich==13.7.0',
         'setuptools==65.6.3',
+	'simpleaudio==1.0.4',
     ],
     dependency_links = [],
     include_package_data=True,
