@@ -8,6 +8,7 @@ import os
 from PIL import Image
 import numpy as np
 from openai import OpenAI
+import replicate
 from lunar_tools.logprint import LogPrint
 
 
@@ -73,10 +74,92 @@ class Dalle3ImageGenerator:
         return image, revised_prompt
 
 
+class LCM_SDXL:
+    def __init__(self, client=None, logger=None, size_output=(1024, 1024), num_inference_steps=4):
+        if client is None:
+            self.client = replicate.Client(api_token=os.getenv("REPLICATE_API_KEY"))
+        else:
+            self.client = client
+
+        self.logger = logger if logger else LogPrint()
+        self.size = size_output
+        self.num_inference_steps = num_inference_steps
+
+    def set_dimensions(self, size_output):
+        self.size = size_output
+
+    def set_num_inference_steps(self, num_inference_steps):
+        self.num_inference_steps = num_inference_steps
+
+    def generate(self, prompt, negative_prompt="", simulation=False):
+        width, height = self.size
+        num_inference_steps = self.num_inference_steps
+
+        if simulation:
+            # Simulation mode: Generate a random image
+            image_array = np.random.randint(0, 255, (height, width, 3), dtype=np.uint8)
+            image = Image.fromarray(image_array, 'RGB')
+            self.logger.print("LCM_SDXL: Simulation mode - random image generated")
+            img_url = "Simulation mode - no image URL"
+        else:
+            # Normal mode: Call the API to generate an image
+            try:
+                self.logger.print("LCM_SDXL: Starting image generation")
+                start_time = time.time()
+
+                output = self.client.run(
+                    "lucataco/sdxl-lcm:fbbd475b1084de80c47c35bfe4ae64b964294aa7e237e6537eed938cfd24903d",
+                    input={
+                        "prompt": prompt,
+                        "negative_prompt": negative_prompt,
+                        "width": width,
+                        "height": height,
+                        "num_inference_steps": num_inference_steps
+                    }
+                )
+
+                img_url = output[0]
+                response_http = requests.get(img_url)
+                response_http.raise_for_status()
+
+                image_data = BytesIO(response_http.content)
+                image = Image.open(image_data)
+                end_time = time.time()
+                return image, img_url
+                self.logger.print(f"LCM_SDXL: Generation complete. Time taken: {int(end_time - start_time)} seconds")
+
+            except requests.exceptions.RequestException as e:
+                self.logger.print(f"HTTP Request failed: {e}")
+                return None, None
+           
+
+
+
 if __name__ == "__main__":
+    # Example usage Dalle3
+    # dalle3 = Dalle3ImageGenerator()
+    # image, revised_prompt = dalle3.generate("realistic photo of a ")
+    # image = image.resize((1024, 576))
+    # image.save("/Users/jjj/glif/git_remote/generative-models/assets/fluid3.jpg")
+    # image.show()
+    
+    # output = replicate.run(
+    #     "lucataco/sdxl-lcm:fbbd475b1084de80c47c35bfe4ae64b964294aa7e237e6537eed938cfd24903d",
+    #     input={"prompt": "An astronaut riding a rainbow unicorn, cinematic, dramatic",
+    #            "negative_prompt": "cartoon",
+    #            "width": 1280,
+    #            "height": 1024,
+    #            "num_inference_steps": 6}
+    # )
+    # img_url = output[0]
+    
     # Example usage
-    dalle3 = Dalle3ImageGenerator()
-    image, revised_prompt = dalle3.generate("realistic photo of a ")
-    image = image.resize((1024, 576))
-    image.save("/Users/jjj/glif/git_remote/generative-models/assets/fluid3.jpg")
-    image.show()
+    lcm_sdxl = LCM_SDXL()
+    image, img_url = lcm_sdxl.generate("An astronaut riding a rainbow unicorn", "cartoon")
+
+
+    
+    
+    
+    
+    
