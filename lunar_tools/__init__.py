@@ -4,4 +4,5 @@ from .audio import Text2Speech
 from .audio import SoundPlayer
 from .llm import GPT4
 from .image_gen import Dalle3ImageGenerator
+from .image_gen import LCM_SDXL
 from .logprint import LogPrint
