@@ -12,12 +12,14 @@ import replicate
 from lunar_tools.logprint import LogPrint
 
 
+#         1024x1024, 1024x1792 1792x1024
+
 class Dalle3ImageGenerator:
     def __init__(self,
                  client=None,
                  logger=None,
                  model="dall-e-3",
-                 size="1792x1024",
+                 size_output=(1792, 1024),
                  quality="standard"):
         if client is None:
             api_key = os.environ.get("OPENAI_API_KEY")
@@ -25,12 +27,29 @@ class Dalle3ImageGenerator:
                 raise ValueError("No OPENAI_API_KEY found in environment variables")
             self.client = OpenAI(api_key=api_key)
         else:
+            if not isinstance(client, OpenAI):
+                raise TypeError("Invalid client type. Expected a 'OpenAI' instance.")
             self.client = client
 
         self.logger = logger if logger else LogPrint()
         self.model = model
-        self.size = size
         self.quality = quality
+        self.set_dimensions(size_output)
+
+    def set_dimensions(self, size_output):
+        allowed_sizes = ["1024x1024", "1024x1792", "1792x1024"]
+
+        # Check if size_output has a length of 2
+        if len(size_output) != 2:
+            raise ValueError("size_output must have a length of 2.")
+
+        # Convert the input tuple to a string format
+        size_str = f"{size_output[0]}x{size_output[1]}"
+
+        if size_str not in allowed_sizes:
+            raise ValueError("Invalid size. Allowed sizes are 1024x1024, 1024x1792, and 1792x1024.")
+        else:
+            self.size = size_str
 
     def generate(self, prompt, simulation=False):
         if simulation:
@@ -79,6 +98,8 @@ class LCM_SDXL:
         if client is None:
             self.client = replicate.Client(api_token=os.getenv("REPLICATE_API_KEY"))
         else:
+            if not isinstance(client, replicate.Client):
+                raise TypeError("Invalid client type. Expected a 'replicate.Client' instance.")
             self.client = client
 
         self.logger = logger if logger else LogPrint()
@@ -101,6 +122,7 @@ class LCM_SDXL:
             image = Image.fromarray(image_array, 'RGB')
             self.logger.print("LCM_SDXL: Simulation mode - random image generated")
             img_url = "Simulation mode - no image URL"
+            return image, img_url
         else:
             # Normal mode: Call the API to generate an image
             try:
@@ -154,12 +176,16 @@ if __name__ == "__main__":
     # img_url = output[0]
     
     # Example usage
-    lcm_sdxl = LCM_SDXL()
+    # client = OpenAI()
+    client = replicate.Client(api_token=os.getenv("REPLICATE_API_KEY"))
+    lcm_sdxl = LCM_SDXL(client=client)
     image, img_url = lcm_sdxl.generate("An astronaut riding a rainbow unicorn", "cartoon")
 
 
     
     
-    
+    """
+    assert clients are correct
+    """
     
     
