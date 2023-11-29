@@ -4,6 +4,13 @@ Welcome to Lunar Tools, a comprehensive toolkit designed to fascilitate the prog
 # Installation
 pip install git+https://github.com/lunarring/lunar_tools
 
+Make sure you have the necessary API keys in your ~/.bash_profile (mac) or ~/.bash_rc (linux).
+
+```bash
+export OPENAI_API_KEY="XXX"
+export REPLICATE_API_TOKEN="XXX"
+```
+
 # Audio
 ## AudioRecorder
 ```python
