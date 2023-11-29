@@ -110,6 +110,7 @@ class AudioRecorder:
                 self.output_filename = temp_file.name
                 temp_file.close()
             else:
+                output_filename = str(output_filename)
                 if not output_filename.endswith('.mp3'):
                     raise ValueError("Output filename must have a .mp3 extension")
                 self.output_filename = output_filename
@@ -349,7 +350,7 @@ if __name__ == "__main__":
     # print(f"translation: {translation}")
     
     # Example Usage
-    text2speech = Text2Speech()
+    text2speech = Tzzext2Speech()
     text2speech.change_voice("nova")
     text2speech.play("test hello!")
     # player = SoundPlayer()
