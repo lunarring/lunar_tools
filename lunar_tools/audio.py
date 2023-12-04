@@ -10,7 +10,7 @@ import time
 from openai import OpenAI
 from lunar_tools.logprint import LogPrint
 import simpleaudio
-
+from elevenlabs import voices, generate, save
 
 class AudioRecorder:
     """
@@ -201,12 +201,11 @@ class Speech2Text:
         return transcript.text
 
 
-class Text2Speech:
+class Text2SpeechOpenAI:
     def __init__(
         self, 
         client=None, 
         logger=None, 
-        text_source=None, 
         voice_model="nova", 
         sound_player=None
     ):
@@ -256,7 +255,6 @@ class Text2Speech:
         """
         if text is None or len(text)==0:
             raise ValueError("text is invalid!")
-        text = text if text is not None else self.text_source.get_text()
     
         response = self.client.audio.speech.create(
             model="tts-1",
@@ -291,6 +289,76 @@ class Text2Speech:
             list: A list of available voice models.
         """
         return ["alloy", "echo", "fable", "onyx", "nova", "shimmer"]
+    
+    
+class Text2SpeechElevenlabs:
+    def __init__(
+        self, 
+        logger=None, 
+        voice_model="Sam", 
+        sound_player=None
+    ):
+        """
+        Initialize the Text2Speech for elevenlabs, a logger, a text source, a default voice model, and optionally a sound player.
+        """
+        self.logger = logger if logger else LogPrint()
+        # Initialize the sound player only if provided
+        self.sound_player = sound_player
+        self.output_filename = None  # Initialize output filename
+        self.voice_model = voice_model
+
+    def play(self, text=None):
+        """
+        Play a generated speech file. Instantiates SoundPlayer if it's not already.
+        """
+        self.generate(text)
+        if self.sound_player is None:
+            self.sound_player = SoundPlayer()
+        self.sound_player.play_sound(self.output_filename)
+
+    def stop(self):
+        """
+        Stop the currently playing speech file.
+        """
+        if self.sound_player:
+            self.sound_player.stop_sound()
+
+
+    def generate(self, text, output_filename=None):
+        """
+        Generate speech from text.
+    
+        Args:
+            text (str): The text to be converted into speech. 
+            output_filename (str): The filename for the output file. If None, a default filename is used.
+    
+        Raises:
+            ValueError: If the text source is not available.
+        """
+        if text is None or len(text)==0:
+            raise ValueError("text is invalid!")
+    
+        all_voices = voices()
+        audio = generate(text=text, voice=all_voices[0])
+        self.output_filename = output_filename if output_filename else "output_speech.mp3"
+        save(audio, self.output_filename)
+        self.logger.print(f"Generated speech saved to {self.output_filename}")
+
+
+    def change_voice(self, new_voice):
+        """
+        Change the voice model for speech generation.
+
+        Args:
+            new_voice (str): The new voice model to be used.
+        """
+        if new_voice in self.list_available_voices():
+            self.voice_model = new_voice
+            self.logger.print(f"Voice model changed to {new_voice}")
+        else:
+            raise ValueError(f"Voice '{new_voice}' is not a valid voice model.")
+
+
 
 
 class SoundPlayer:
@@ -328,10 +396,10 @@ class SoundPlayer:
 
 #%% EXAMPLE USE        
 if __name__ == "__main__":
-    # audio_recorder = AudioRecorder()
-    # audio_recorder.start_recording("myvoice.mp3")
-    # time.sleep(3)
-    # audio_recorder.stop_recording()
+    audio_recorder = AudioRecorder()
+    audio_recorder.start_recording("jlong.mp3")
+    time.sleep(130)
+    audio_recorder.stop_recording()
     
     # audio_recorder.start_recording("myvoice2.mp3")
     # time.sleep(3)
@@ -350,9 +418,25 @@ if __name__ == "__main__":
     # print(f"translation: {translation}")
     
     # Example Usage
-    text2speech = Tzzext2Speech()
-    text2speech.change_voice("nova")
-    text2speech.play("test hello!")
+    # text2speech = Text2SpeechElevenlabs()
+    # text2speech.change_voice("nova")
+    # text2speech.play("well how are you?")
     # player = SoundPlayer()
     # player.play_sound("/tmp/bla.mp3")
     # player.stop_sound()
+    
+    # %%
+    
+    from elevenlabs import clone, generate, play
+
+    voice = clone(
+        name="Johannes",
+        description="buba",
+        files=["jlong.mp3"],
+    )
+    
+    audio = generate(text="Hi! bubu baba", voice=voice)
+    
+    play(audio)
+    
+

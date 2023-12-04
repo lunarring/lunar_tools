@@ -6,7 +6,7 @@ import sys
 import string
 sys.path.append(os.path.abspath('.'))
 sys.path.append(os.path.abspath('lunar_tools'))
-from audio import AudioRecorder, Speech2Text, Text2Speech
+from audio import AudioRecorder, Speech2Text, Text2SpeechOpenAI
 
 class TestAudioRecorder(unittest.TestCase):
     """
@@ -58,30 +58,30 @@ class TestSpeech2Text(unittest.TestCase):
             self.speech_detector.translate("non_existent_file.mp3")
             
             
-class TestText2Speech(unittest.TestCase):
+class TestText2SpeechOpenAI(unittest.TestCase):
 
     def setUp(self):
-        # Initialize the Text2Speech instance with default parameters
-        self.text2speech = Text2Speech()
+        # Initialize the Text2SpeechOpenAI instance with default parameters
+        self.Text2SpeechOpenAI = Text2SpeechOpenAI()
 
     def test_change_voice_valid_voice(self):
         # Test changing the voice to a valid model
         new_voice = "echo"
-        self.text2speech.change_voice(new_voice)
-        self.assertEqual(self.text2speech.voice_model, new_voice)
+        self.Text2SpeechOpenAI.change_voice(new_voice)
+        self.assertEqual(self.Text2SpeechOpenAI.voice_model, new_voice)
 
     def test_change_voice_invalid_voice(self):
         # Test changing the voice to an invalid model
         new_voice = "invalid_voice"
         with self.assertRaises(ValueError):
-            self.text2speech.change_voice(new_voice)
+            self.Text2SpeechOpenAI.change_voice(new_voice)
 
     def test_generate_speech_output_file(self):
         # Test generating speech and writing to a file
         test_text = "Hello world"
         test_output_filename = "test_output.mp3"
-        self.text2speech.change_voice("echo")
-        self.text2speech.generate(text=test_text, output_filename=test_output_filename)
+        self.Text2SpeechOpenAI.change_voice("echo")
+        self.Text2SpeechOpenAI.generate(text=test_text, output_filename=test_output_filename)
         
         # Check if the file is created
         self.assertTrue(os.path.exists(test_output_filename))
