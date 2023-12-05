@@ -2,7 +2,9 @@
 Welcome to Lunar Tools, a comprehensive toolkit designed to fascilitate the programming of interactive exhibitions. Our suite of simple, modular tools is crafted to offer a seamless and hopefully bug-free experience for both exhibitors and visitors.
 
 # Installation
+```bash
 pip install git+https://github.com/lunarring/lunar_tools
+```
 
 Make sure you have the necessary API keys in your ~/.bash_profile (mac) or ~/.bash_rc (linux).
 
