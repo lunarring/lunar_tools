@@ -9,6 +9,7 @@ Make sure you have the necessary API keys in your ~/.bash_profile (mac) or ~/.ba
 ```bash
 export OPENAI_API_KEY="XXX"
 export REPLICATE_API_TOKEN="XXX"
+export REPLICATE_API_TOKEN="XXX"
 ```
 
 # Audio
