@@ -47,7 +47,7 @@ player.stop_sound()
 ## Text2Speech
 ```python
 import lunar_tools as lt
-text2speech = lt.Text2Speech()
+text2speech = lt.Text2SpeechOpenAI()
 text2speech.change_voice("nova")
 text2speech.generate("hey there can you hear me?", "hervoice.mp3")
 ```
