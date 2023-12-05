@@ -1,108 +1,88 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import pyaudio
 import tempfile
 from pydub import AudioSegment
 import threading
 import os
 import time
 from openai import OpenAI
-from lunar_tools.logprint import LogPrint
+from logprint import LogPrint
+# from lunar_tools.logprint import LogPrint
 import simpleaudio
 from elevenlabs import voices, generate, save
 
+import sounddevice as sd
+import numpy as np
+import wave
+from pydub import AudioSegment
+
+
 class AudioRecorder:
     """
-    A class to handle audio recording.
+    A class to handle audio recording using sounddevice instead of pyaudio.
 
     Attributes:
-        audio_format (pyaudio.paInt16): Format of the audio recording.
         channels (int): Number of audio channels.
         rate (int): Sampling rate.
         chunk (int): Number of frames per buffer.
         frames (list): List to hold audio frames.
         is_recording (bool): Flag to check if recording is in progress.
-        audio (pyaudio.PyAudio): PyAudio instance.
-        stream (pyaudio.Stream): Audio stream.
+        stream (sd.InputStream): Audio stream.
         output_filename (str): Output file name.
         logger: A logging instance. If None, a default logger will be used.
     """
 
     def __init__(
         self,
-        audio_format=pyaudio.paInt16,
         channels=1,
         rate=44100,
         chunk=1024,
         logger=None
     ):
-        """
-        Initialize the audio recorder.
-
-        Args:
-            audio_format (constant): Format of the audio recording.
-            channels (int): Number of audio channels.
-            rate (int): Sampling rate.
-            chunk (int): Number of frames per buffer.
-        """
-        self.audio_format = audio_format
         self.channels = channels
         self.rate = rate
         self.chunk = chunk
         self.frames = []
         self.is_recording = False
-        self.audio = pyaudio.PyAudio()
         self.stream = None
         self.output_filename = None
         self.logger = logger if logger else LogPrint()
 
     def _record(self, max_time=None):
-        """
-        Internal method to handle the audio recording process.
-        Converts the recorded frames to MP3 format.
-
-        Args:
-            max_time (int, optional): Maximum recording time in seconds.
-        """
-        self.stream = self.audio.open(
-            format=self.audio_format,
+        self.stream = sd.InputStream(
+            samplerate=self.rate,
             channels=self.channels,
-            rate=self.rate,
-            input=True,
-            frames_per_buffer=self.chunk
+            blocksize=self.chunk,
+            dtype='float32'
         )
         self.logger.print("Recording...")
         self.frames = []
         start_time = time.time()
-        while self.is_recording:
-            if max_time and (time.time() - start_time) >= max_time:
-                break
-            data = self.stream.read(self.chunk)
-            self.frames.append(data)
+        with self.stream:
+            while self.is_recording:
+                if max_time and (time.time() - start_time) >= max_time:
+                    break
+                data, overflowed = self.stream.read(self.chunk)
+                self.frames.append(data.flatten())
 
         self.logger.print("Finished recording.")
-        self.stream.stop_stream()
-        self.stream.close()
         
-        # Convert to MP3
-        raw_data = b''.join(self.frames)
-        wav_audio = AudioSegment(
-            data=raw_data,
-            sample_width=self.audio.get_sample_size(self.audio_format),
-            frame_rate=self.rate,
-            channels=self.channels
-        )
+        # Convert to WAV and then to MP3
+        wav_filename = tempfile.mktemp(suffix='.wav')
+        wf = wave.open(wav_filename, 'wb')
+        wf.setnchannels(self.channels)
+        wf.setsampwidth(2)  # 2 bytes for 16-bit audio
+        wf.setframerate(self.rate)
+        self.frames = np.clip(self.frames, -1, +1)
+        wf.writeframes(np.array(self.frames*32767).astype(np.int16).tobytes())
+        # wf.writeframes(b''.join(np.array(self.frames).astype(np.int16).tobytes()))
+        wf.close()
+
+        wav_audio = AudioSegment.from_wav(wav_filename)
         wav_audio.export(self.output_filename, format="mp3")
 
     def start_recording(self, output_filename=None, max_time=None):
-        """
-        Start the audio recording.
-
-        Args:
-            output_filename (str): The filename for the output file. If None, a temporary file is created.
-            max_time (int, optional): Maximum recording time in seconds.
-        """
         if not self.is_recording:
             self.is_recording = True
             if output_filename is None:
@@ -118,13 +98,10 @@ class AudioRecorder:
             self.thread.start()
 
     def stop_recording(self):
-        """
-        Stop the audio recording and join the recording thread.
-        """
         if self.is_recording:
             self.is_recording = False
             self.thread.join()
-
+            
 
 class Speech2Text:
     def __init__(self, client=None, logger=None, audio_recorder=None):
@@ -397,8 +374,8 @@ class SoundPlayer:
 #%% EXAMPLE USE        
 if __name__ == "__main__":
     audio_recorder = AudioRecorder()
-    audio_recorder.start_recording("jlong.mp3")
-    time.sleep(130)
+    audio_recorder.start_recording("x.mp3")
+    time.sleep(2)
     audio_recorder.stop_recording()
     
     # audio_recorder.start_recording("myvoice2.mp3")
@@ -417,26 +394,26 @@ if __name__ == "__main__":
     # translation = speech_detector.stop_recording()
     # print(f"translation: {translation}")
     
-    # Example Usage
+    # # Example Usage
     # text2speech = Text2SpeechElevenlabs()
-    # text2speech.change_voice("nova")
+    # # text2speech.change_voice("nova")
     # text2speech.play("well how are you?")
-    # player = SoundPlayer()
-    # player.play_sound("/tmp/bla.mp3")
-    # player.stop_sound()
+    # # player = SoundPlayer()
+    # # player.play_sound("/tmp/bla.mp3")
+    # # player.stop_sound()
     
-    # %%
+    # # %%
     
-    from elevenlabs import clone, generate, play
+    # from elevenlabs import clone, generate, play
 
-    voice = clone(
-        name="Johannes",
-        description="buba",
-        files=["jlong.mp3"],
-    )
+    # voice = clone(
+    #     name="Johannes",
+    #     description="buba",
+    #     files=["jlong.mp3"],
+    # )
     
-    audio = generate(text="Hi! bubu baba", voice=voice)
+    # audio = generate(text="Hi! bubu baba", voice=voice)
     
-    play(audio)
+    # play(audio)
     
 
