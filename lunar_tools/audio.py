@@ -7,8 +7,7 @@ import threading
 import os
 import time
 from openai import OpenAI
-from logprint import LogPrint
-# from lunar_tools.logprint import LogPrint
+from lunar_tools.logprint import LogPrint
 import simpleaudio
 from elevenlabs import voices, generate, save
 
