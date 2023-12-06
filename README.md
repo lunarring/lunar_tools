@@ -77,6 +77,28 @@ dalle3 = lt.Dalle3ImageGenerator()
 image, revised_prompt = dalle3.generate("a beautiful red house with snow on the roof, a chimney with smoke")
 ```
 
+
+# Movie handling
+## Saving a series of images as movie
+```python
+import lunar_tools as lt
+ms = lt.MovieSaver("my_movie.mp4", fps=24)
+for _ in range(10):
+    img = (np.random.rand(512, 1024, 3) * 255).astype(np.uint8)
+    ms.write_frame(img)
+ms.finalize()
+```
+
+## Loading movie and retrieving frames
+```python
+import lunar_tools as lt
+mr = lt.MovieReader("my_movie.mp4")
+for _ in range(mr.nmb_frames):
+    img = mr.get_next_frame()
+```
+
+
+
 # Devinfos
 ## Testing
 pip install pytest
