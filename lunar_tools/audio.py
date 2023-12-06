@@ -435,7 +435,7 @@ if __name__ == "__main__":
     #     files=["jlong.mp3"],
     # )
     
-    # audio = generate(text="Hallo ich spreche Deutsch!", voice=voice)
+    # audio = generate(text="I am not sure!", voice=voice)
     
     # play(audio)
     
