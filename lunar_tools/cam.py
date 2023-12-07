@@ -40,7 +40,7 @@ def get_os_type():
         raise ValueError("unsupported OS")
 
 
-class Webcam():
+class WebCam():
     def __init__(self, cam_id=0, shape_hw=(576,1024)):
         """
         """
@@ -150,7 +150,7 @@ class Webcam():
         
 if __name__ == "__main__":
     from PIL import Image
-    cam = Webcam()
+    cam = WebCam()
     img = cam.get_img()
     img = Image.fromarray(img)
     img.show()
