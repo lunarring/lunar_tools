@@ -78,6 +78,19 @@ image, revised_prompt = dalle3.generate("a beautiful red house with snow on the 
 ```
 
 
+
+# Fast rendering
+Allows to fast render images from torch, numpy or PIL in a window. Can be directly from the GPU, without need to copy.
+```python
+sz = (1080, 1920)
+renderer = lt.Renderer(width=sz[1], height=sz[0])
+while True:
+    # image = np.random.rand(sz[0],sz[1],4) * 255 # numpy array
+    # image = Image.fromarray(np.uint8(np.random.rand(sz[0],sz[1],4) * 255)) # PIL array
+    image = torch.rand((sz[0],sz[1],4)) * 255 # Torch tensors
+    renderer.render(image)
+```
+
 # Movie handling
 ## Saving a series of images as movie
 ```python
