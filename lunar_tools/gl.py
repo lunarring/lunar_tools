@@ -144,7 +144,7 @@ def sdl_to_cv2_keycode(sdl_keycode):
         print('sdl_to_cv2_keycode -> unknown key code')
         return -1
 
-class LunarRenderer:
+class Renderer:
     def __init__(self, width: int = 1920, height: int = 1080, 
                  gpu_id: int = 0,
                  window_title: str = "lunar_render_window"):
@@ -424,7 +424,7 @@ if __name__ == '__main__':
     
     sz = (1080, 1920)
 
-    renderer = LunarRenderer(width=sz[1], height=sz[0])
+    renderer = Renderer(width=sz[1], height=sz[0])
 
     while True:
         # numpy array
