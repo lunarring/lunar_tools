@@ -12,4 +12,4 @@ from .movie import concatenate_movies
 from .movie import add_sound
 from .movie import add_subtitles_to_video
 from .movie import MovieReader
-
+from .cam import Webcam
