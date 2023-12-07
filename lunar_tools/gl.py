@@ -9,13 +9,15 @@ from sys import platform
 from PIL import Image
 import cv2
 
-with warnings.catch_warnings():
-    warnings.filterwarnings(action="ignore", category=UserWarning)
-    import sdl2
-
-from sdl2 import video
-from OpenGL import GL as gl
-from cuda import cudart as cu
+if platform == "linux" or platform == "linux2":
+    from cuda import cudart as cu
+    
+    with warnings.catch_warnings():
+        warnings.filterwarnings(action="ignore", category=UserWarning)
+        import sdl2
+    
+    from sdl2 import video
+    from OpenGL import GL as gl    
 
 import logging
 
@@ -89,8 +91,61 @@ def create_shader_program():
     fragment_shader = compileShader(FRAGMENT_SHADER_SOURCE, GL_FRAGMENT_SHADER)
     return compileProgram(vertex_shader, fragment_shader)
 
+class PeripheralEvent():
+    def __init__(self):
+        self.keycode = -1
+        self.mouse_button_state = -1
+        self.mouse_posX = -1
+        self.mouse_posY = -1
+
+# keycode conversion function  SDL2 -> OpenCV convention
+def sdl_to_cv2_keycode(sdl_keycode):
+    # Map for common keys (alphabets and numbers)
+    if sdl2.SDL_SCANCODE_A <= sdl_keycode <= sdl2.SDL_SCANCODE_Z:
+        return ord(chr(sdl_keycode - sdl2.SDL_SCANCODE_A + ord('a')))
+    elif sdl2.SDL_SCANCODE_1 <= sdl_keycode <= sdl2.SDL_SCANCODE_0:
+        return ord(chr(sdl_keycode - sdl2.SDL_SCANCODE_1 + ord('1')))
+    
+    # Digits
+        if sdl2.SDL_SCANCODE_1 <= sdl_keycode <= sdl2.SDL_SCANCODE_0:
+            return ord(chr(sdl_keycode - sdl2.SDL_SCANCODE_1 + ord('1')))    
+    
+    special_keys_map = {
+        sdl2.SDL_SCANCODE_RETURN: 13,     # Enter key
+        sdl2.SDL_SCANCODE_ESCAPE: 27,     # Escape key
+        sdl2.SDL_SCANCODE_BACKSPACE: 8,   # Backspace key
+        sdl2.SDL_SCANCODE_TAB: 9,         # Tab key
+        sdl2.SDL_SCANCODE_SPACE: 32,      # Space key
+        sdl2.SDL_SCANCODE_F1: 0x700000,   # F1 key
+        sdl2.SDL_SCANCODE_F2: 0x710000,   # F2 key
+        sdl2.SDL_SCANCODE_RETURN: 13,     # Enter key
+        sdl2.SDL_SCANCODE_ESCAPE: 27,     # Escape key
+        sdl2.SDL_SCANCODE_BACKSPACE: 8,   # Backspace key
+        sdl2.SDL_SCANCODE_TAB: 9,         # Tab key
+        sdl2.SDL_SCANCODE_SPACE: 32,      # Space key
+        sdl2.SDL_SCANCODE_F1: 0x700000,   # F1 key
+        sdl2.SDL_SCANCODE_F2: 0x710000,   # F2 key
+        sdl2.SDL_SCANCODE_F3: 0x720000,   # F3 key
+        sdl2.SDL_SCANCODE_F4: 0x730000,   # F4 key
+        # ... (Continue for other function keys F5 to F12)
+        sdl2.SDL_SCANCODE_RIGHT: 0x270000,  # Right arrow key
+        sdl2.SDL_SCANCODE_LEFT: 0x250000,   # Left arrow key
+        sdl2.SDL_SCANCODE_DOWN: 0x280000,   # Down arrow key
+        sdl2.SDL_SCANCODE_UP: 0x260000,     # Up arrow key        
+        # Add other special keys here
+        # ...
+    }
+    
+    if sdl_keycode in special_keys_map:
+        return special_keys_map.get(sdl_keycode, -1)
+    elif sdl_keycode == -1:
+        pass
+    else:
+        print('sdl_to_cv2_keycode -> unknown key code')
+        return -1
+
 class LunarRenderer:
-    def __init__(self, width: int = 800, height: int = 600, 
+    def __init__(self, width: int = 1920, height: int = 1080, 
                  gpu_id: int = 0,
                  window_title: str = "lunar_render_window"):
         
@@ -112,7 +167,7 @@ class LunarRenderer:
             self.backend = 'opencv'
         elif platform == "win32":
             self.backend = 'opencv'
-            
+        
     def sdl_setup(self):
         if sdl2.SDL_Init(sdl2.SDL_INIT_VIDEO):
             raise SDLException(sdl2.SDL_GetError())
@@ -207,16 +262,14 @@ class LunarRenderer:
         
         # handle mouse presses
         mouse_posX, mouse_posY = ctypes.c_int(0), ctypes.c_int(0)
-        mouse_buttonstate = sdl2.mouse.SDL_GetMouseState(ctypes.byref(mouse_posX), ctypes.byref(mouse_posX))
-        # Print x and y as "native" ctypes values
-        # print(x, y)
-        # Print x and y as Python values
-        # print(x.value, y.value)
-        # print(buttonstate)
 
+        pressed_key_code = -1
+        mouse_buttonstate = -1
         if self.running:
-            key_down = False
+            key_press_tracker_array = np.zeros((sdl2.SDL_NUM_SCANCODES,), dtype=np.int8)
             while sdl2.SDL_PollEvent(ctypes.byref(event)):
+                mouse_buttonstate = sdl2.mouse.SDL_GetMouseState(ctypes.byref(mouse_posX), ctypes.byref(mouse_posX))
+                
                 if (event.type == sdl2.SDL_WINDOWEVENT and event.window.event == sdl2.SDL_WINDOWEVENT_CLOSE):
                     self.running = False
                     self.gl_close()
@@ -226,15 +279,29 @@ class LunarRenderer:
                     self.running = False
                     self.gl_close()
                     sys.exit(0)
-                    
-                if key_states[sdl2.SDL_SCANCODE_A] and not key_down:
-                    print('A key pressed')
-                    key_down = True
-                elif not key_states[sdl2.SDL_SCANCODE_A] and key_down:
-                    print('A key released')
-                    key_down = False
+                
+                for key_code in range(sdl2.SDL_NUM_SCANCODES):
+                    # key pressed
+                    if key_states[key_code] and key_press_tracker_array[key_code] == 0:
+                        key_press_tracker_array[key_code] == 1
+                        pressed_key_code = key_code
+                        
+                    # key released
+                    elif not key_states[key_code] and key_press_tracker_array[key_code] == 1:
+                        key_press_tracker_array[key_code] == 0
                     
             self.gl_draw_internal()
+            
+        # convert key code to SDL2 convention
+        pressed_key_code = sdl_to_cv2_keycode(pressed_key_code)
+        
+        peripheralEvent = PeripheralEvent()
+        peripheralEvent.pressed_key_code = pressed_key_code
+        peripheralEvent.mouse_button_state = mouse_buttonstate
+        peripheralEvent.mouse_posX = mouse_posX
+        peripheralEvent.mouse_posY = mouse_posY
+        
+        return peripheralEvent
 
     def gl_render(self, image):
         
@@ -303,7 +370,9 @@ class LunarRenderer:
         (err,) = cu.cudaGraphicsUnmapResources(1, self.cuda_image, cu.cudaStreamLegacy)
         if err != cu.cudaError_t.cudaSuccess:
             raise CudaException("Unable to unmap graphics resource")
-        self.gl_step()        
+        pressed_key_code = self.gl_step()
+        return pressed_key_code
+        
         
     def cv2_render(self, image):
         if type(image) == torch.Tensor:
@@ -315,6 +384,10 @@ class LunarRenderer:
                 image = np.array(image)
             else:
                 raise Exception('render function received input of unknown type')        
+                
+        # clamp and set correct type
+        image = np.clip(image, 0, 255)
+        image = image.astype(np.uint8)
         
         cv2.imshow(self.window_title, image) 
         cv2_keycode = cv2.waitKey(1)
@@ -322,12 +395,24 @@ class LunarRenderer:
             cv2.destroyAllWindows()
             sys.exit(0)
             
+        peripheralEvent = PeripheralEvent()
+        peripheralEvent.pressed_key_code = cv2_keycode
+        
+        # not implemented
+        peripheralEvent.mouse_button_state = -1
+        peripheralEvent.mouse_posX = -1
+        peripheralEvent.mouse_posY = -1            
+            
+        return peripheralEvent
+            
             
     def render(self, image):
         if self.backend == 'gl':
-            self.gl_render(image)
+            peripheralEvent = self.gl_render(image)
         else:
-            self.cv2_render(image)
+            peripheralEvent = self.cv2_render(image)
+            
+        return peripheralEvent
 
     def gl_close(self):
         self.running = False
@@ -343,18 +428,22 @@ if __name__ == '__main__':
 
     while True:
         # numpy array
-        image = np.random.rand(sz[0],sz[1],4)*255
+        # image = np.random.rand(sz[0],sz[1],4)*255
         
         # PIL array
         # image = Image.fromarray(np.uint8(np.random.rand(sz[0],sz[1],4)*255))
         
         # Torch tensors
-        # image = torch.rand((sz[0],sz[1],4))*255
+        image = torch.rand((sz[0],sz[1],4))*255
         # image = torch.rand((sz[0],sz[1]), device='cuda:0')*255
-        image = torch.rand((sz[0],sz[1],3), device='cuda:0')*255
+        # image = torch.rand((sz[0],sz[1],3), device='cuda:0')*255
         # image = torch.rand((sz[0],sz[1],4), device='cuda:0')*255
         
-        renderer.render(image)
+        peripheralEvent = renderer.render(image)
+        if peripheralEvent.pressed_key_code != -1:
+            print(f'the pressed key code was {peripheralEvent.pressed_key_code}')
+        if peripheralEvent.mouse_button_state > 0:
+            print(f'mouse_button_state was {peripheralEvent.mouse_button_state}')
 
 
     

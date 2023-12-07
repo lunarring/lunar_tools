@@ -1,4 +1,4 @@
-cuda_python==11.8.2
+cuda_python==11.8.2; sys_platform == 'linux'
 elevenlabs==0.2.26
 ffmpeg_python==0.2.0
 moviepy==1.0.3
