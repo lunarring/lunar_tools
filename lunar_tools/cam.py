@@ -56,8 +56,6 @@ class Webcam():
         self.threader_active = True
         self.thread = threading.Thread(target=self.threader_runfunc_cam, daemon=True)
         self.thread.start()
-        
-        # time.sleep(1)
             
                 
     def init_ubuntu(self):
