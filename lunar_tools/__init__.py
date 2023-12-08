@@ -13,3 +13,4 @@ from .movie import add_sound
 from .movie import add_subtitles_to_video
 from .movie import MovieReader
 from .cam import WebCam
+from .gl import Renderer
