@@ -14,6 +14,14 @@ export REPLICATE_API_TOKEN="XXX"
 export ELEVEN_API_KEY="XXX"
 ```
 
+To test whether the correct environment variables were set, run
+
+```bash
+echo $OPENAI_API_KEY
+echo $REPLICATE_API_TOKEN
+echo $ELEVEN_API_KEY
+```
+
 # Audio
 ## AudioRecorder
 ```python
