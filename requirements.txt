@@ -9,6 +9,7 @@ Pillow
 pydub
 PyOpenGL
 PySDL2
+pysdl2-dll
 replicate
 Requests
 rich
