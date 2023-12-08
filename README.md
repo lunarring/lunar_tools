@@ -60,6 +60,14 @@ The Text2Speech can also directly generate and play back the sound via:
 text2speech.play("hey there can you hear me?")
 ```
 
+# Large Language Models
+## GPT4
+```python
+import lunar_tools as lt
+gpt4 = lt.GPT4()
+msg = gpt4.generate("tell me about yourself")
+```
+
 # Logging and terminal printing
 ```python
 import lunar_tools as lt
