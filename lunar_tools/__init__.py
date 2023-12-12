@@ -15,3 +15,7 @@ from .movie import MovieReader
 from .cam import WebCam
 from .gl import Renderer
 from .utils import get_os_type
+from .utils import save_api_key_to_lunar_config
+from .utils import read_api_key_from_lunar_config
+from .utils import read_api_key
+
