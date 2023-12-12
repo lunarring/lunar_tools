@@ -6,21 +6,18 @@ Welcome to Lunar Tools, a comprehensive toolkit designed to fascilitate the prog
 pip install git+https://github.com/lunarring/lunar_tools
 ```
 
-Make sure you have the necessary API keys in your ~/.bash_profile (bash mac), or ~/.zshrc (zzsh mac) or ~/.bash_rc (linux).
 
+Our system includes a convenient automatic mode for reading and writing API keys. This feature enables you to dynamically set your API key as needed, and the file will be stored on your local computer.
+
+However, if you prefer, you can specify your API keys in your shell configuration file (e.g. ~/.bash_profile or ~/.zshrc or ~/.bash_rc). In this case, paste the below lines with the API keys you want to add.
 ```bash
 export OPENAI_API_KEY="XXX"
 export REPLICATE_API_TOKEN="XXX"
 export ELEVEN_API_KEY="XXX"
 ```
 
-To test whether the correct environment variables were set, run
 
-```bash
-echo $OPENAI_API_KEY
-echo $REPLICATE_API_TOKEN
-echo $ELEVEN_API_KEY
-```
+
 
 # Audio
 ## AudioRecorder
