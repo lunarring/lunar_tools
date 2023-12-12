@@ -6,7 +6,7 @@ with open('requirements.txt') as f:
 
 setup(
     name='lunar_tools',
-    version='0.0.4',
+    version='0.0.5',
     packages=find_packages(),
     url='https://github.com/lunarring/lunar_tools',
     description='Lunar Ring auxiliary tools and modules',

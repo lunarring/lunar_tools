@@ -10,9 +10,7 @@ import numpy as np
 from openai import OpenAI
 import replicate
 from lunar_tools.logprint import LogPrint
-
-
-#         1024x1024, 1024x1792 1792x1024
+from lunar_tools.utils import read_api_key
 
 class Dalle3ImageGenerator:
     def __init__(self,
@@ -22,7 +20,7 @@ class Dalle3ImageGenerator:
                  size_output=(1792, 1024),
                  quality="standard"):
         if client is None:
-            api_key = os.environ.get("OPENAI_API_KEY")
+            api_key = read_api_key("OPENAI_API_KEY")
             if not api_key:
                 raise ValueError("No OPENAI_API_KEY found in environment variables")
             self.client = OpenAI(api_key=api_key)
@@ -96,7 +94,7 @@ class Dalle3ImageGenerator:
 class LCM_SDXL:
     def __init__(self, client=None, logger=None, size_output=(1024, 1024), num_inference_steps=4):
         if client is None:
-            self.client = replicate.Client(api_token=os.getenv("REPLICATE_API_KEY"))
+            self.client = replicate.Client(api_token=read_api_key("REPLICATE_API_KEY"))
         else:
             if not isinstance(client, replicate.Client):
                 raise TypeError("Invalid client type. Expected a 'replicate.Client' instance.")
@@ -177,8 +175,7 @@ if __name__ == "__main__":
     
     # Example usage
     # client = OpenAI()
-    client = replicate.Client(api_token=os.getenv("REPLICATE_API_KEY"))
-    lcm_sdxl = LCM_SDXL(client=client)
+    lcm_sdxl = LCM_SDXL()
     image, img_url = lcm_sdxl.generate("An astronaut riding a rainbow unicorn", "cartoon")
 
 

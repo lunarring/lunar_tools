@@ -7,6 +7,7 @@ import time
 from openai import OpenAI
 import os
 from lunar_tools.logprint import LogPrint
+from lunar_tools.utils import read_api_key
 
 
 
@@ -31,7 +32,7 @@ class GPT4:
             model (str): The initial model to use. Defaults to "gpt-4-0613".
         """
         if client is None:
-            api_key = os.environ.get("OPENAI_API_KEY")
+            api_key = read_api_key("OPENAI_API_KEY")
             if not api_key:
                 raise ValueError("No OPENAI_API_KEY found in environment variables")
             self.client = OpenAI(api_key=api_key)

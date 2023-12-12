@@ -15,7 +15,7 @@ import sounddevice as sd
 import numpy as np
 import wave
 from pydub import AudioSegment
-
+from lunar_tools.utils import read_api_key
 
 class AudioRecorder:
     """
@@ -115,7 +115,7 @@ class Speech2Text:
             ValueError: If no OpenAI API key is found in the environment variables.
         """
         if client is None:
-            api_key = os.environ.get("OPENAI_API_KEY")
+            api_key = read_api_key("OPENAI_API_KEY")
             if not api_key:
                 raise ValueError("No OPENAI_API_KEY found in environment variables")
             self.client = OpenAI(api_key=api_key)
@@ -188,7 +188,7 @@ class Text2SpeechOpenAI:
         Initialize the Text2Speech with an OpenAI client, a logger, a text source, a default voice model, and optionally a sound player.
         """
         if client is None:
-            api_key = os.environ.get("OPENAI_API_KEY")
+            api_key = read_api_key("OPENAI_API_KEY")
             if not api_key:
                 raise ValueError("No OPENAI_API_KEY found in environment variables")
             self.client = OpenAI(api_key=api_key)
@@ -340,6 +340,7 @@ class Text2SpeechElevenlabs:
     
         audio = generate(
             text=text,
+            api_key=read_api_key("ELEVEN_API_KEY"),
             voice=Voice(
                 voice_id=voice_id,
                 settings=VoiceSettings(

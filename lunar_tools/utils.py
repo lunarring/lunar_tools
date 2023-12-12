@@ -47,6 +47,8 @@ def save_api_key_to_lunar_config(key_name, key_value):
     with open(config_path, 'w') as file:
         for k, v in keys.items():
             file.write(f"{k}={v}\n")
+            
+    print(f"saved API KEY '{key_name}={key_value} in {get_config_path()}")
 
 def read_api_key(key_name):
     # First, try to get the API key from the environment variables
@@ -65,8 +67,22 @@ def read_api_key(key_name):
     return api_key
 
 
+def delete_api_key_from_lunar_config(key_name):
+    keys = read_all_api_keys_from_lunar_config()
+    if key_name in keys:
+        del keys[key_name]
+
+        config_path = get_config_path()
+
+        with open(config_path, 'w') as file:
+            for k, v in keys.items():
+                file.write(f"{k}={v}\n")
+
+
+
 if __name__ == "__main__":
     # Example usage
-    save_api_key_to_lunar_config('OPENAI_API_KEY', "bba")
+    # save_api_key_to_lunar_config('ELEVEN_API_KEY', "bba")
     # # Reading a specific key
-    api_key_value = read_api_key('OPENAI_API_KEY')
+    api_key_value = read_api_key('ELEVEN_API_KEY')
+    delete_api_key_from_lunar_config('ELEVEN_API_KEY')
