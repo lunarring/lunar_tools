@@ -23,21 +23,7 @@ import threading
 import time
 import glob
 import os
-import platform
-
-
-def get_os_type():
-    os_name = platform.system()
-    if os_name == "Darwin":
-        return "Mac"
-    elif os_name == "Linux":
-        dist_name, _, _ = platform.linux_distribution()
-        if dist_name.lower() in ["ubuntu"]:
-            return "Ubuntu"
-        else:
-            raise ValueError("unsupported OS")
-    else:
-        raise ValueError("unsupported OS")
+from lunar_tools.utils import get_os_type
 
 
 class WebCam():
@@ -97,7 +83,7 @@ class WebCam():
     def smart_init(self):
         if get_os_type() == "Ubuntu":
             self.init_ubuntu()
-        elif get_os_type() == "Mac":
+        elif get_os_type() == "MacOS":
             self.init_mac()
         else:
             raise NotImplementedError("Only Ubuntu and Mac supported.")

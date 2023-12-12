@@ -8,8 +8,9 @@ import torch
 from sys import platform
 from PIL import Image
 import cv2
+from lunar_tools.utils import get_os_type
 
-if platform == "linux" or platform == "linux2":
+if get_os_type() == "Ubuntu":
     from cuda import cudart as cu
     
     with warnings.catch_warnings():
@@ -154,18 +155,14 @@ class Renderer:
         self.width = width
         self.height = height
         
-        if platform == "linux" or platform == "linux2":
+        if get_os_type() == "Ubuntu":
             self.backend = 'gl'
-            
             self.cuda_is_setup = False
             self.running = True
-    
             self.sdl_setup()
             self.gl_setup()
             self.cuda_setup()
-        elif platform == "darwin":
-            self.backend = 'opencv'
-        elif platform == "win32":
+        else:
             self.backend = 'opencv'
         
     def sdl_setup(self):
