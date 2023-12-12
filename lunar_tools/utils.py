@@ -14,5 +14,9 @@ def get_os_type():
             return "Ubuntu"
         else:
             raise ValueError("unsupported OS")
+    elif os_name == "Windows":
+        return "Windows"
     else:
         raise ValueError("unsupported OS")
+        
+        
