@@ -1,5 +1,6 @@
 cuda_python; sys_platform == 'linux'
 elevenlabs
+ffmpeg
 ffmpeg_python
 matplotlib
 moviepy
