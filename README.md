@@ -52,7 +52,7 @@ The playback is threaded and does not block the main application. You can stop t
 player.stop_sound()
 ```
 
-## Text2Speech
+## Text2Speech OpenAI
 ```python
 import lunar_tools as lt
 text2speech = lt.Text2SpeechOpenAI()
@@ -64,6 +64,14 @@ The Text2Speech can also directly generate and play back the sound via:
 ```python
 text2speech.play("hey there can you hear me?")
 ```
+
+## Text2Speech elevenlabs
+```python
+text2speech = Text2SpeechElevenlabs()
+text2speech.change_voice("FU5JW1L0DwfWILWkNpW6")
+text2speech.play("hey there can you hear me?")
+```
+
 
 # Large Language Models
 ## GPT4
