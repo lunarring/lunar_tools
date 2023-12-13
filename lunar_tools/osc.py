@@ -39,7 +39,7 @@ class OSCReceiver():
                  ip_receiver = None, 
                  start_thread = True,
                  BUFFER_SIZE = 500,
-                 force_fract = False, # forcing adaptive rescaling of values between [0, 1]
+                 rescale_all_input = False, # forcing adaptive rescaling of values between [0, 1]
                  dt_timeout = 3, # if after this dt nothing new arrived, send back le default
                  port_receiver = 8003,
                  verbose_high = False,
@@ -48,7 +48,7 @@ class OSCReceiver():
         # Start a new thread to read asynchronously
         self.ip_receiver = ip_receiver
         self.port_receiver = port_receiver
-        self.force_fract = force_fract
+        self.rescale_all_input = rescale_all_input
         if start_thread:
             self.thread = Thread(target=self.runfunc_thread)
             self.thread.start()
@@ -99,7 +99,7 @@ class OSCReceiver():
                        val_min=0, 
                        val_max=1, 
                        val_default=None, 
-                       force_fract_this_var=False
+                       rescale_this_input=False
                        ):
         
         if val_default is None:
@@ -112,7 +112,7 @@ class OSCReceiver():
                 return val_default
             
             value = self.dict_messages[identifier][-1]
-            if self.force_fract or force_fract_this_var:
+            if self.rescale_all_input or rescale_this_input:
                 
                 minval = np.min(self.dict_messages[identifier])
                 maxval = np.max(self.dict_messages[identifier])
