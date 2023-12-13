@@ -118,6 +118,7 @@ Allows to fast render images from torch, numpy or PIL in a window. Can be direct
 ```python
 import lunar_tools as lt
 import torch
+from PIL import Image
 sz = (1080, 1920)
 renderer = lt.Renderer(width=sz[1], height=sz[0])
 while True:
