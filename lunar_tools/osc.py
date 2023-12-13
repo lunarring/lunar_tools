@@ -7,38 +7,21 @@ import time
 import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
-
-# pip install python-osc
 from pythonosc import udp_client 
 from threading import Thread
-
 from pythonosc.dispatcher import Dispatcher
 from pythonosc import osc_server
 
 #%% 
-def get_dict_servers():
-    dict_servers = {}
-    dict_servers['ip_address1'] = "192.168.0.163" 
-
-    return dict_servers
 
 class OSCSender():
     def __init__(self,
-                 name_server = None,
                  ip_server = None,
                  port_server = 8003,
                  start_thread = False,
                  verbose_high = False,
                  ):
         
-        if ip_server is None: assert name_server is not None, "either specify the IP or the name of server!"
-        if name_server is None: assert ip_server is not None, "either specify the IP or the name of server!"
-        
-        dict_servers = get_dict_servers()
-        if name_server is not None:
-            assert name_server in dict_servers.keys(), f"unknown name_server {name_server}. use {dict_servers.keys()}"
-            ip_server = dict_servers[name_server]
-            
         self.ip_server = ip_server
         self.port_server = port_server
         self.client = udp_client.SimpleUDPClient(self.ip_server, self.port_server)
@@ -57,25 +40,16 @@ class OSCSender():
             time.sleep(1)
 
 
-class OSCListener():
+class OSCReceiver():
     def __init__(self,
-                 name_server = None,
                  ip_server = None, 
                  start_thread = True,
                  BUFFER_SIZE = 500,
-                 force_fract = False, # forcing adaptive fract, values will be [0, 1]
+                 force_fract = False, # forcing adaptive rescaling of values between [0, 1]
                  dt_timeout = 3, # if after this dt nothing new arrived, send back le default
                  port_server = 8003,
                  verbose_high = False,
                  ):
-        
-        if ip_server is None: assert name_server is not None, "either specify the IP or the name of server!"
-        if name_server is None: assert ip_server is not None, "either specify the IP or the name of server!"
-        
-        dict_servers = get_dict_servers()
-        if name_server is not None:
-            assert name_server in dict_servers.keys(), f"unknown name_server {name_server}. use {dict_servers.keys()}"
-            ip_server = dict_servers[name_server]
         
         # Start a new thread to read asynchronously
         self.ip_server = ip_server
@@ -123,10 +97,17 @@ class OSCListener():
         
         if self.verbose_high:
             # if identifier in self.filter_identifiers:
-            print(f"OSCListener: {identifier} {message} from {self.ip_server}:{self.port_server}")
+            print(f"OSCReceiver: {identifier} {message} from {self.ip_server}:{self.port_server}")
         
         
-    def get_last_value(self, identifier, val_min=0, val_max=1, val_default=None, force_fract_this_var=False):
+    def get_last_value(self, 
+                       identifier, 
+                       val_min=0, 
+                       val_max=1, 
+                       val_default=None, 
+                       force_fract_this_var=False
+                       ):
+        
         if val_default is None:
             val_default = 0.5*(val_min+val_max)
             
@@ -176,35 +157,47 @@ class OSCListener():
 
 
 if __name__ == "__main__":
-    """
-    minimal working example for sender and receiver below.
-    BEFORE RUNNING: CHANGE THE IP ADRESSES!
-    """
     
-    test_clientserver = True
-    generate_signal = False
+    sender = OSCSender('localhost')
+    receiver = OSCReceiver('localhost')
+    
+    for i in range(10):
+        time.sleep(0.1)
+        # sends two sinewaves to the respective osc variables
+        val1 = (np.sin(0.5*time.time())+1)*0.5
+        val2 = (np.cos(0.5*time.time())+1)*0.5
+        sender.send_message("/env1", val1)
+        sender.send_message("/env2", val2)
     
     
-    if test_clientserver:
-        # Get a sender
-        fs = OSCSender('johannes_mac')
+    receiver.get_all_values("/env1")
+    
+    
+    
+    # test_clientserver = True
+    # generate_signal = False
+    
+    
+    # if test_clientserver:
+    #     # Get a sender
+    #     fs = OSCSender('johannes_mac')
 
-        # Get a receiver
-        fl = OSCListener('borneo')
+    #     # Get a receiver
+    #     fl = OSCReceiver('borneo')
         
-        # Here you receive messages
-        fl.get_all_values("/brightness")
-        fl.get_last_value("/buba_420")
+    #     # Here you receive messages
+    #     fl.get_all_values("/brightness")
+    #     fl.get_last_value("/buba_420")
         
-    if generate_signal:
-        fs = OSCSender(ip_server="192.168.0.54")
+    # if generate_signal:
+    #     fs = OSCSender(ip_server="192.168.0.54")
         
-        while True:
-            time.sleep(0.1)
-            # sends two sinewaves to the respective osc variables
-            val1 = (np.sin(0.5*time.time())+1)*0.5
-            val2 = (np.cos(0.5*time.time())+1)*0.5
-            fs.send_message("/env1", val1)
-            fs.send_message("/env2", val2)
+    #     while True:
+    #         time.sleep(0.1)
+    #         # sends two sinewaves to the respective osc variables
+    #         val1 = (np.sin(0.5*time.time())+1)*0.5
+    #         val2 = (np.cos(0.5*time.time())+1)*0.5
+    #         fs.send_message("/env1", val1)
+    #         fs.send_message("/env2", val2)
     
     

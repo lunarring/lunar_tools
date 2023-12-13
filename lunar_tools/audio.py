@@ -428,6 +428,7 @@ if __name__ == "__main__":
     
     # # Example Usage
     text2speech = Text2SpeechElevenlabs()
+    text2speech.change_voice("FU5JW1L0DwfWILWkNpW6")
     text2speech.play("well how are you?")
     
     
