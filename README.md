@@ -6,6 +6,12 @@ Welcome to Lunar Tools, a comprehensive toolkit designed to fascilitate the prog
 pip install git+https://github.com/lunarring/lunar_tools
 ```
 
+On Ubuntu, you may have to install additional dependencies
+
+```bash
+sudo apt-get install libasound2-dev
+sudo apt-get install libportaudio2
+```
 
 Our system includes a convenient automatic mode for reading and writing API keys. This feature enables you to dynamically set your API key as needed, and the file will be stored on your local computer.
 
