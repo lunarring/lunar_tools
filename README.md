@@ -110,6 +110,8 @@ img = cam.get_img()
 # Fast rendering
 Allows to fast render images from torch, numpy or PIL in a window. Can be directly from the GPU, without need to copy.
 ```python
+import lunar_tools as lt
+import torch
 sz = (1080, 1920)
 renderer = lt.Renderer(width=sz[1], height=sz[0])
 while True:
