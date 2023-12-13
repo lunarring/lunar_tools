@@ -270,7 +270,8 @@ class Text2SpeechElevenlabs:
     def __init__(
         self, 
         logger=None, 
-        sound_player=None
+        sound_player=None,
+        voice_id="hImDzxfr9oCUsMI8JeWN"
     ):
         """
         Initialize the Text2Speech for elevenlabs, a optional logger and optionally a sound player.
@@ -279,13 +280,12 @@ class Text2SpeechElevenlabs:
         # Initialize the sound player only if provided
         self.sound_player = sound_player
         self.output_filename = None  # Initialize output filename
-        self.default_voice_id = "hImDzxfr9oCUsMI8JeWN"
+        self.voice_id = voice_id
 
     def play(
             self, 
             text, 
             output_filename=None, 
-            voice_id=None, 
             stability=0.71, 
             similarity_boost=0.5, 
             style=0.0, 
@@ -294,10 +294,20 @@ class Text2SpeechElevenlabs:
         """
         Play a generated speech file. Instantiates SoundPlayer if it's not already.
         """
-        self.generate(text, output_filename, voice_id, stability, similarity_boost, style, use_speaker_boost)
+        self.generate(text, output_filename, self.voice_id, stability, similarity_boost, style, use_speaker_boost)
         if self.sound_player is None:
             self.sound_player = SoundPlayer()
         self.sound_player.play_sound(self.output_filename)
+
+    def change_voice(self, voice_id):
+        """
+        Change the voice model for speech generation.
+
+        Args:
+            new_voice (str): The new voice model to be used.
+        """
+        self.voice_id = voice_id
+        self.logger.print(f"Voice model changed to {voice_id}")    
 
     def stop(self):
         """
