@@ -16,44 +16,38 @@ from pythonosc import osc_server
 
 class OSCSender():
     def __init__(self,
-                 ip_server = None,
-                 port_server = 8003,
+                 ip_receiver = None,
+                 port_receiver = 8003,
                  start_thread = False,
                  verbose_high = False,
                  ):
         
-        self.ip_server = ip_server
-        self.port_server = port_server
-        self.client = udp_client.SimpleUDPClient(self.ip_server, self.port_server)
+        self.ip_receiver = ip_receiver
+        self.port_receiver = port_receiver
+        self.client = udp_client.SimpleUDPClient(self.ip_receiver, self.port_receiver)
         self.DELIM = " "
         self.verbose_high = verbose_high
         
     def send_message(self, identifier, message):
         self.client.send_message(identifier, message)
         if self.verbose_high:
-            print(f"OSCSender: {identifier} {message} to {self.ip_server}:{self.port_server}")
+            print(f"OSCSender: {identifier} {message} to {self.ip_receiver}:{self.port_receiver}")
     
-    def test_message(self):
-        for x in range(10):
-            self.send_message("/filter", random.random())
-            print(f"send message to: {self.ip_server}")
-            time.sleep(1)
-
 
 class OSCReceiver():
     def __init__(self,
-                 ip_server = None, 
+                 ip_receiver = None, 
                  start_thread = True,
                  BUFFER_SIZE = 500,
                  force_fract = False, # forcing adaptive rescaling of values between [0, 1]
                  dt_timeout = 3, # if after this dt nothing new arrived, send back le default
-                 port_server = 8003,
+                 port_receiver = 8003,
                  verbose_high = False,
                  ):
         
         # Start a new thread to read asynchronously
-        self.ip_server = ip_server
-        self.port_server = port_server
+        self.ip_receiver = ip_receiver
+        self.port_receiver = port_receiver
         self.force_fract = force_fract
         if start_thread:
             self.thread = Thread(target=self.runfunc_thread)
@@ -70,7 +64,7 @@ class OSCReceiver():
     def runfunc_thread(self):
         dispatcher = Dispatcher()
         dispatcher.map('/*', self.process_incoming)
-        server = osc_server.ThreadingOSCUDPServer((self.ip_server, self.port_server), dispatcher)
+        server = osc_server.ThreadingOSCUDPServer((self.ip_receiver, self.port_receiver), dispatcher)
         print("Serving on {}".format(server.server_address))
         server.serve_forever()
 
@@ -97,7 +91,7 @@ class OSCReceiver():
         
         if self.verbose_high:
             # if identifier in self.filter_identifiers:
-            print(f"OSCReceiver: {identifier} {message} from {self.ip_server}:{self.port_server}")
+            print(f"OSCReceiver: {identifier} {message} from {self.ip_receiver}:{self.port_receiver}")
         
         
     def get_last_value(self, 
@@ -158,8 +152,8 @@ class OSCReceiver():
 
 if __name__ == "__main__":
     
-    sender = OSCSender('localhost')
-    receiver = OSCReceiver('localhost')
+    sender = OSCSender('127.0.0.1')
+    receiver = OSCReceiver('127.0.0.1')
     
     for i in range(10):
         time.sleep(0.1)
@@ -168,7 +162,6 @@ if __name__ == "__main__":
         val2 = (np.cos(0.5*time.time())+1)*0.5
         sender.send_message("/env1", val1)
         sender.send_message("/env2", val2)
-    
     
     receiver.get_all_values("/env1")
     
