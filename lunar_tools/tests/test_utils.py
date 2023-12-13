@@ -11,7 +11,7 @@ import string
 class TestConfigUtils(unittest.TestCase):
     def test_get_os_type(self):
         os_type = get_os_type()
-        self.assertIn(os_type, ["MacOS", "Ubuntu", "Windows"])
+        self.assertIn(os_type, ["MacOS", "Linux", "Windows"])
 
     def test_save_and_read_api_key(self):
         random_key = ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))

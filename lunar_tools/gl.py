@@ -10,7 +10,7 @@ from PIL import Image
 import cv2
 from lunar_tools.utils import get_os_type
 
-if get_os_type() == "Ubuntu":
+if get_os_type() == "Linux":
     from cuda import cudart as cu
     
     with warnings.catch_warnings():
@@ -155,7 +155,7 @@ class Renderer:
         self.width = width
         self.height = height
         
-        if get_os_type() == "Ubuntu":
+        if get_os_type() == "Linux":
             self.backend = 'gl'
             self.cuda_is_setup = False
             self.running = True

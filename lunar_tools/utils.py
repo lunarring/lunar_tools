@@ -6,11 +6,7 @@ def get_os_type():
     if os_name == "Darwin":
         return "MacOS"
     elif os_name == "Linux":
-        dist_name, _, _ = platform.linux_distribution()
-        if dist_name.lower() in ["ubuntu"]:
-            return "Ubuntu"
-        else:
-            raise ValueError("unsupported OS")
+        return "Linux"
     elif os_name == "Windows":
         return "Windows"
     else:
@@ -18,7 +14,7 @@ def get_os_type():
 
 def get_config_path():
     os_type = get_os_type()
-    if os_type in ["MacOS", "Ubuntu"]:
+    if os_type in ["MacOS", "Linux"]:
         return os.path.expanduser("~/.lunar_tools_env_vars")
     elif os_type == "Windows":
         return os.path.join(os.environ['USERPROFILE'], '.lunar_tools_env_vars')

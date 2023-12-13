@@ -44,7 +44,7 @@ class WebCam():
         self.thread.start()
             
                 
-    def init_ubuntu(self):
+    def init_linux(self):
         device_paths = glob.glob('/dev/video*')
         if len(device_paths) == 0:
             raise ValueError("No cameras found")
@@ -81,12 +81,12 @@ class WebCam():
         cv2.VideoCapture(self.cam_id).release()    
 
     def smart_init(self):
-        if get_os_type() == "Ubuntu":
-            self.init_ubuntu()
+        if get_os_type() == "Linux":
+            self.init_linux()
         elif get_os_type() == "MacOS":
             self.init_mac()
         else:
-            raise NotImplementedError("Only Ubuntu and Mac supported.")
+            raise NotImplementedError("Only Linux and Mac supported.")
         self.set_cap_props()
         
     def set_cap_props(self):
