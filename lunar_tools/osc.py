@@ -1,11 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Created on Sun Dec 11 17:17:30 2022
-
-@author: jjj
-"""
-
 
 import argparse
 import random

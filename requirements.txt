@@ -7,6 +7,7 @@ openai
 opencv_python
 Pillow
 pydub
+python-osc
 PyOpenGL
 PySDL2
 pysdl2-dll
