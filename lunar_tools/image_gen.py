@@ -91,7 +91,7 @@ class Dalle3ImageGenerator:
         return image, revised_prompt
 
 
-class LCM_SDXL:
+class SDXL_LCM:
     def __init__(self, client=None, logger=None, size_output=(1024, 1024), num_inference_steps=4):
         if client is None:
             self.client = replicate.Client(api_token=read_api_key("REPLICATE_API_KEY"))
@@ -118,13 +118,13 @@ class LCM_SDXL:
             # Simulation mode: Generate a random image
             image_array = np.random.randint(0, 255, (height, width, 3), dtype=np.uint8)
             image = Image.fromarray(image_array, 'RGB')
-            self.logger.print("LCM_SDXL: Simulation mode - random image generated")
+            self.logger.print("SDXL_LCM: Simulation mode - random image generated")
             img_url = "Simulation mode - no image URL"
             return image, img_url
         else:
             # Normal mode: Call the API to generate an image
             try:
-                self.logger.print("LCM_SDXL: Starting image generation")
+                self.logger.print("SDXL_LCM: Starting image generation")
                 start_time = time.time()
 
                 output = self.client.run(
@@ -146,12 +146,73 @@ class LCM_SDXL:
                 image = Image.open(image_data)
                 end_time = time.time()
                 return image, img_url
-                self.logger.print(f"LCM_SDXL: Generation complete. Time taken: {int(end_time - start_time)} seconds")
+                self.logger.print(f"SDXL_LCM: Generation complete. Time taken: {int(end_time - start_time)} seconds")
 
             except requests.exceptions.RequestException as e:
                 self.logger.print(f"HTTP Request failed: {e}")
                 return None, None
            
+class SDXL_TURBO:
+    def __init__(self, client=None, logger=None, size_output=(512, 512), num_inference_steps=1):
+        if client is None:
+            self.client = replicate.Client(api_token=read_api_key("REPLICATE_API_KEY"))
+        else:
+            if not isinstance(client, replicate.Client):
+                raise TypeError("Invalid client type. Expected a 'replicate.Client' instance.")
+            self.client = client
+
+        self.logger = logger if logger else LogPrint()
+        self.size = size_output
+        self.num_inference_steps = num_inference_steps
+
+    def set_dimensions(self, size_output):
+        self.size = size_output
+
+    def set_num_inference_steps(self, num_inference_steps):
+        self.num_inference_steps = num_inference_steps
+
+    def generate(self, prompt, negative_prompt="", simulation=False):
+        width, height = self.size
+        num_inference_steps = self.num_inference_steps
+
+        if simulation:
+            # Simulation mode: Generate a random image
+            image_array = np.random.randint(0, 255, (height, width, 3), dtype=np.uint8)
+            image = Image.fromarray(image_array, 'RGB')
+            self.logger.print("SDXL_TURBO: Simulation mode - random image generated")
+            img_url = "Simulation mode - no image URL"
+            return image, img_url
+        else:
+            # Normal mode: Call the API to generate an image
+            try:
+                self.logger.print("SDXL_TURBO: Starting image generation")
+                start_time = time.time()
+
+                output = self.client.run(
+                    "fofr/sdxl-turbo:6244ebc4d96ffcc48fa1270d22a1f014addf79c41732fe205fb1ff638c409267",
+                    input={
+                        "prompt": prompt,
+                        "agree_to_research_only": True,
+                        "negative_prompt": negative_prompt,
+                        "width": width,
+                        "height": height,
+                        "num_inference_steps": num_inference_steps
+                    }
+                )
+
+                img_url = output[0]
+                response_http = requests.get(img_url)
+                response_http.raise_for_status()
+
+                image_data = BytesIO(response_http.content)
+                image = Image.open(image_data)
+                end_time = time.time()
+                return image, img_url
+                self.logger.print(f"SDXL_TURBO: Generation complete. Time taken: {int(end_time - start_time)} seconds")
+
+            except requests.exceptions.RequestException as e:
+                self.logger.print(f"HTTP Request failed: {e}")
+                return None, None
 
 
 
@@ -175,8 +236,8 @@ if __name__ == "__main__":
     
     # Example usage
     # client = OpenAI()
-    lcm_sdxl = LCM_SDXL()
-    image, img_url = lcm_sdxl.generate("An astronaut riding a rainbow unicorn", "cartoon")
+    sdxl_turbo = SDXL_TURBO()
+    image, img_url = sdxl_turbo.generate("An astronaut riding a rainbow unicorn", "cartoon")
 
 
     
