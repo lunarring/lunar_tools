@@ -37,7 +37,7 @@ class OSCSender():
 class OSCReceiver():
     def __init__(self,
                  ip_receiver = None, 
-                 start_thread = True,
+                 start = True,
                  BUFFER_SIZE = 500,
                  rescale_all_input = False, # forcing adaptive rescaling of values between [0, 1]
                  dt_timeout = 3, # if after this dt nothing new arrived, send back le default
@@ -49,10 +49,9 @@ class OSCReceiver():
         self.ip_receiver = ip_receiver
         self.port_receiver = port_receiver
         self.rescale_all_input = rescale_all_input
-        if start_thread:
-            self.thread = Thread(target=self.runfunc_thread)
-            self.thread.start()
-        
+        self.thread = Thread(target=self.runfunc_thread)
+        self.running = False
+
         self.dict_messages = {}
         self.dict_time = {}
         self.dt_timeout = dt_timeout # if after this dt nothing new arrived, send back le default
@@ -60,14 +59,26 @@ class OSCReceiver():
         self.verbose_high = verbose_high
         self.filter_identifiers = []
             
-        
+        if start:
+            self.start()
+    
     def runfunc_thread(self):
+        self.running = True
         dispatcher = Dispatcher()
         dispatcher.map('/*', self.process_incoming)
-        server = osc_server.ThreadingOSCUDPServer((self.ip_receiver, self.port_receiver), dispatcher)
-        print("Serving on {}".format(server.server_address))
-        server.serve_forever()
+        self.server = osc_server.ThreadingOSCUDPServer((self.ip_receiver, self.port_receiver), dispatcher)
+        print("Serving on {}".format(self.server.server_address))
+        self.server.serve_forever()
 
+    def start(self):
+        self.thread.start()
+
+    def stop(self):
+        if self.running:
+            self.server.shutdown()
+            self.server.server_close()
+            print("OSC server stopped")
+            self.running = False
 
     def process_incoming(self, *args):
         identifier = args[0]
@@ -132,15 +143,9 @@ class OSCReceiver():
         
     def get_all_values(self, identifier):
         if identifier in self.dict_messages.keys():
-            if len(self.dict_messages[identifier]) >= 2:
+            if len(self.dict_messages[identifier]) >= 1:
                 
                 return self.dict_messages[identifier]
-            else:
-                return [0,0]
-        else:
-            if self.verbose_high:
-                print(f"ERROR get_last_value: identifier {identifier} was never received!")
-            return [0,0]
         
     def plot_nice(self):
         for j, identifier in enumerate(self.dict_messages.keys()):
@@ -160,10 +165,10 @@ if __name__ == "__main__":
         # sends two sinewaves to the respective osc variables
         val1 = (np.sin(0.5*time.time())+1)*0.5
         val2 = (np.cos(0.5*time.time())+1)*0.5
-        sender.send_message("/env1", val1)
+        sender.send_message("/env1", i)
         sender.send_message("/env2", val2)
     
-    receiver.get_all_values("/env1")
+    data = receiver.get_all_values("/env1")
     
     
     
