@@ -149,7 +149,7 @@ for _ in range(mr.nmb_frames):
 
 
 # Communication
-## ZQM
+## ZMQ
 ```python
 import lunar_tools as lt
 # First we launch a server
