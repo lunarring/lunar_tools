@@ -6,7 +6,7 @@ Welcome to Lunar Tools, a comprehensive toolkit designed to fascilitate the prog
 pip install git+https://github.com/lunarring/lunar_tools
 ```
 
-On Ubuntu, you may have to install additional dependencies
+On Ubuntu, you may have to install additional dependencies for sound playback/recording.
 
 ```bash
 sudo apt-get install libasound2-dev libportaudio2
