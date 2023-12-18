@@ -7,9 +7,9 @@ import threading
 from queue import Queue
 from lunar_tools.logprint import LogPrint
 
-class ZMQServer:
-    def __init__(self, ip_server="*", port="5555", logger=None, start=True):
-        self.address = f"tcp://{ip_server}:{port}"
+class ZMQReceiver:
+    def __init__(self, ip_receiver="*", port="5555", logger=None, start=True):
+        self.address = f"tcp://{ip_receiver}:{port}"
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.REP)
         self.socket.bind(self.address)
@@ -21,7 +21,7 @@ class ZMQServer:
             self.start()
 
     def run(self):
-        self.running = True  # Mark the server as running
+        self.running = True  # Mark the receiver as running
         while self.running:  # Check the running state
             try:
                 message = self.socket.recv(zmq.NOBLOCK)  # Non-blocking receive
@@ -51,9 +51,9 @@ class ZMQServer:
 
 
 
-class ZMQClient:
-    def __init__(self, ip_server='localhost', port=5555, timeout=2, logger=None):
-        self.address = f"tcp://{ip_server}:{port}"
+class ZMQSender:
+    def __init__(self, ip_receiver='localhost', port=5555, timeout=2, logger=None):
+        self.address = f"tcp://{ip_receiver}:{port}"
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.REQ)
         self.socket.connect(self.address)
@@ -75,19 +75,19 @@ class ZMQClient:
 
 if __name__ == "__main__":
     # Example usage
-    # First we launch a server
-    # server = ZMQServer(ip_server='127.0.0.1', port=5556)
+    # First we launch a receiver
+    receiver = ZMQReceiver(ip_receiver='127.0.0.1', port=5556)
 
-    # And we launch a client
-    client = ZMQClient(ip_server='127.0.0.1', port=5556)
-    reply = client.send_json({"message": "Hello, Server!", 'bobo': 'huhu'})
+    # And we launch a sender
+    sender = ZMQSender(ip_receiver='127.0.0.1', port=5556)
+    reply = sender.send_json({"message": "Hello, Server!", 'bobo': 'huhu'})
     print(f"Received reply: {reply}")
     
-    # On the server, we can get the message
-    msgs = server.get_messages()
-    # for msg in msgs: # iterating over all messages that were received
-    #     for field, payload in msg.items(): # iterating over all fields
-    #         print(f"Field: {field}, Payload: {payload}")
+    # On the receiver, we can get the message
+    msgs = receiver.get_messages()
+    for msg in msgs: # iterating over all messages that were received
+        for field, payload in msg.items(): # iterating over all fields
+            print(f"Field: {field}, Payload: {payload}")
 
     
 
