@@ -7,13 +7,12 @@ sys.path.append(os.path.abspath('.'))
 sys.path.append(os.path.abspath('lunar_tools'))
 sys.path.append(os.path.join(os.getcwd(), 'lunar_tools'))
 from zmq_comms import ZMQSender, ZMQReceiver
-from unittest.mock import MagicMock, patch
 
 
 class TestZMQReceiverClient(unittest.TestCase):
     def setUp(self):
-        self.receiver = ZMQReceiver(ip_receiver='127.0.0.1', port=5556)
-        self.sender = ZMQSender(ip_receiver='127.0.0.1', port=5556)
+        self.receiver = ZMQReceiver(ip_receiver='127.0.0.1', port_receiver=5556)
+        self.sender = ZMQSender(ip_receiver='127.0.0.1', port_receiver=5556)
         
     def tearDown(self):
         self.receiver.stop()
