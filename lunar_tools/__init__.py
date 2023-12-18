@@ -21,4 +21,6 @@ from .utils import read_all_api_keys_from_lunar_config
 from .utils import read_api_key
 from .zmq_comms import ZMQServer
 from .zmq_comms import ZMQClient
+from .osc import OSCSender
+from .osc import OSCReceiver
 
