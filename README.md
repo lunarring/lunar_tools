@@ -103,6 +103,13 @@ dalle3 = lt.Dalle3ImageGenerator()
 image, revised_prompt = dalle3.generate("a beautiful red house with snow on the roof, a chimney with smoke")
 ```
 
+## Generate Images with SDXL Turbo
+```python
+import lunar_tools as lt
+sdxl_turbo = lt.SDXL_TURBO()
+image, img_url = sdxl_turbo.generate("An astronaut riding a rainbow unicorn", "cartoon")
+```
+
 # Camera
 ## Get image from webcam
 
