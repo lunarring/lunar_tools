@@ -148,6 +148,40 @@ for _ in range(mr.nmb_frames):
 ```
 
 
+# Communication
+## ZQM
+```python
+import lunar_tools as lt
+# First we launch a server
+server = lt.ZMQServer(ip_server='127.0.0.1', port=5556)
+
+# And we launch a client
+client = lt.ZMQClient(ip_server='127.0.0.1', port=5556)
+reply = client.send_json({"message": "Hello, Server!", 'bobo': 'huhu'})
+print(f"Received reply: {reply}")
+
+# On the server, we can get the message
+msgs = server.get_messages()
+for msg in msgs: # iterating over all messages that were received
+    for field, payload in msg.items(): # iterating over all fields
+        print(f"Field: {field}, Payload: {payload}")
+```
+
+## OSC
+```python
+import lunar_tools as lt
+sender = lt.OSCSender('127.0.0.1')
+receiver = lt.OSCReceiver('127.0.0.1')
+    
+for i in range(10):
+    time.sleep(0.1)
+    # sends two sinewaves to the respective osc variables
+    val1 = (np.sin(0.5*time.time())+1)*0.5
+    sender.send_message("/env1", val1)
+
+receiver.get_all_values("/env1")
+```
+
 
 # Devinfos
 ## Testing
