@@ -322,6 +322,11 @@ class Renderer:
         # clamp to the valid range
         image = torch.clamp(image, 0, 1)
         
+        # resize 
+        if image.shape[0] != self.width or image.shape[1] != self.height:
+            image = torch.nn.functional.interpolate(image.permute([2,0,1])[None], size=(self.width, self.height))
+            image = image[0].permute([1,2,0])
+        
         # transpose X/Y for openGL consistency
         # image = image.permute((1,0,2))
                 
@@ -431,7 +436,7 @@ if __name__ == '__main__':
         # image = Image.fromarray(np.uint8(np.random.rand(sz[0],sz[1],4)*255))
         
         # Torch tensors
-        image = torch.rand((sz[0],sz[1],4))*255
+        image = torch.rand((sz[0]//2,sz[1]//2,4))*255
         # image = torch.rand((sz[0],sz[1]), device='cuda:0')*255
         # image = torch.rand((sz[0],sz[1],3), device='cuda:0')*255
         # image = torch.rand((sz[0],sz[1],4), device='cuda:0')*255

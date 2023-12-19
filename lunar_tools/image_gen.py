@@ -236,8 +236,11 @@ if __name__ == "__main__":
     
     # Example usage
     # client = OpenAI()
-    sdxl_turbo = SDXL_TURBO()
-    image, img_url = sdxl_turbo.generate("An astronaut riding a rainbow unicorn", "cartoon")
+    # sdxl_turbo = SDXL_TURBO()
+    # image, img_url = sdxl_turbo.generate("An astronaut riding a rainbow unicorn", "cartoon")
+
+    sdxl_lcm = SDXL_LCM()
+    image, img_url = sdxl_lcm.generate("An astronaut riding a rainbow unicorn", "cartoon")
 
 
     
