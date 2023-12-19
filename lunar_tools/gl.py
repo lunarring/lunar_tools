@@ -323,7 +323,7 @@ class Renderer:
         image = torch.clamp(image, 0, 1)
         
         # transpose X/Y for openGL consistency
-        image = image.permute((1,0,2))
+        # image = image.permute((1,0,2))
                 
         # check for number of channels
         if len(image.shape) == 3:
