@@ -6,6 +6,7 @@ from .audio import SoundPlayer
 from .llm import GPT4
 from .image_gen import Dalle3ImageGenerator
 from .image_gen import SDXL_LCM
+from .image_gen import SDXL_TURBO
 from .logprint import LogPrint
 from .movie import MovieSaver
 from .movie import concatenate_movies
