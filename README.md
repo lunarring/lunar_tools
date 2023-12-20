@@ -119,8 +119,9 @@ cam = lt.WebCam()
 img = cam.get_img()
 ```
 
-# Fast rendering
-Allows to fast render images from torch, numpy or PIL in a window. Can be directly from the GPU, without need to copy.
+# Real-time display
+## Torch, PIL, numpy
+Allows to fast render images from torch, numpy or PIL in a window. Can be directly from the GPU, without need to copy. Works with np arrays, PIL.Image and torch tensors (just uncomment from below).
 ```python
 import lunar_tools as lt
 import torch
@@ -134,6 +135,38 @@ while True:
     image = torch.rand((sz[0],sz[1],4)) * 255 # Torch tensors
     renderer.render(image)
 ```
+
+## Remote streaming example
+Remote streaming allows to generate images on one PC, typically with a beefy GPU, and to show them on another one, which may not have a GPU. The streaming is handled via ZMQ and automatically compresses the images using jpeg compression.
+
+Sender code example: generates an image and sends it to receiver. This is your backend server with GPU and we are emulating the image creation process by generating random arrays.
+```python
+import lunar_tools as lt
+import numpy as np
+sz = (800, 800)
+ip_receiver = '127.0.0.1'
+
+sender = lt.ZMQSender(ip_receiver=ip_receiver, port_receiver=5556)
+while True:
+    test_image = np.random.randint(0, 256, (sz[0], sz[1], 3), dtype=np.uint8)
+    img_reply = sender.send_img(test_image)
+```
+
+
+Reveiver code example: receives the image and renders it, this would be the frontend client e.g. a macbook.
+```python
+import lunar_tools as lt
+sz = (800, 800)
+ip_receiver = '127.0.0.1'
+
+receiver = lt.ZMQReceiver(ip_receiver='127.0.0.1', port_receiver=5556)
+renderer = lt.Renderer(width=sz[1], height=sz[0])
+while True:
+    image = receiver.get_img()
+    if image is not None:
+        renderer.render(image)
+```
+
 
 # Movie handling
 ## Saving a series of images as movie
