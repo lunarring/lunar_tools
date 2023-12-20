@@ -7,6 +7,7 @@ sys.path.append(os.path.abspath('.'))
 sys.path.append(os.path.abspath('lunar_tools'))
 sys.path.append(os.path.join(os.getcwd(), 'lunar_tools'))
 from zmq_comms import ZMQSender, ZMQReceiver
+import numpy as np
 
 
 class TestZMQReceiverClient(unittest.TestCase):
@@ -49,6 +50,34 @@ class TestZMQReceiverClient(unittest.TestCase):
         self.assertEqual(len(msgs), 2)
         self.assertEqual(msgs[0], {"field1": "val1"})
         self.assertEqual(msgs[1], {"field1": "val2"})
+        
+    def test_send_image_size(self):
+        # Send an image of specific size
+        test_image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        self.sender.send_img(test_image)
+        received_image = self.receiver.get_img()
+        self.assertEqual(received_image.shape, (100, 100, 3))
+
+    def test_send_image_different_size(self):
+        # Send an image of a different size
+        test_image = np.random.randint(0, 256, (200, 150, 3), dtype=np.uint8)
+        self.sender.send_img(test_image)
+        received_image = self.receiver.get_img()
+        self.assertEqual(received_image.shape, (200, 150, 3))
+
+    def test_send_image_update(self):
+        # Send an image, then send another and check if it gets updated
+        first_image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        self.sender.send_img(first_image)
+        first_received_image = self.receiver.get_img()
+
+        second_image = np.random.randint(0, 256, (150, 150, 3), dtype=np.uint8)
+        self.sender.send_img(second_image)
+        second_received_image = self.receiver.get_img()
+
+        self.assertNotEqual(first_received_image.tostring(), second_received_image.tostring())
+        self.assertEqual(second_received_image.shape, (150, 150, 3))
+
 
 
 if __name__ == "__main__":
