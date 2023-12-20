@@ -323,8 +323,8 @@ class Renderer:
         image = torch.clamp(image, 0, 1)
         
         # resize 
-        if image.shape[0] != self.width or image.shape[1] != self.height:
-            image = torch.nn.functional.interpolate(image.permute([2,0,1])[None], size=(self.width, self.height))
+        if image.shape[1] != self.width or image.shape[0] != self.height:
+            image = torch.nn.functional.interpolate(image.permute([2,0,1])[None], size=(self.height, self.width))
             image = image[0].permute([1,2,0])
         
         # transpose X/Y for openGL consistency
@@ -392,7 +392,7 @@ class Renderer:
         image = image.astype(np.uint8)
         
         # reshape if there is a mismatched between supply image size and window size
-        if image.shape[0] != self.width or image.shape[1] != self.height:
+        if image.shape[1] != self.width or image.shape[0] != self.height:
             image = cv2.resize(image, (self.width, self.height))
         
         cv2.imshow(self.window_title, image) 
