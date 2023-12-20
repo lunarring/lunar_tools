@@ -31,29 +31,46 @@ class ZMQPairEndpoint:
         self.thread = threading.Thread(target=self.listen, daemon=True)
         self.start()
 
-    def listen(self):
-        self.running = True
-        while self.running:
-            try:
-                message = self.socket.recv()
-                if message.startswith(b'img:'):
-                    nparr = np.frombuffer(message[4:], np.uint8)
-                    self.last_image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-                    self.messages.put(('img', self.last_image))
-                else:
-                    json_data = json.loads(message.decode('utf-8'))
-                    self.messages.put(('json', json_data))
-            except zmq.Again:
-                continue
-
     def start(self):
         self.thread.start()
 
+    def listen(self):
+        self.running = True
+        poller = zmq.Poller()
+        poller.register(self.socket, zmq.POLLIN)
+        while self.running:
+            # Wait for a message for a short time
+            socks = dict(poller.poll(1000))  # timeout in milliseconds
+            if self.socket in socks:
+                try:
+                    message = self.socket.recv(zmq.NOBLOCK)
+                    if message.startswith(b'img:'):
+                        nparr = np.frombuffer(message[4:], np.uint8)
+                        self.last_image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+                        self.messages.put(('img', self.last_image))
+                    else:
+                        json_data = json.loads(message.decode('utf-8'))
+                        self.messages.put(('json', json_data))
+                    
+                    
+                except zmq.Again:
+                    continue
+                except Exception as e:
+                    self.logger.error(f"Exception in listen thread: {e}")
+                    break
+    
+
     def stop(self):
+        # Signal the thread to stop
         self.running = False
-        self.thread.join()
+
+        # Wait for the listening thread to finish
+        if self.thread.is_alive():
+            self.thread.join()
+
+        # Now safely close the socket
         self.socket.close()
-        self.context.term()
+
 
     def get_messages(self):
         messages = []
@@ -96,7 +113,7 @@ if __name__ == "__main__":
     # Create server and client
     server = ZMQPairEndpoint(is_server=True, ip='127.0.0.1', port='5556')
     client = ZMQPairEndpoint(is_server=False, ip='127.0.0.1', port='5556')
-
+    
     # Client: Send JSON to Server
     client.send_json({"message": "Hello from Client!"})
 
