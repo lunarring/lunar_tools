@@ -6,80 +6,77 @@ import string
 sys.path.append(os.path.abspath('.'))
 sys.path.append(os.path.abspath('lunar_tools'))
 sys.path.append(os.path.join(os.getcwd(), 'lunar_tools'))
-from zmq_comms import ZMQSender, ZMQReceiver
 import numpy as np
+from zmq_comms import ZMQPairEndpoint 
+import time
 
-
-class TestZMQReceiverClient(unittest.TestCase):
+class TestZMQPairEndpoint(unittest.TestCase):
     def setUp(self):
-        self.receiver = ZMQReceiver(ip_receiver='127.0.0.1', port_receiver=5556)
-        self.sender = ZMQSender(ip_receiver='127.0.0.1', port_receiver=5556)
-        
+        self.server = ZMQPairEndpoint(is_server=True, ip='127.0.0.1', port='5556')
+        self.client = ZMQPairEndpoint(is_server=False, ip='127.0.0.1', port='5556')
+
     def tearDown(self):
-        self.receiver.stop()
+        self.server.stop()
+        self.client.stop()
 
-    def test_init(self):
-        self.assertEqual(self.receiver.address, "tcp://127.0.0.1:5556")
-        
-    def test_send_short(self):
-        reply = self.sender.send_json({"message": "Hello, receiver!"})
-        self.assertEqual(reply, "Received")
-        
-    def test_send_long(self):
-        reply = self.sender.send_json({"message": "Hello, receiver!", 'bobo': 'huhu'})
-        self.assertEqual(reply, "Received")
-        
-        
-    def test_received_short(self):
-        reply = self.sender.send_json({"field1": "payload1"})
-        msgs = self.receiver.get_messages()
-        self.assertEqual(len(msgs), 1)
-        self.assertEqual(msgs[0], {"field1": "payload1"})
-        
-    def test_received_long(self):
-        reply = self.sender.send_json({"field1": "payload1", "field2": "payload2"})
-        msgs = self.receiver.get_messages()
-        self.assertEqual(len(msgs), 1)
-        self.assertEqual(msgs[0], {"field1": "payload1", "field2": "payload2"})
-        
+    def test_init_server(self):
+        self.assertEqual(self.server.address, "tcp://127.0.0.1:5556")
 
-    def test_received_double(self):
-        reply = self.sender.send_json({"field1": "val1"})
-        reply = self.sender.send_json({"field1": "val2"})
-        msgs = self.receiver.get_messages()
-        self.assertEqual(len(msgs), 2)
-        self.assertEqual(msgs[0], {"field1": "val1"})
-        self.assertEqual(msgs[1], {"field1": "val2"})
+    def test_init_client(self):
+        self.assertEqual(self.client.address, "tcp://127.0.0.1:5556")
+
+    def test_client_to_server_json(self):
+        self.client.send_json({"message": "Hello, server!"})
+        time.sleep(0.1)
+        msgs = self.server.get_messages()
+        self.assertEqual(len(msgs), 1)
+        self.assertEqual(msgs[0], {"message": "Hello, server!"})
+
+    def test_server_to_client_json(self):
+        self.server.send_json({"response": "Hello, client!"})
+        time.sleep(0.1)
+        msgs = self.client.get_messages()
+        self.assertEqual(len(msgs), 1)
+        self.assertEqual(msgs[0], {"response": "Hello, client!"})
+
+    def test_bidirectional_json(self):
+        self.client.send_json({"message": "Client to Server"})
+        self.server.send_json({"response": "Server to Client"})
         
-    def test_send_image_size(self):
-        # Send an image of specific size
+        time.sleep(0.1)
+        client_msgs = self.client.get_messages()
+        server_msgs = self.server.get_messages()
+
+        self.assertIn({"message": "Client to Server"}, server_msgs)
+        self.assertIn({"response": "Server to Client"}, client_msgs)
+
+    def test_client_to_server_image(self):
         test_image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
-        self.sender.send_img(test_image)
-        received_image = self.receiver.get_img()
+        self.client.send_img(test_image)
+        time.sleep(0.1)
+        received_image = self.server.get_img()
         self.assertEqual(received_image.shape, (100, 100, 3))
 
-    def test_send_image_different_size(self):
-        # Send an image of a different size
-        test_image = np.random.randint(0, 256, (200, 150, 3), dtype=np.uint8)
-        self.sender.send_img(test_image)
-        received_image = self.receiver.get_img()
-        self.assertEqual(received_image.shape, (200, 150, 3))
+    def test_server_to_client_image(self):
+        test_image = np.random.randint(0, 256, (150, 150, 3), dtype=np.uint8)
+        self.server.send_img(test_image)
+        time.sleep(0.1)
+        received_image = self.client.get_img()
+        self.assertEqual(received_image.shape, (150, 150, 3))
 
-    def test_send_image_update(self):
-        # Send an image, then send another and check if it gets updated
-        first_image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
-        self.sender.send_img(first_image)
-        first_received_image = self.receiver.get_img()
+    def test_bidirectional_image(self):
+        client_image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        server_image = np.random.randint(0, 256, (150, 150, 3), dtype=np.uint8)
 
-        second_image = np.random.randint(0, 256, (150, 150, 3), dtype=np.uint8)
-        self.sender.send_img(second_image)
-        second_received_image = self.receiver.get_img()
+        self.client.send_img(client_image)
+        self.server.send_img(server_image)
 
-        self.assertNotEqual(first_received_image.tostring(), second_received_image.tostring())
-        self.assertEqual(second_received_image.shape, (150, 150, 3))
+        time.sleep(0.1)
+        server_received_image = self.server.get_img()
+        client_received_image = self.client.get_img()
 
+        self.assertEqual(server_received_image.shape, (100, 100, 3))
+        self.assertEqual(client_received_image.shape, (150, 150, 3))
 
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     unittest.main()
-
