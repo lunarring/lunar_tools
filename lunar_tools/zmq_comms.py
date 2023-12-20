@@ -109,6 +109,7 @@ class ZMQPairEndpoint:
 # Example usage
 if __name__ == "__main__":
     import numpy as np
+    import time
 
     # Create server and client
     server = ZMQPairEndpoint(is_server=True, ip='127.0.0.1', port='5556')
@@ -116,13 +117,14 @@ if __name__ == "__main__":
     
     # Client: Send JSON to Server
     client.send_json({"message": "Hello from Client!"})
-
+    time.sleep(0.01)
     # Server: Check for received messages
     server_msgs = server.get_messages()
     print("Messages received by server:", server_msgs)
-                
+    
     # Server: Send JSON to Client
     server.send_json({"response": "Hello from Server!"})
+    time.sleep(0.01)
 
     # Client: Check for received messages
     client_msgs = client.get_messages()
@@ -135,12 +137,14 @@ if __name__ == "__main__":
 
     # Client sends image to Server
     client.send_img(client_image)
+    time.sleep(0.01)
     server_received_image = server.get_img()
     if server_received_image is not None:
         print("Server received image from Client")
 
     # Server sends image to Client
     server.send_img(server_image)
+    time.sleep(0.01)
     client_received_image = client.get_img()
     if client_received_image is not None:
         print("Client received image from Server")
