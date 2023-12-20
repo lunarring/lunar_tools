@@ -22,8 +22,6 @@ export ELEVEN_API_KEY="XXX"
 ```
 
 
-
-
 # Audio
 ## AudioRecorder
 ```python
@@ -144,12 +142,13 @@ Sender code example: generates an image and sends it to receiver. This is your b
 import lunar_tools as lt
 import numpy as np
 sz = (800, 800)
-ip_receiver = '127.0.0.1'
+ip = '127.0.0.1'
 
-sender = lt.ZMQSender(ip_receiver=ip_receiver, port_receiver=5556)
+server = lt.ZMQPairEndpoint(is_server=True, ip='127.0.0.1', port='5556')
+
 while True:
     test_image = np.random.randint(0, 256, (sz[0], sz[1], 3), dtype=np.uint8)
-    img_reply = sender.send_img(test_image)
+    img_reply = server.send_img(test_image)
 ```
 
 
@@ -157,12 +156,12 @@ Reveiver code example: receives the image and renders it, this would be the fron
 ```python
 import lunar_tools as lt
 sz = (800, 800)
-ip_receiver = '127.0.0.1'
+ip = '127.0.0.1'
 
-receiver = lt.ZMQReceiver(ip_receiver='127.0.0.1', port_receiver=5556)
+client = lt.ZMQPairEndpoint(is_server=False, ip='127.0.0.1', port='5556')
 renderer = lt.Renderer(width=sz[1], height=sz[0])
 while True:
-    image = receiver.get_img()
+    image = client.get_img()
     if image is not None:
         renderer.render(image)
 ```
@@ -193,8 +192,8 @@ for _ in range(mr.nmb_frames):
 We have a unified client-server setup in this example, which demonstrates bidirectional communication using ZMQPairEndpoints.
 ```python
 # Create server and client
-server = ZMQPairEndpoint(is_server=True, ip='127.0.0.1', port='5556')
-client = ZMQPairEndpoint(is_server=False, ip='127.0.0.1', port='5556')
+server = lt.ZMQPairEndpoint(is_server=True, ip='127.0.0.1', port='5556')
+client = lt.ZMQPairEndpoint(is_server=False, ip='127.0.0.1', port='5556')
 
 # Client: Send JSON to Server
 client.send_json({"message": "Hello from Client!"})
