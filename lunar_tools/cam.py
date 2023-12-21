@@ -75,7 +75,8 @@ class WebCam():
         
     def release(self):
         self.threader_active = False
-        self.thread.join()
+        if hasattr(self, 'thread'):
+            self.thread.join()
         self.cam.release()
         cv2.destroyAllWindows()
         cv2.VideoCapture(self.cam_id).release()    
