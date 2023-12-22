@@ -14,6 +14,7 @@ pydub
 python-osc
 PyOpenGL
 PySDL2
+PyYAML
 pysdl2-dll
 replicate
 Requests

@@ -2,6 +2,8 @@ from pynput import keyboard
 from pygame import midi
 import numpy as np
 import time
+import os
+import yaml
 
 class KeyboardInput:
     """ A class to track keyboard inputs. """
@@ -40,59 +42,46 @@ class KeyboardInput:
 class MidiInput:
     """ A class to track midi inputs. """
     def __init__(self,
+                 device_name="akai_lpd8",
                  device_id_input=None,
                  device_id_output=None,
                  ):
-    
+        self.device_name = device_name
         self.device_id_input = device_id_input
         self.device_id_output = device_id_output
         self.init_device_config()
         self.init_midi()
-
+        self.reset_all_leds()
 
     def init_device_config(self):
-        # THIS SHOULD BE EXTERNAL
-        self.name_device = "LPD8 MIDI"
-        self.button_down = 144
-        self.button_release = 128
-        self.control_name = {}
-        self.control_name["A0"] = [40, "button"]    
-        self.control_name["A1"] = [36, "button"]    
-        self.control_name["B0"] = [41, "button"]    
-        self.control_name["B1"] = [37, "button"]    
-        self.control_name["C0"] = [42, "button"]    
-        self.control_name["C1"] = [38, "button"]    
-        self.control_name["D0"] = [43, "button"]    
-        self.control_name["D1"] = [39, "button"]    
-        self.control_name["E0"] = [1, "slider"]       
-        self.control_name["E1"] = [5, "slider"]       
-        self.control_name["F0"] = [2, "slider"]       
-        self.control_name["F1"] = [6, "slider"]       
-        self.control_name["G0"] = [3, "slider"]       
-        self.control_name["G1"] = [7, "slider"]       
-        self.control_name["H0"] = [4, "slider"]    
-        self.control_name["H1"] = [8, "slider"]
-        # -----
-        
-        # Reverse for last lookup
-        self.reverse_control_name = {v[0]: k for k, v in self.control_name.items()}
+        # Determine the path to the YAML file
+        config_filename = f"{self.device_name}.yml"
+        config_path = os.path.join("midi_configs", config_filename)
 
-        # Initialize the last_value last_time_scanned last_time_retrieved dicts
+        # Load the configuration from the YAML file
+        with open(config_path, 'r') as file:
+            config = yaml.safe_load(file)
+
+        # Set the device configuration from the YAML file
+        self.name_device = config['name_device']
+        self.button_down = config['button_down']
+        self.button_release = config['button_release']
+        self.dict_name_control = config['controls']
+
+        # Reverse for last lookup
+        self.reverse_control_name = {v[0]: k for k, v in self.dict_name_control.items()}
+
+        # Initialize the last_value, last_time_scanned, last_time_retrieved dicts
         self.last_value = {}
         self.last_time_scanned = {}
         self.last_time_retrieved = {}
         self.nmb_button_down = {}
-        for key in self.control_name:
-            if self.control_name[key][1] == "button":
-                self.last_value[key] = False
-            else:
-                self.last_value[key] = 0.0
+        for key in self.dict_name_control:
+            control_type = self.dict_name_control[key][1]
+            self.last_value[key] = False if control_type == "button" else 0.0
             self.last_time_scanned[key] = 0
             self.last_time_retrieved[key] = 0
-            self.nmb_button_down[key] = 0
-            
-                
-        
+            self.nmb_button_down[key] = 0 if control_type == "button" else None
 
         
     def auto_determine_device_id(self, is_input):
@@ -159,11 +148,11 @@ class MidiInput:
             name_control = self.get_control_name(idx_control)
             
             # Process the inputs
-            if self.control_name[name_control][1] == "slider":
+            if self.dict_name_control[name_control][1] == "slider":
                 self.last_value[name_control] = val_control / 127.0
                 self.last_time_scanned[name_control] = time.time()
                 
-            elif self.control_name[name_control][1] == "button":
+            elif self.dict_name_control[name_control][1] == "button":
                 if type_control == self.button_down:
                     self.last_time_scanned[name_control] = time.time()
                     self.nmb_button_down[name_control] += 1
@@ -171,18 +160,17 @@ class MidiInput:
                 else:
                     self.last_value[name_control] = False
                     
-                
             
     def get(self, name_control, val_min=0, val_max=1, val_default=False, button_mode='was_pressed'):
         # Asserts
-        if name_control not in self.control_name:
+        if name_control not in self.dict_name_control:
             print(f"Warning! {name_control} is unknown. Returning val_default")
             return val_default
         # button mode correct if button
         assert button_mode in ['is_held', 'was_pressed', 'toggle']
         
         # Process slider
-        if self.control_name[name_control][1] == "slider":
+        if self.dict_name_control[name_control][1] == "slider":
             if val_default is False:
                 val_default = 0.5 * (val_min + val_max)
             if self.last_time_scanned[name_control] == 0:
@@ -191,7 +179,7 @@ class MidiInput:
                 val_return = val_min + (val_max-val_min) * self.last_value[name_control]
         
         # Process button
-        elif self.control_name[name_control][1] == "button":
+        elif self.dict_name_control[name_control][1] == "button":
             if button_mode == 'is_held':
                 val_return = self.last_value[name_control]
             elif button_mode == "was_pressed":
@@ -199,21 +187,30 @@ class MidiInput:
             elif button_mode == "toggle":
                 val_return = np.mod(self.nmb_button_down[name_control]+1,2) == 0
                 # Set LED
-                self.midi_out.write([[[self.button_down, self.control_name['A0'][0], val_return, 0], 0]])
-                
+                self.set_led(name_control, val_return)
                 
         self.last_time_retrieved[name_control] = time.time()
         
         return val_return
         
+    def set_led(self, name_control, state):
+        assert name_control in self.dict_name_control
+        assert self.dict_name_control[name_control][1] == "button"
+        self.midi_out.write([[[self.button_down, self.dict_name_control[name_control][0], state, 0], 0]])
         
+    def reset_all_leds(self):
+        for name_control in self.dict_name_control:
+            if self.dict_name_control[name_control][1] == "button":
+                self.set_led(name_control, False)
+    
+    
 if __name__ == "__main__":
     self = MidiInput()
     
     while True:
         time.sleep(0.1)
         self.scan_inputs()
-        x = self.get("A0", button_mode='toggle')
+        x = self.get("A0", button_mode='is_held')
         print(x)
         
 
