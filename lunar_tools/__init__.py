@@ -23,4 +23,4 @@ from .utils import read_api_key
 from .zmq_comms import ZMQPairEndpoint
 from .osc import OSCSender
 from .osc import OSCReceiver
-
+from .control_input import KeyboardInput
