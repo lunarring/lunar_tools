@@ -44,10 +44,13 @@ class MidiInput:
     """ A class to track midi inputs. """
     def __init__(self,
                  device_name="akai_lpd8",
+                 allow_fail=True,
                  device_id_input=None,
                  device_id_output=None,
                  ):
+        self.simulate_device = False
         self.device_name = device_name
+        self.allow_fail = allow_fail
         self.device_id_input = device_id_input
         self.device_id_output = device_id_output
         self.init_device_config()
@@ -95,13 +98,17 @@ class MidiInput:
                     device_id = i
                 elif not is_input and dev_info[3] == 1:
                     device_id = i
-        assert device_id, f"Could nbt auto determine device_id for {is_input}"
+        if not self.allow_fail:
+            assert device_id, f"Could not auto determine device_id for {is_input}"
         if is_input:
             self.device_id_input = device_id
         else:
             self.device_id_output = device_id
         
     def check_device_id(self, is_input):
+        if self.allow_fail and self.device_id_input is None:
+            self.simulate_device = True
+            return
         if is_input:
             dev_info = midi.get_device_info(self.device_id_input)
         else:
@@ -115,7 +122,7 @@ class MidiInput:
             midi.quit()
             time.sleep(0.01)
             midi.init()
-            
+        
         # Set the device_ids
         if self.device_id_input is None:
             self.auto_determine_device_id(is_input=True)
@@ -127,8 +134,9 @@ class MidiInput:
         self.check_device_id(is_input=False)
         
         # Init midi in and out
-        self.midi_in = midi.Input(self.device_id_input)
-        self.midi_out = midi.Output(self.device_id_output)
+        if not self.simulate_device:
+            self.midi_in = midi.Input(self.device_id_input)
+            self.midi_out = midi.Output(self.device_id_output)
 
     def get_control_name(self, idx_control):
         if idx_control in self.reverse_control_name:
@@ -137,6 +145,8 @@ class MidiInput:
             return None
 
     def scan_inputs(self):
+        if self.simulate_device:
+            return
         # Gather all inputs that arrived in the meantime
         while True:
             input_last = self.midi_in.read(1)
@@ -199,6 +209,8 @@ class MidiInput:
         return val_return
         
     def set_led(self, name_control, state):
+        if self.simulate_device:
+            return
         assert name_control in self.dict_name_control
         assert self.dict_name_control[name_control][1] == "button"
         self.midi_out.write([[[self.button_down, self.dict_name_control[name_control][0], state, 0], 0]])
@@ -210,8 +222,8 @@ class MidiInput:
     
     
 if __name__ == "__main__":
-    import lunar_tools as lt
-    akai_lpd8 = lt.MidiInput(device_name="akai_lpd8")
+    # import lunar_tools as lt
+    akai_lpd8 = MidiInput(device_name="akai_lpd8")
     
     while True:
         time.sleep(0.1)
