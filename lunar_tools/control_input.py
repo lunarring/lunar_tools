@@ -5,6 +5,7 @@ import time
 import os
 import yaml
 import threading
+import pkg_resources
 
 class KeyboardInput:
     """ A class to track keyboard inputs. """
@@ -47,20 +48,24 @@ class MidiInput:
                  allow_fail=True,
                  device_id_input=None,
                  device_id_output=None,
+                 enforce_local_config=False,
                  ):
         self.simulate_device = False
         self.device_name = device_name
         self.allow_fail = allow_fail
         self.device_id_input = device_id_input
         self.device_id_output = device_id_output
-        self.init_device_config()
+        self.init_device_config(enforce_local_config)
         self.init_midi()
         self.reset_all_leds()
         
-    def init_device_config(self):
+    def init_device_config(self, enforce_local_config):
         # Determine the path to the YAML file
         config_filename = f"{self.device_name}.yml"
-        config_path = os.path.join("midi_configs", config_filename)
+        if enforce_local_config:
+            config_path = os.path.join("midi_configs", config_filename)
+        else:
+            config_path = pkg_resources.resource_filename('lunar_tools', f'midi_configs/{config_filename}')
 
         # Load the configuration from the YAML file
         with open(config_path, 'r') as file:
