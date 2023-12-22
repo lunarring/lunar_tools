@@ -1,5 +1,6 @@
 from pynput import keyboard
 from pygame import midi
+import numpy as np
 import time
 
 class KeyboardInput:
@@ -50,7 +51,49 @@ class MidiInput:
 
 
     def init_device_config(self):
-        self.name_device = "LPD8 MIDI"        
+        # THIS SHOULD BE EXTERNAL
+        self.name_device = "LPD8 MIDI"
+        self.button_down = 144
+        self.button_release = 128
+        self.control_name = {}
+        self.control_name["A0"] = [40, "button"]    
+        self.control_name["A1"] = [36, "button"]    
+        self.control_name["B0"] = [41, "button"]    
+        self.control_name["B1"] = [37, "button"]    
+        self.control_name["C0"] = [42, "button"]    
+        self.control_name["C1"] = [38, "button"]    
+        self.control_name["D0"] = [43, "button"]    
+        self.control_name["D1"] = [39, "button"]    
+        self.control_name["E0"] = [1, "slider"]       
+        self.control_name["E1"] = [5, "slider"]       
+        self.control_name["F0"] = [2, "slider"]       
+        self.control_name["F1"] = [6, "slider"]       
+        self.control_name["G0"] = [3, "slider"]       
+        self.control_name["G1"] = [7, "slider"]       
+        self.control_name["H0"] = [4, "slider"]    
+        self.control_name["H1"] = [8, "slider"]
+        # -----
+        
+        # Reverse for last lookup
+        self.reverse_control_name = {v[0]: k for k, v in self.control_name.items()}
+
+        # Initialize the last_value last_time_scanned last_time_retrieved dicts
+        self.last_value = {}
+        self.last_time_scanned = {}
+        self.last_time_retrieved = {}
+        self.nmb_button_down = {}
+        for key in self.control_name:
+            if self.control_name[key][1] == "button":
+                self.last_value[key] = False
+            else:
+                self.last_value[key] = 0.0
+            self.last_time_scanned[key] = 0
+            self.last_time_retrieved[key] = 0
+            self.nmb_button_down[key] = 0
+            
+                
+        
+
         
     def auto_determine_device_id(self, is_input):
         dev_count = midi.get_count()
@@ -92,18 +135,82 @@ class MidiInput:
         # Check the device_ids
         self.check_device_id(is_input=True)
         self.check_device_id(is_input=False)
+        
+        # Init midi in and out
+        self.midi_in = midi.Input(self.device_id_input)
+        self.midi_out = midi.Output(self.device_id_output)
+
+    def get_control_name(self, idx_control):
+        if idx_control in self.reverse_control_name:
+            return self.reverse_control_name[idx_control]
+        else:
+            return None
+
+    def scan_inputs(self):
+        # Gather all inputs that arrived in the meantime
+        while True:
+            input_last = self.midi_in.read(1)
+            if input_last == []:
+                break
+            type_control = input_last[0][0][0]
+            idx_control = input_last[0][0][1]
+            val_control = input_last[0][0][2]
             
-
-
-    
-    def update(self):
-        inputs = self.midi_in.read(1)
-        print(inputs)
-
-
+            name_control = self.get_control_name(idx_control)
+            
+            # Process the inputs
+            if self.control_name[name_control][1] == "slider":
+                self.last_value[name_control] = val_control / 127.0
+                self.last_time_scanned[name_control] = time.time()
+                
+            elif self.control_name[name_control][1] == "button":
+                if type_control == self.button_down:
+                    self.last_time_scanned[name_control] = time.time()
+                    self.nmb_button_down[name_control] += 1
+                    self.last_value[name_control] = True
+                else:
+                    self.last_value[name_control] = False
+                    
+                
+            
+    def get(self, name_control, val_min=0, val_max=1, val_default=False, button_mode='was_pressed'):
+        # Asserts
+        if name_control not in self.control_name:
+            print(f"Warning! {name_control} is unknown. Returning val_default")
+            return val_default
+        # button mode correct if button
+        assert button_mode in ['is_held', 'was_pressed', 'toggle']
+        
+        # Process slider
+        if self.control_name[name_control][1] == "slider":
+            if val_default is False:
+                val_default = 0.5 * (val_min + val_max)
+            if self.last_time_scanned[name_control] == 0:
+                val_return = val_default
+            else:
+                val_return = val_min + (val_max-val_min) * self.last_value[name_control]
+        
+        # Process button
+        elif self.control_name[name_control][1] == "button":
+            if button_mode == 'is_held':
+                val_return = self.last_value[name_control]
+            elif button_mode == "was_pressed":
+                val_return = self.last_time_scanned[name_control] > self.last_time_retrieved[name_control]
+            elif button_mode == "toggle":
+                val_return = np.mod(self.nmb_button_down[name_control]+1,2) == 0
+                
+                
+        self.last_time_retrieved[name_control] = time.time()
+        
+        return val_return
+        
+        
 if __name__ == "__main__":
     self = MidiInput()
     
-    # while True:
-    #     self.update()
+    while True:
+        time.sleep(0.1)
+        self.scan_inputs()
+        x = self.get("A0", button_mode='toggle')
+        print(x)
         
