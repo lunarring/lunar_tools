@@ -1,4 +1,6 @@
 from pynput import keyboard
+from pygame import midi
+import time
 
 class KeyboardInput:
     """ A class to track keyboard inputs. """
@@ -34,12 +36,74 @@ class KeyboardInput:
         return False
 
 
+class MidiInput:
+    
+    def __init__(self,
+                 device_id_input=None,
+                 device_id_output=None,
+                 ):
+    
+        self.device_id_input = device_id_input
+        self.device_id_output = device_id_output
+        self.init_device_config()
+        self.init_midi()
+
+
+    def init_device_config(self):
+        self.name_device = "LPD8 MIDI"        
+        
+    def auto_determine_device_id(self, is_input):
+        dev_count = midi.get_count()
+        device_id = None
+        for i in range(dev_count):
+            dev_info = midi.get_device_info(i)
+            if self.name_device in dev_info[1].decode():
+                if is_input and dev_info[2] == 1:
+                    device_id = i
+                elif not is_input and dev_info[3] == 1:
+                    device_id = i
+        assert device_id, f"Could nbt auto determine device_id for {is_input}"
+        if is_input:
+            self.device_id_input = device_id
+        else:
+            self.device_id_output = device_id
+        
+    def check_device_id(self, is_input):
+        if is_input:
+            dev_info = midi.get_device_info(self.device_id_input)
+        else:
+            dev_info = midi.get_device_info(self.device_id_output)
+            
+        assert self.name_device in dev_info[1].decode(), f"Device mismatch: name_device={self.name_device} and get_device_info={dev_info[1].decode()}"
+        
+    def init_midi(self):
+        # Have a small safety loop for init
+        for i in range(5):
+            midi.quit()
+            time.sleep(0.01)
+            midi.init()
+            
+        # Set the device_ids
+        if self.device_id_input is None:
+            self.auto_determine_device_id(is_input=True)
+        if self.device_id_output is None:
+            self.auto_determine_device_id(is_input=False)
+            
+        # Check the device_ids
+        self.check_device_id(is_input=True)
+        self.check_device_id(is_input=False)
+            
+
+
+    
+    def update(self):
+        inputs = self.midi_in.read(1)
+        print(inputs)
+
+
 if __name__ == "__main__":
-    keyb = KeyboardInput()
-    while True:
-        if keyb.detect("space"):
-            print("Space pressed")
-        if keyb.detect("enter"):
-            print("Enter pressed")
-        if keyb.detect("f"):
-            print("f pressed")
+    self = MidiInput()
+    
+    # while True:
+    #     self.update()
+        
