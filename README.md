@@ -51,6 +51,20 @@ while True:
         print("f pressed")
 ```
 
+## Midi Controller
+```python
+import lunar_tools as lt
+akai_lpd8 = lt.MidiInput(device_name="akai_lpd8")
+
+while True:
+    time.sleep(0.1)
+    a0 = akai_lpd8.get("A0", button_mode='toggle') # toggle switches the state with every press between on and off
+    b0 = akai_lpd8.get("B0", button_mode='is_held') # is_held checks if the button is pressed down at the moment
+    c0 = akai_lpd8.get("C0", button_mode='was_pressed') # was_pressed checks if the button was pressed since we checked last time
+    e0 = akai_lpd8.get("E0", val_min=3, val_max=6) # e0 is a slider float between val_min and val_max
+    print(f"a0: {a0}, b0: {b0}, c0: {c0}, e0: {e0}")
+```
+
 # Outputs
 ## Play sounds
 ```python
