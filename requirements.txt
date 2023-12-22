@@ -8,6 +8,8 @@ numpy
 openai
 opencv_python
 Pillow
+pygame
+pynput
 pydub
 python-osc
 PyOpenGL
