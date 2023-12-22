@@ -186,7 +186,7 @@ class MidiInput:
             print(f"Warning! {name_control} is unknown. Returning val_default")
             return val_default
         # button mode correct if button
-        assert button_mode in ['is_held', 'was_pressed', 'toggle']
+        assert button_mode in ['is_pressed', 'was_pressed', 'toggle']
         
         # Scan new inputs
         self.scan_inputs()
@@ -202,7 +202,7 @@ class MidiInput:
         
         # Process button
         elif self.dict_name_control[name_control][1] == "button":
-            if button_mode == 'is_held':
+            if button_mode == 'is_pressed':
                 val_return = self.last_value[name_control]
             elif button_mode == "was_pressed":
                 val_return = self.last_time_scanned[name_control] > self.last_time_retrieved[name_control]
@@ -236,7 +236,7 @@ if __name__ == "__main__":
     while True:
         time.sleep(0.1)
         a0 = akai_lpd8.get("A0", button_mode='toggle') # toggle switches the state with every press between on and off
-        b0 = akai_lpd8.get("B0", button_mode='is_held') # is_held checks if the button is pressed down at the moment
+        b0 = akai_lpd8.get("B0", button_mode='is_pressed') # is_pressed checks if the button is pressed down at the moment
         c0 = akai_lpd8.get("C0", button_mode='was_pressed') # was_pressed checks if the button was pressed since we checked last time
         e0 = akai_lpd8.get("E0", val_min=3, val_max=6) # e0 is a slider float between val_min and val_max
         print(f"a0: {a0}, b0: {b0}, c0: {c0}, e0: {e0}")
