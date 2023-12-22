@@ -21,8 +21,7 @@ export REPLICATE_API_TOKEN="XXX"
 export ELEVEN_API_KEY="XXX"
 ```
 
-
-# Audio
+# Inputs
 ## AudioRecorder
 ```python
 import lunar_tools as lt
@@ -33,92 +32,34 @@ time.sleep(3)
 audio_recorder.stop_recording()    
 ```
 
-## Speech2Text
-```python
-import lunar_tools as lt
-import time
-speech_detector = lt.Speech2Text()
-speech_detector.start_recording()
-time.sleep(3)
-translation = speech_detector.stop_recording()
-print(f"translation: {translation}")
-```
-
-## Play sounds
-```python
-import lunar_tools as lt
-player = lt.SoundPlayer()
-player.play_sound("myvoice.mp3")
-```
-The playback is threaded and does not block the main application. You can stop the playback via: 
-```python
-player.stop_sound()
-```
-
-## Text2Speech OpenAI
-```python
-import lunar_tools as lt
-text2speech = lt.Text2SpeechOpenAI()
-text2speech.change_voice("nova")
-text2speech.generate("hey there can you hear me?", "hervoice.mp3")
-```
-
-The Text2Speech can also directly generate and play back the sound via: 
-```python
-text2speech.play("hey there can you hear me?")
-```
-
-## Text2Speech elevenlabs
-```python
-text2speech = Text2SpeechElevenlabs()
-text2speech.change_voice("FU5JW1L0DwfWILWkNpW6")
-text2speech.play("hey there can you hear me?")
-```
-
-
-# Large Language Models
-## GPT4
-```python
-import lunar_tools as lt
-gpt4 = lt.GPT4()
-msg = gpt4.generate("tell me about yourself")
-```
-
-# Logging and terminal printing
-```python
-import lunar_tools as lt
-logger = lt.LogPrint()  # No filename provided, will use default current_dir/logs/%y%m%d_%H%M
-logger.print("white")
-logger.print("red", "red")
-logger.print("green", "green")
-```    
-
-# Image gen
-## Generate Images with Dall-e-3
-```python
-import lunar_tools as lt
-dalle3 = lt.Dalle3ImageGenerator()
-image, revised_prompt = dalle3.generate("a beautiful red house with snow on the roof, a chimney with smoke")
-```
-
-## Generate Images with SDXL Turbo
-```python
-import lunar_tools as lt
-sdxl_turbo = lt.SDXL_TURBO()
-image, img_url = sdxl_turbo.generate("An astronaut riding a rainbow unicorn", "cartoon")
-```
-
-# Camera
 ## Get image from webcam
-
 ```python
 import lunar_tools as lt
 cam = lt.WebCam()
 img = cam.get_img()
 ```
 
-# Real-time display
-## Torch, PIL, numpy
+## Grab keyboard inputs
+```python
+keyb = lt.KeyboardInput()
+while True:
+    if keyb.detect("space"):
+        print("Space pressed")
+    if keyb.detect("enter"):
+        print("Enter pressed")
+    if keyb.detect("f"):
+        print("f pressed")
+```
+
+# Outputs
+## Play sounds
+```python
+import lunar_tools as lt
+player = lt.SoundPlayer()
+player.play_sound("myvoice.mp3")
+```
+
+## Real-time display (Torch, PIL, numpy)
 Allows to fast render images from torch, numpy or PIL in a window. Can be directly from the GPU, without need to copy. Works with np arrays, PIL.Image and torch tensors (just uncomment from below).
 ```python
 import lunar_tools as lt
@@ -134,7 +75,7 @@ while True:
     renderer.render(image)
 ```
 
-## Remote streaming example
+### Real-time display example with remote streaming
 Remote streaming allows to generate images on one PC, typically with a beefy GPU, and to show them on another one, which may not have a GPU. The streaming is handled via ZMQ and automatically compresses the images using jpeg compression.
 
 Sender code example: generates an image and sends it to receiver. This is your backend server with GPU and we are emulating the image creation process by generating random arrays.
@@ -166,6 +107,66 @@ while True:
         renderer.render(image)
 ```
 
+# Language
+
+## GPT4
+```python
+import lunar_tools as lt
+gpt4 = lt.GPT4()
+msg = gpt4.generate("tell me about yourself")
+```
+
+## Speech2Text
+```python
+import lunar_tools as lt
+import time
+speech_detector = lt.Speech2Text()
+speech_detector.start_recording()
+time.sleep(3)
+translation = speech_detector.stop_recording()
+print(f"translation: {translation}")
+```
+
+The playback is threaded and does not block the main application. You can stop the playback via: 
+```python
+player.stop_sound()
+```
+
+## Text2Speech OpenAI
+```python
+import lunar_tools as lt
+text2speech = lt.Text2SpeechOpenAI()
+text2speech.change_voice("nova")
+text2speech.generate("hey there can you hear me?", "hervoice.mp3")
+```
+
+The Text2Speech can also directly generate and play back the sound via: 
+```python
+text2speech.play("hey there can you hear me?")
+```
+
+## Text2Speech elevenlabs
+```python
+text2speech = Text2SpeechElevenlabs()
+text2speech.change_voice("FU5JW1L0DwfWILWkNpW6")
+text2speech.play("hey there can you hear me?")
+```
+
+# Image generation APIs
+## Generate Images with Dall-e-3
+```python
+import lunar_tools as lt
+dalle3 = lt.Dalle3ImageGenerator()
+image, revised_prompt = dalle3.generate("a beautiful red house with snow on the roof, a chimney with smoke")
+```
+
+## Generate Images with SDXL Turbo
+```python
+import lunar_tools as lt
+sdxl_turbo = lt.SDXL_TURBO()
+image, img_url = sdxl_turbo.generate("An astronaut riding a rainbow unicorn", "cartoon")
+```
+
 
 # Movie handling
 ## Saving a series of images as movie
@@ -185,7 +186,6 @@ mr = lt.MovieReader("my_movie.mp4")
 for _ in range(mr.nmb_frames):
     img = mr.get_next_frame()
 ```
-
 
 # Communication
 ## ZMQ
@@ -247,6 +247,14 @@ for i in range(10):
 receiver.get_all_values("/env1")
 ```
 
+# Logging and terminal printing
+```python
+import lunar_tools as lt
+logger = lt.LogPrint()  # No filename provided, will use default current_dir/logs/%y%m%d_%H%M
+logger.print("white")
+logger.print("red", "red")
+logger.print("green", "green")
+```   
 
 # Devinfos
 ## Testing
