@@ -109,6 +109,8 @@ class MidiInput:
         if self.allow_fail and self.device_id_input is None:
             self.simulate_device = True
             return
+        elif not self.allow_fail and self.device_id_input is None:
+            raise ValueError("Device init failed! If you want to simulate, set allow_fail=True")
         if is_input:
             dev_info = midi.get_device_info(self.device_id_input)
         else:
