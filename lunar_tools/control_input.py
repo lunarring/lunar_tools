@@ -4,6 +4,7 @@ import numpy as np
 import time
 import os
 import yaml
+import threading
 
 class KeyboardInput:
     """ A class to track keyboard inputs. """
@@ -52,7 +53,7 @@ class MidiInput:
         self.init_device_config()
         self.init_midi()
         self.reset_all_leds()
-
+        
     def init_device_config(self):
         # Determine the path to the YAML file
         config_filename = f"{self.device_name}.yml"
@@ -152,6 +153,7 @@ class MidiInput:
                 self.last_value[name_control] = val_control / 127.0
                 self.last_time_scanned[name_control] = time.time()
                 
+                
             elif self.dict_name_control[name_control][1] == "button":
                 if type_control == self.button_down:
                     self.last_time_scanned[name_control] = time.time()
@@ -168,6 +170,9 @@ class MidiInput:
             return val_default
         # button mode correct if button
         assert button_mode in ['is_held', 'was_pressed', 'toggle']
+        
+        # Scan new inputs
+        self.scan_inputs()
         
         # Process slider
         if self.dict_name_control[name_control][1] == "slider":
@@ -205,13 +210,15 @@ class MidiInput:
     
     
 if __name__ == "__main__":
-    self = MidiInput()
+    self = MidiInput(device_name="akai_lpd8")
     
     while True:
         time.sleep(0.1)
-        self.scan_inputs()
-        x = self.get("A0", button_mode='is_held')
-        print(x)
+        x = self.get("A0", button_mode='toggle')
+        # x = self.get("A0", button_mode='is_held')
+        # x = self.get("A0", button_mode='was_pressed')
+        
+        y = self.get("E0")
         
 
 #%%
