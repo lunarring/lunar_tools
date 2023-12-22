@@ -38,7 +38,7 @@ class KeyboardInput:
 
 
 class MidiInput:
-    
+    """ A class to track midi inputs. """
     def __init__(self,
                  device_id_input=None,
                  device_id_output=None,
@@ -198,6 +198,8 @@ class MidiInput:
                 val_return = self.last_time_scanned[name_control] > self.last_time_retrieved[name_control]
             elif button_mode == "toggle":
                 val_return = np.mod(self.nmb_button_down[name_control]+1,2) == 0
+                # Set LED
+                self.midi_out.write([[[self.button_down, self.control_name['A0'][0], val_return, 0], 0]])
                 
                 
         self.last_time_retrieved[name_control] = time.time()
@@ -214,3 +216,6 @@ if __name__ == "__main__":
         x = self.get("A0", button_mode='toggle')
         print(x)
         
+
+#%%
+
