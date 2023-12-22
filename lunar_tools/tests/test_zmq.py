@@ -41,8 +41,8 @@ class TestZMQPairEndpoint(unittest.TestCase):
 
     def test_bidirectional_json(self):
         self.client.send_json({"message": "Client to Server"})
+        time.sleep(0.1)
         self.server.send_json({"response": "Server to Client"})
-        
         time.sleep(0.1)
         client_msgs = self.client.get_messages()
         server_msgs = self.server.get_messages()
