@@ -229,8 +229,9 @@ class MidiInput:
     
     
 if __name__ == "__main__":
-    # import lunar_tools as lt
-    akai_lpd8 = MidiInput(device_name="akai_lpd8")
+    import lunar_tools as lt
+    import time
+    akai_lpd8 = lt.MidiInput(device_name="akai_lpd8")
     
     while True:
         time.sleep(0.1)
