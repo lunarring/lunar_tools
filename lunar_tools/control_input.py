@@ -124,8 +124,13 @@ class MidiInput:
             dev_info = midi.get_device_info(self.device_id_input)
         else:
             dev_info = midi.get_device_info(self.device_id_output)
-            
-        assert self.name_device in dev_info[1].decode(), f"Device mismatch: name_device={self.name_device} and get_device_info={dev_info[1].decode()}"
+        
+        if self.name_device not in dev_info[1].decode():
+            print(f"Device mismatch: name_device={self.name_device} and get_device_info={dev_info[1].decode()}")
+            return False
+        else:
+            return True
+        
         
     def init_midi(self):
         # Have a small safety loop for init
@@ -141,8 +146,8 @@ class MidiInput:
             self.auto_determine_device_id(is_input=False)
             
         # Check the device_ids
-        self.check_device_id(is_input=True)
-        self.check_device_id(is_input=False)
+        assert(self.check_device_id(is_input=True))
+        assert(self.check_device_id(is_input=False))
         
         # Init midi in and out
         if not self.simulate_device:
@@ -158,6 +163,7 @@ class MidiInput:
     def scan_inputs(self):
         if self.simulate_device:
             return
+        
         # Gather all inputs that arrived in the meantime
         while True:
             input_last = self.midi_in.read(1)
@@ -213,7 +219,10 @@ class MidiInput:
                 self.variable_name[name_control] = variable_name
         
         # Scan new inputs
-        self.scan_inputs()
+        try:
+            self.scan_inputs()
+        except Exception as e:
+            print(f"scan_inputs raised: {e}")
         
         # Process slider
         if self.dict_name_control[name_control][1] == "slider":
@@ -280,7 +289,7 @@ if __name__ == "__main__":
     import time
     akai_lpd8 = MidiInput(device_name="akai_lpd8")
     
-    for i in range(5): #could be a while loop
+    while True:
         time.sleep(0.1)
         variable1 = akai_lpd8.get("A0", button_mode='toggle') # toggle switches the state with every press between on and off
         do_baba = akai_lpd8.get("B1", button_mode='is_pressed') # is_pressed checks if the button is pressed down at the moment
@@ -289,5 +298,5 @@ if __name__ == "__main__":
         print(f"variable1: {variable1}, do_baba: {do_baba}, strange_effect: {strange_effect}, supermorph: {supermorph}")
         
     akai_lpd8.show()
-        
 
+    
