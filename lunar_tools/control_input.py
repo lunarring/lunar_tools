@@ -6,6 +6,8 @@ import os
 import yaml
 import threading
 import pkg_resources
+import inspect
+import json
 
 class KeyboardInput:
     """ A class to track keyboard inputs. """
@@ -58,6 +60,7 @@ class MidiInput:
         self.init_device_config(enforce_local_config)
         self.init_midi()
         self.reset_all_leds()
+        self.autodetect_varname = True
         
     def init_device_config(self, enforce_local_config):
         # Determine the path to the YAML file
@@ -85,6 +88,7 @@ class MidiInput:
         self.last_time_scanned = {}
         self.last_time_retrieved = {}
         self.nmb_button_down = {}
+        self.variable_name = {}
         for key in self.dict_name_control:
             control_type = self.dict_name_control[key][1]
             self.last_value[key] = False if control_type == "button" else 0.0
@@ -178,7 +182,7 @@ class MidiInput:
                     self.last_value[name_control] = True
                 else:
                     self.last_value[name_control] = False
-                    
+    
             
     def get(self, name_control, val_min=0, val_max=1, val_default=False, button_mode='was_pressed'):
         # Asserts
@@ -187,6 +191,26 @@ class MidiInput:
             return val_default
         # button mode correct if button
         assert button_mode in ['is_pressed', 'was_pressed', 'toggle']
+        
+        if self.autodetect_varname:
+            if name_control not in self.variable_name:
+                # Inspecting the stack to find the variable name
+                frame = inspect.currentframe()
+                try:
+                    outer_frame = frame.f_back
+                    call_line = outer_frame.f_lineno
+                    source_lines, starting_line = inspect.getsourcelines(outer_frame)
+                    line_index = call_line - starting_line
+                    call_code = source_lines[line_index-1].strip()
+        
+                    # Extracting the variable name
+                    variable_name = call_code.split('=')[0].strip()
+                except Exception:
+                    variable_name = "autodetect failed"
+                finally:
+                    del frame  # Prevent reference cycles
+                
+                self.variable_name[name_control] = variable_name
         
         # Scan new inputs
         self.scan_inputs()
@@ -226,22 +250,44 @@ class MidiInput:
         for name_control in self.dict_name_control:
             if self.dict_name_control[name_control][1] == "button":
                 self.set_led(name_control, False)
-    
-    
+                
+    def show(self):
+        """
+        shows the assignemnet of the name_controls on the midi device
+        """
+        # Extract letters and numbers
+        letters = sorted(set(key[0] for key in self.variable_name.keys()))
+        max_num = max(int(key[1]) for key in self.variable_name.keys())
+        
+        # Determine the maximum width of each column
+        max_widths = {letter: max(len(self.variable_name.get(f"{letter}{num}", '-')) for num in range(max_num + 1)) for letter in letters}
+        
+        # Print header row
+        header_row = '   ' + ' '.join(letter.center(max_widths[letter]) for letter in letters)
+        print(header_row)
+        print('   ' + '+'.join('-' * max_widths[letter] for letter in letters))
+        
+        # Create the grid with left header
+        for num in range(max_num + 1):
+            row = f"{num} |"
+            for letter in letters:
+                key = f"{letter}{num}"
+                row += self.variable_name.get(key, '-').center(max_widths[letter]) + '|'
+            print(row)
+                    
 if __name__ == "__main__":
     import lunar_tools as lt
     import time
-    akai_lpd8 = lt.MidiInput(device_name="akai_lpd8")
+    akai_lpd8 = MidiInput(device_name="akai_lpd8")
     
-    while True:
+    for i in range(5): #could be a while loop
         time.sleep(0.1)
-        a0 = akai_lpd8.get("A0", button_mode='toggle') # toggle switches the state with every press between on and off
-        b0 = akai_lpd8.get("B0", button_mode='is_pressed') # is_pressed checks if the button is pressed down at the moment
-        c0 = akai_lpd8.get("C0", button_mode='was_pressed') # was_pressed checks if the button was pressed since we checked last time
-        e0 = akai_lpd8.get("E0", val_min=3, val_max=6) # e0 is a slider float between val_min and val_max
-        print(f"a0: {a0}, b0: {b0}, c0: {c0}, e0: {e0}")
+        variable1 = akai_lpd8.get("A0", button_mode='toggle') # toggle switches the state with every press between on and off
+        do_baba = akai_lpd8.get("B1", button_mode='is_pressed') # is_pressed checks if the button is pressed down at the moment
+        strange_effect = akai_lpd8.get("C0", button_mode='was_pressed') # was_pressed checks if the button was pressed since we checked last time
+        supermorph = akai_lpd8.get("E1", val_min=3, val_max=6) # e0 is a slider float between val_min and val_max
+        print(f"variable1: {variable1}, do_baba: {do_baba}, strange_effect: {strange_effect}, supermorph: {supermorph}")
         
+    akai_lpd8.show()
         
-
-#%%
 
