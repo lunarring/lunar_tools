@@ -92,6 +92,7 @@ class MidiInput:
                  device_id_input=None,
                  device_id_output=None,
                  enforce_local_config=False,
+                 do_auto_reconnect=False
                  ):
         
         # get operating system
@@ -101,6 +102,7 @@ class MidiInput:
             self.os_name = 'macos'
         else:
             self.os_name = 'windows'
+        self.do_auto_reconnect = do_auto_reconnect
         
         self.simulate_device = False
         self.device_name = device_name
@@ -231,7 +233,21 @@ class MidiInput:
         
         # Gather all inputs that arrived in the meantime
         while True:
-            input_last = self.midi_in.read(1)
+            if self.os_name == 'linux' and self.do_auto_reconnect:
+                time.sleep(1e-3)
+                is_midi_device_connected = check_midi_device_connected_pyusb(self.device_hardware_code)
+                print(f'{is_midi_device_connected}')
+                if not is_midi_device_connected:
+                    print(f'{self.device_name} has disconnected. trying to reconnect...')
+                    self.init_midi()                
+            else:
+                is_midi_device_connected = True
+                
+            if is_midi_device_connected:
+                input_last = self.midi_in.read(1)
+            else:
+                break
+                
             if input_last == []:
                 break
             type_control = input_last[0][0][0]
@@ -298,17 +314,7 @@ class MidiInput:
         # Scan new inputs
         try:
             # so far only linux supported for auto device reconnect/disconnect handling
-            if self.os_name == 'linux':
-                is_midi_device_connected = check_midi_device_connected_pyusb(self.device_hardware_code)
-                if not is_midi_device_connected:
-                    print(f'{self.device_name} has disconnected. trying to reconnect...')
-                    self.init_midi()
-            else:
-                is_midi_device_connected = True
-                        
-            print(f'{is_midi_device_connected}')
-            if is_midi_device_connected:
-                self.scan_inputs()
+            self.scan_inputs()
         except Exception as e:
             print(f"scan_inputs raised: {e}")
         
@@ -374,7 +380,7 @@ class MidiInput:
             print(row)
         print('\n')
                     
-if __name__ == "__main__lpd8":
+if __name__ == "__main__":
     import lunar_tools as lt
     import time
     akai_lpd8 = MidiInput(device_name="akai_lpd8")
@@ -389,7 +395,7 @@ if __name__ == "__main__lpd8":
         
     akai_lpd8.show()
                     
-if __name__ == "__main__":
+if __name__ == "__main__midimix":
     import lunar_tools as lt
     import time
     akai_lpd8 = MidiInput(device_name="akai_midimix")
