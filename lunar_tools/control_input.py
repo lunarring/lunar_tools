@@ -62,6 +62,7 @@ class MidiInput:
         self.init_midi()
         self.reset_all_leds()
         self.autodetect_varname = True
+        self.autoshow_names = True
         
     def init_device_config(self, enforce_local_config):
         # Determine the path to the YAML file
@@ -228,6 +229,11 @@ class MidiInput:
                     assert variable_name == self.id_name[id_control], f"Double assignment for {id_control}: {variable_name} and {self.id_name[id_control]}"
                 self.id_nmb_scan_cycles[id_control] += 1
                 self.id_name[id_control] = variable_name
+            
+            if self.id_nmb_scan_cycles[id_control] == 2 and self.autoshow_names:
+                self.show()
+                self.autoshow_names = False
+                
         
         # Scan new inputs
         try:
@@ -284,6 +290,7 @@ class MidiInput:
         
         # Print header row
         header_row = '   ' + ' '.join(letter.center(max_widths[letter]) for letter in letters)
+        print('\n')
         print(header_row)
         print('   ' + '+'.join('-' * max_widths[letter] for letter in letters))
         
@@ -294,6 +301,7 @@ class MidiInput:
                 key = f"{letter}{num}"
                 row += self.id_name.get(key, '-').center(max_widths[letter]) + '|'
             print(row)
+        print('\n')
                     
 if __name__ == "__main__":
     import lunar_tools as lt
