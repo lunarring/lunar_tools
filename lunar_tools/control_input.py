@@ -8,6 +8,10 @@ import threading
 import pkg_resources
 import inspect
 import json
+import subprocess
+import re
+import usb.core     # pip install pyusb
+from sys import platform
 
 class KeyboardInput:
     """ A class to track keyboard inputs. """
@@ -42,6 +46,43 @@ class KeyboardInput:
             return True
         return False
 
+def get_midi_device_vendor_product_ids(name):
+    # Initialize the result dictionary
+    midi_mix_ids = {}
+
+    try:
+        # Run the lsusb command and capture the output
+        lsusb_output = subprocess.check_output(['lsusb'], text=True)
+
+        # Regular expression to match the vendor and product IDs of device called <name>
+        regex = f'ID (\w+:\w+).+{name}'
+
+        # Find all matches
+        matches = re.findall(regex, lsusb_output)
+
+        for match in matches:
+            # Split the match into vendor and product IDs
+            vendor_id, product_id = match.split(':')
+
+            # Add to the dictionary
+            return {'vendor_id': int(vendor_id, 16), 'product_id': int(product_id, 16)}
+
+        return midi_mix_ids
+    except subprocess.CalledProcessError as e:
+        print(f"Error executing lsusb: {e}")
+        return {}
+    
+def check_midi_device_connected_pyusb(device_code):
+    if len(device_code) > 0:
+        # Look for all devices connected
+        devices = usb.core.find(find_all=True)
+    
+        # Iterate through each device and check if <device_code> device connected
+        for device in devices:
+            if device.idVendor == device_code['vendor_id'] and device.idProduct == device_code['product_id']:
+                return True
+
+    return False    
 
 class MidiInput:
     """ A class to track midi inputs. """
@@ -52,12 +93,22 @@ class MidiInput:
                  device_id_output=None,
                  enforce_local_config=False,
                  ):
+        
+        # get operating system
+        if (platform == "linux" or platform == "linux2"):
+            self.os_name = 'linux'
+        elif platform == "darwin":
+            self.os_name = 'macos'
+        else:
+            self.os_name = 'windows'
+        
         self.simulate_device = False
         self.device_name = device_name
         self.allow_fail = allow_fail
         self.device_id_input = device_id_input
         self.device_id_output = device_id_output
         self.init_device_config(enforce_local_config)
+        self.init_device_hardware_code()
         self.init_vars()
         self.init_midi()
         self.reset_all_leds()
@@ -84,6 +135,10 @@ class MidiInput:
 
         # Reverse for last lookup
         self.reverse_control_name = {(v[0], v[1]): k for k, v in self.id_config.items()}
+        
+    def init_device_hardware_code(self):
+        if self.os_name == 'linux':
+            self.device_hardware_code = get_midi_device_vendor_product_ids(self.name_device)
 
     def init_vars(self):
         # Initializes all variables
@@ -242,7 +297,18 @@ class MidiInput:
         
         # Scan new inputs
         try:
-            self.scan_inputs()
+            # so far only linux supported for auto device reconnect/disconnect handling
+            if self.os_name == 'linux':
+                is_midi_device_connected = check_midi_device_connected_pyusb(self.device_hardware_code)
+                if not is_midi_device_connected:
+                    print(f'{self.device_name} has disconnected. trying to reconnect...')
+                    self.init_midi()
+            else:
+                is_midi_device_connected = True
+                        
+            print(f'{is_midi_device_connected}')
+            if is_midi_device_connected:
+                self.scan_inputs()
         except Exception as e:
             print(f"scan_inputs raised: {e}")
         
@@ -308,7 +374,7 @@ class MidiInput:
             print(row)
         print('\n')
                     
-if __name__ == "__main__":
+if __name__ == "__main__lpd8":
     import lunar_tools as lt
     import time
     akai_lpd8 = MidiInput(device_name="akai_lpd8")
@@ -323,3 +389,16 @@ if __name__ == "__main__":
         
     akai_lpd8.show()
                     
+if __name__ == "__main__":
+    import lunar_tools as lt
+    import time
+    akai_lpd8 = MidiInput(device_name="akai_midimix")
+    
+    while True:
+        time.sleep(0.1)
+        a0 = akai_lpd8.get("A0", val_min=3, val_max=6, val_default=5)
+        
+        print(a0)
+        
+    akai_lpd8.show()
+    
