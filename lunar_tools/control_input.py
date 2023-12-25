@@ -83,7 +83,7 @@ class MidiInput:
         self.id_config = config['controls']
 
         # Reverse for last lookup
-        self.reverse_control_name = {v[0]: k for k, v in self.id_config.items()}
+        self.reverse_control_name = {(v[0], v[1]): k for k, v in self.id_config.items()}
 
     def init_vars(self):
         # Initializes all variables
@@ -159,9 +159,14 @@ class MidiInput:
             self.midi_in = midi.Input(self.device_id_input)
             self.midi_out = midi.Output(self.device_id_output)
 
-    def get_control_name(self, idx_control):
-        if idx_control in self.reverse_control_name:
-            return self.reverse_control_name[idx_control]
+    def get_control_name(self, idx_control, type_control):
+        if type_control == self.button_down or type_control == self.button_release:
+            str_type_control = "button"
+        else:
+            str_type_control = "slider"
+        
+        if (idx_control, str_type_control) in self.reverse_control_name:
+            return self.reverse_control_name[(idx_control, str_type_control)]
         else:
             return None
 
@@ -178,7 +183,7 @@ class MidiInput:
             idx_control = input_last[0][0][1]
             val_control = input_last[0][0][2]
             
-            id_control = self.get_control_name(idx_control)
+            id_control = self.get_control_name(idx_control, type_control)
             
             # Process the inputs
             if self.id_config[id_control][1] == "slider":
@@ -317,4 +322,4 @@ if __name__ == "__main__":
         print(f"variable1: {variable1}, do_baba: {do_baba}, strange_effect: {strange_effect}, supermorph: {supermorph}")
         
     akai_lpd8.show()
-
+                    
