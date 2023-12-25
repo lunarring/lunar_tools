@@ -204,10 +204,10 @@ class MidiInput:
         if val_default:
             assert val_default >= val_min and val_default <= val_max
         
-        
         if self.autodetect_varname:
+            if self.id_nmb_scan_cycles[id_control] <= 2:
             # self.id_nmb_scan_cycles
-            if id_control not in self.id_name:
+            # if id_control not in self.id_name:
                 # Inspecting the stack to find the variable name
                 frame = inspect.currentframe()
                 try:
@@ -224,8 +224,10 @@ class MidiInput:
                 finally:
                     del frame  # Prevent reference cycles
                 
+                if self.id_nmb_scan_cycles[id_control] == 1:
+                    assert variable_name == self.id_name[id_control], f"Double assignment for {id_control}: {variable_name} and {self.id_name[id_control]}"
+                self.id_nmb_scan_cycles[id_control] += 1
                 self.id_name[id_control] = variable_name
-                # self.id_nmb_scan_cycles[id_control]
         
         # Scan new inputs
         try:
