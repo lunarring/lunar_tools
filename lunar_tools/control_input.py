@@ -265,8 +265,8 @@ class MidiInput:
         shows the assignemnet of the name_controls on the midi device
         """
         # Extract letters and numbers
-        letters = sorted(set(key[0] for key in self.variable_name.keys()))
-        max_num = max(int(key[1]) for key in self.variable_name.keys())
+        letters = sorted(set(key[0] for key in self.dict_name_control.keys()))
+        max_num = max(int(key[1]) for key in self.dict_name_control.keys())
         
         # Determine the maximum width of each column
         max_widths = {letter: max(len(self.variable_name.get(f"{letter}{num}", '-')) for num in range(max_num + 1)) for letter in letters}
@@ -299,4 +299,3 @@ if __name__ == "__main__":
         
     akai_lpd8.show()
 
-    
