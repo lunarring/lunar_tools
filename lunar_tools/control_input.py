@@ -79,24 +79,26 @@ class MidiInput:
         self.name_device = config['name_device']
         self.button_down = config['button_down']
         self.button_release = config['button_release']
-        self.dict_name_control = config['controls']
+        self.id_config = config['controls']
 
         # Reverse for last lookup
-        self.reverse_control_name = {v[0]: k for k, v in self.dict_name_control.items()}
+        self.reverse_control_name = {v[0]: k for k, v in self.id_config.items()}
 
     def init_vars(self):
         # Initializes all variables
-        self.last_value = {}
-        self.last_time_scanned = {}
-        self.last_time_retrieved = {}
-        self.nmb_button_down = {}
-        self.variable_name = {}
-        for key in self.dict_name_control:
-            control_type = self.dict_name_control[key][1]
-            self.last_value[key] = False if control_type == "button" else 0.0
-            self.last_time_scanned[key] = 0
-            self.last_time_retrieved[key] = 0
-            self.nmb_button_down[key] = 0 if control_type == "button" else None
+        self.id_value = {}
+        self.id_last_time_scanned = {}
+        self.id_last_time_retrieved = {}
+        self.id_nmb_button_down = {}
+        self.id_nmb_scan_cycles = {}
+        self.id_name = {}
+        for key in self.id_config:
+            control_type = self.id_config[key][1]
+            self.id_value[key] = False if control_type == "button" else 0.0
+            self.id_last_time_scanned[key] = 0
+            self.id_last_time_retrieved[key] = 0
+            self.id_nmb_button_down[key] = 0 if control_type == "button" else None
+            self.id_nmb_scan_cycles[key] = 0
 
         
     def auto_determine_device_id(self, is_input):
@@ -175,27 +177,27 @@ class MidiInput:
             idx_control = input_last[0][0][1]
             val_control = input_last[0][0][2]
             
-            name_control = self.get_control_name(idx_control)
+            id_control = self.get_control_name(idx_control)
             
             # Process the inputs
-            if self.dict_name_control[name_control][1] == "slider":
-                self.last_value[name_control] = val_control / 127.0
-                self.last_time_scanned[name_control] = time.time()
+            if self.id_config[id_control][1] == "slider":
+                self.id_value[id_control] = val_control / 127.0
+                self.id_last_time_scanned[id_control] = time.time()
                 
                 
-            elif self.dict_name_control[name_control][1] == "button":
+            elif self.id_config[id_control][1] == "button":
                 if type_control == self.button_down:
-                    self.last_time_scanned[name_control] = time.time()
-                    self.nmb_button_down[name_control] += 1
-                    self.last_value[name_control] = True
+                    self.id_last_time_scanned[id_control] = time.time()
+                    self.id_nmb_button_down[id_control] += 1
+                    self.id_value[id_control] = True
                 else:
-                    self.last_value[name_control] = False
+                    self.id_value[id_control] = False
     
             
-    def get(self, name_control, val_min=0, val_max=1, val_default=False, button_mode='was_pressed'):
+    def get(self, id_control, val_min=0, val_max=1, val_default=False, button_mode='was_pressed'):
         # Asserts
-        if name_control not in self.dict_name_control:
-            print(f"Warning! {name_control} is unknown. Returning val_default")
+        if id_control not in self.id_config:
+            print(f"Warning! {id_control} is unknown. Returning val_default")
             return val_default
         # Assert that button mode is correct if button
         assert button_mode in ['is_pressed', 'was_pressed', 'toggle']
@@ -204,7 +206,8 @@ class MidiInput:
         
         
         if self.autodetect_varname:
-            if name_control not in self.variable_name:
+            # self.id_nmb_scan_cycles
+            if id_control not in self.id_name:
                 # Inspecting the stack to find the variable name
                 frame = inspect.currentframe()
                 try:
@@ -221,7 +224,8 @@ class MidiInput:
                 finally:
                     del frame  # Prevent reference cycles
                 
-                self.variable_name[name_control] = variable_name
+                self.id_name[id_control] = variable_name
+                # self.id_nmb_scan_cycles[id_control]
         
         # Scan new inputs
         try:
@@ -230,51 +234,51 @@ class MidiInput:
             print(f"scan_inputs raised: {e}")
         
         # Process slider
-        if self.dict_name_control[name_control][1] == "slider":
+        if self.id_config[id_control][1] == "slider":
             if val_default is False:
                 val_default = 0.5 * (val_min + val_max)
-            if self.last_time_scanned[name_control] == 0:
+            if self.id_last_time_scanned[id_control] == 0:
                 val_return = val_default
             else:
-                val_return = val_min + (val_max-val_min) * self.last_value[name_control]
+                val_return = val_min + (val_max-val_min) * self.id_value[id_control]
         
         # Process button
-        elif self.dict_name_control[name_control][1] == "button":
+        elif self.id_config[id_control][1] == "button":
             if button_mode == 'is_pressed':
-                val_return = self.last_value[name_control]
+                val_return = self.id_value[id_control]
             elif button_mode == "was_pressed":
-                val_return = self.last_time_scanned[name_control] > self.last_time_retrieved[name_control]
+                val_return = self.id_last_time_scanned[id_control] > self.id_last_time_retrieved[id_control]
             elif button_mode == "toggle":
-                val_return = np.mod(self.nmb_button_down[name_control]+1,2) == 0
+                val_return = np.mod(self.id_nmb_button_down[id_control]+1,2) == 0
                 # Set LED
-                self.set_led(name_control, val_return)
+                self.set_led(id_control, val_return)
                 
-        self.last_time_retrieved[name_control] = time.time()
+        self.id_last_time_retrieved[id_control] = time.time()
         
         return val_return
         
-    def set_led(self, name_control, state):
+    def set_led(self, id_control, state):
         if self.simulate_device:
             return
-        assert name_control in self.dict_name_control
-        assert self.dict_name_control[name_control][1] == "button"
-        self.midi_out.write([[[self.button_down, self.dict_name_control[name_control][0], state, 0], 0]])
+        assert id_control in self.id_config
+        assert self.id_config[id_control][1] == "button"
+        self.midi_out.write([[[self.button_down, self.id_config[id_control][0], state, 0], 0]])
         
     def reset_all_leds(self):
-        for name_control in self.dict_name_control:
-            if self.dict_name_control[name_control][1] == "button":
-                self.set_led(name_control, False)
+        for id_control in self.id_config:
+            if self.id_config[id_control][1] == "button":
+                self.set_led(id_control, False)
                 
     def show(self):
         """
-        shows the assignemnet of the name_controls on the midi device
+        shows the assignemnet of the id_controls on the midi device
         """
         # Extract letters and numbers
-        letters = sorted(set(key[0] for key in self.dict_name_control.keys()))
-        max_num = max(int(key[1]) for key in self.dict_name_control.keys())
+        letters = sorted(set(key[0] for key in self.id_config.keys()))
+        max_num = max(int(key[1]) for key in self.id_config.keys())
         
         # Determine the maximum width of each column
-        max_widths = {letter: max(len(self.variable_name.get(f"{letter}{num}", '-')) for num in range(max_num + 1)) for letter in letters}
+        max_widths = {letter: max(len(self.id_name.get(f"{letter}{num}", '-')) for num in range(max_num + 1)) for letter in letters}
         
         # Print header row
         header_row = '   ' + ' '.join(letter.center(max_widths[letter]) for letter in letters)
@@ -286,7 +290,7 @@ class MidiInput:
             row = f"{num} |"
             for letter in letters:
                 key = f"{letter}{num}"
-                row += self.variable_name.get(key, '-').center(max_widths[letter]) + '|'
+                row += self.id_name.get(key, '-').center(max_widths[letter]) + '|'
             print(row)
                     
 if __name__ == "__main__":
