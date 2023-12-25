@@ -24,3 +24,4 @@ simpleaudio
 sounddevice
 torch
 tqdm
+pyusb
