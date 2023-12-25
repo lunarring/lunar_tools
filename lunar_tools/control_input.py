@@ -58,6 +58,7 @@ class MidiInput:
         self.device_id_input = device_id_input
         self.device_id_output = device_id_output
         self.init_device_config(enforce_local_config)
+        self.init_vars()
         self.init_midi()
         self.reset_all_leds()
         self.autodetect_varname = True
@@ -83,7 +84,8 @@ class MidiInput:
         # Reverse for last lookup
         self.reverse_control_name = {v[0]: k for k, v in self.dict_name_control.items()}
 
-        # Initialize the last_value, last_time_scanned, last_time_retrieved dicts
+    def init_vars(self):
+        # Initializes all variables
         self.last_value = {}
         self.last_time_scanned = {}
         self.last_time_retrieved = {}
@@ -195,8 +197,11 @@ class MidiInput:
         if name_control not in self.dict_name_control:
             print(f"Warning! {name_control} is unknown. Returning val_default")
             return val_default
-        # button mode correct if button
+        # Assert that button mode is correct if button
         assert button_mode in ['is_pressed', 'was_pressed', 'toggle']
+        if val_default:
+            assert val_default >= val_min and val_default <= val_max
+        
         
         if self.autodetect_varname:
             if name_control not in self.variable_name:
@@ -294,7 +299,7 @@ if __name__ == "__main__":
         variable1 = akai_lpd8.get("A0", button_mode='toggle') # toggle switches the state with every press between on and off
         do_baba = akai_lpd8.get("B1", button_mode='is_pressed') # is_pressed checks if the button is pressed down at the moment
         strange_effect = akai_lpd8.get("C0", button_mode='was_pressed') # was_pressed checks if the button was pressed since we checked last time
-        supermorph = akai_lpd8.get("E1", val_min=3, val_max=6) # e0 is a slider float between val_min and val_max
+        supermorph = akai_lpd8.get("E1", val_min=3, val_max=6, val_default=5) # e0 is a slider float between val_min and val_max
         print(f"variable1: {variable1}, do_baba: {do_baba}, strange_effect: {strange_effect}, supermorph: {supermorph}")
         
     akai_lpd8.show()
