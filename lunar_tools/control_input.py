@@ -254,36 +254,36 @@ class MidiInput:
             idx_control = input_last[0][0][1]
             val_control = input_last[0][0][2]
             
-            id_control = self.get_control_name(idx_control, type_control)
+            alpha_num = self.get_control_name(idx_control, type_control)
             
             # Process the inputs
-            if self.id_config[id_control][1] == "slider":
-                self.id_value[id_control] = val_control / 127.0
-                self.id_last_time_scanned[id_control] = time.time()
+            if self.id_config[alpha_num][1] == "slider":
+                self.id_value[alpha_num] = val_control / 127.0
+                self.id_last_time_scanned[alpha_num] = time.time()
                 
                 
-            elif self.id_config[id_control][1] == "button":
+            elif self.id_config[alpha_num][1] == "button":
                 if type_control == self.button_down:
-                    self.id_last_time_scanned[id_control] = time.time()
-                    self.id_nmb_button_down[id_control] += 1
-                    self.id_value[id_control] = True
+                    self.id_last_time_scanned[alpha_num] = time.time()
+                    self.id_nmb_button_down[alpha_num] += 1
+                    self.id_value[alpha_num] = True
                 else:
-                    self.id_value[id_control] = False
+                    self.id_value[alpha_num] = False
     
             
-    def get(self, id_control, val_min=None, val_max=None, val_default=False, button_mode=None):
+    def get(self, alpha_num, val_min=None, val_max=None, val_default=False, button_mode=None):
         # Asserts
-        if id_control not in self.id_config:
-            print(f"Warning! {id_control} is unknown. Returning val_default")
+        if alpha_num not in self.id_config:
+            print(f"Warning! {alpha_num} is unknown. Returning val_default")
             return val_default
         # Assert that button mode is correct if button
         if val_default:
             assert val_default >= val_min and val_default <= val_max
         # Assert correct type
-        if self.id_config[id_control][1] == "button":
-            assert val_min is None and val_max is None, f"{id_control} is a button cannot have val_min/val_max"
-        if self.id_config[id_control][1] == "slider":
-            assert button_mode is None, f"{id_control} is a slider cannot have button_mode"
+        if self.id_config[alpha_num][1] == "button":
+            assert val_min is None and val_max is None, f"{alpha_num} is a button cannot have val_min/val_max"
+        if self.id_config[alpha_num][1] == "slider":
+            assert button_mode is None, f"{alpha_num} is a slider cannot have button_mode"
         
         # Set default args
         if val_min is None:
@@ -295,7 +295,7 @@ class MidiInput:
         assert button_mode in ['is_pressed', 'was_pressed', 'toggle']
         
         if self.autodetect_varname:
-            if self.id_nmb_scan_cycles[id_control] <= 2:
+            if self.id_nmb_scan_cycles[alpha_num] <= 2:
                 # Inspecting the stack to find the variable name
                 frame = inspect.currentframe()
                 try:
@@ -312,12 +312,12 @@ class MidiInput:
                 finally:
                     del frame  # Prevent reference cycles
                 
-                if self.id_nmb_scan_cycles[id_control] == 1:
-                    assert variable_name == self.id_name[id_control], f"Double assignment for {id_control}: {variable_name} and {self.id_name[id_control]}"
-                self.id_nmb_scan_cycles[id_control] += 1
-                self.id_name[id_control] = variable_name
+                if self.id_nmb_scan_cycles[alpha_num] == 1:
+                    assert variable_name == self.id_name[alpha_num], f"Double assignment for {alpha_num}: {variable_name} and {self.id_name[alpha_num]}"
+                self.id_nmb_scan_cycles[alpha_num] += 1
+                self.id_name[alpha_num] = variable_name
             
-            if self.id_nmb_scan_cycles[id_control] == 2 and self.autoshow_names:
+            if self.id_nmb_scan_cycles[alpha_num] == 2 and self.autoshow_names:
                 self.show()
                 self.autoshow_names = False
         
@@ -329,44 +329,44 @@ class MidiInput:
             print(f"scan_inputs raised: {e}")
         
         # Process slider
-        if self.id_config[id_control][1] == "slider":
+        if self.id_config[alpha_num][1] == "slider":
             if val_default is False:
                 val_default = 0.5 * (val_min + val_max)
-            if self.id_last_time_scanned[id_control] == 0:
+            if self.id_last_time_scanned[alpha_num] == 0:
                 val_return = val_default
             else:
-                val_return = val_min + (val_max-val_min) * self.id_value[id_control]
+                val_return = val_min + (val_max-val_min) * self.id_value[alpha_num]
         
         # Process button
-        elif self.id_config[id_control][1] == "button":
+        elif self.id_config[alpha_num][1] == "button":
             if button_mode == 'is_pressed':
-                val_return = self.id_value[id_control]
+                val_return = self.id_value[alpha_num]
             elif button_mode == "was_pressed":
-                val_return = self.id_last_time_scanned[id_control] > self.id_last_time_retrieved[id_control]
+                val_return = self.id_last_time_scanned[alpha_num] > self.id_last_time_retrieved[alpha_num]
             elif button_mode == "toggle":
-                val_return = np.mod(self.id_nmb_button_down[id_control]+1,2) == 0
+                val_return = np.mod(self.id_nmb_button_down[alpha_num]+1,2) == 0
                 # Set LED
-                self.set_led(id_control, val_return)
+                self.set_led(alpha_num, val_return)
                 
-        self.id_last_time_retrieved[id_control] = time.time()
+        self.id_last_time_retrieved[alpha_num] = time.time()
         
         return val_return
         
-    def set_led(self, id_control, state):
+    def set_led(self, alpha_num, state):
         if self.simulate_device:
             return
-        assert id_control in self.id_config
-        assert self.id_config[id_control][1] == "button"
-        self.midi_out.write([[[self.button_down, self.id_config[id_control][0], state, 0], 0]])
+        assert alpha_num in self.id_config
+        assert self.id_config[alpha_num][1] == "button"
+        self.midi_out.write([[[self.button_down, self.id_config[alpha_num][0], state, 0], 0]])
         
     def reset_all_leds(self):
-        for id_control in self.id_config:
-            if self.id_config[id_control][1] == "button":
-                self.set_led(id_control, False)
+        for alpha_num in self.id_config:
+            if self.id_config[alpha_num][1] == "button":
+                self.set_led(alpha_num, False)
                 
     def show(self):
         """
-        shows the assignemnet of the id_controls on the midi device
+        shows the assignemnet of the alpha_nums on the midi device
         """
         # Extract letters and numbers
         letters = sorted(set(key[0] for key in self.id_config.keys()))
