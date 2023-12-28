@@ -271,20 +271,31 @@ class MidiInput:
                     self.id_value[id_control] = False
     
             
-    def get(self, id_control, val_min=0, val_max=1, val_default=False, button_mode='was_pressed'):
+    def get(self, id_control, val_min=None, val_max=None, val_default=False, button_mode=None):
         # Asserts
         if id_control not in self.id_config:
             print(f"Warning! {id_control} is unknown. Returning val_default")
             return val_default
         # Assert that button mode is correct if button
-        assert button_mode in ['is_pressed', 'was_pressed', 'toggle']
         if val_default:
             assert val_default >= val_min and val_default <= val_max
+        # Assert correct type
+        if self.id_config[id_control][1] == "button":
+            assert val_min is None and val_max is None, f"{id_control} is a button cannot have val_min/val_max"
+        if self.id_config[id_control][1] == "slider":
+            assert button_mode is None, f"{id_control} is a slider cannot have button_mode"
+        
+        # Set default args
+        if val_min is None:
+            val_min = 0
+        if val_max is None:
+            val_max = 1
+        if button_mode is None:
+            button_mode = 'was_pressed'
+        assert button_mode in ['is_pressed', 'was_pressed', 'toggle']
         
         if self.autodetect_varname:
             if self.id_nmb_scan_cycles[id_control] <= 2:
-            # self.id_nmb_scan_cycles
-            # if id_control not in self.id_name:
                 # Inspecting the stack to find the variable name
                 frame = inspect.currentframe()
                 try:
@@ -309,7 +320,6 @@ class MidiInput:
             if self.id_nmb_scan_cycles[id_control] == 2 and self.autoshow_names:
                 self.show()
                 self.autoshow_names = False
-                
         
         # Scan new inputs
         try:
@@ -403,8 +413,6 @@ if __name__ == "__main__midimix":
     while True:
         time.sleep(0.1)
         a0 = akai_lpd8.get("A0", val_min=3, val_max=6, val_default=5)
-        
         print(a0)
         
-    akai_lpd8.show()
     
