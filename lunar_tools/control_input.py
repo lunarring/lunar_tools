@@ -13,25 +13,25 @@ import re
 import usb.core     # pip install pyusb
 import platform
 
-def get_midi_device_vendor_product_ids(name):
+def get_midi_device_vendor_product_ids(system_device_name):
     # Initialize the result dictionary
-    midi_mix_ids = {}
+    vendor_product_ids = {}
 
     try:
         if platform.system() == 'Linux':
             # Run the lsusb command for Linux
             usb_output = subprocess.check_output(['lsusb'], text=True)
-            regex = f'ID (\w+:\w+).+{name}'
+            regex = f'ID (\w+:\w+).+{system_device_name}'
         elif platform.system() == 'Darwin':
             # Run the system_profiler command for macOS
             usb_output = subprocess.check_output(['system_profiler', 'SPUSBDataType'], text=True)
-            regex = f'Product ID: (0x\w+)\n.*Vendor ID: (0x\w+).*\n.*{name}'
+            regex = f'{system_device_name}.*?\n.*?Product ID: (0x\w+)\n.*?Vendor ID: (0x\w+)'
         else:
             print("Unsupported operating system.")
-            return midi_mix_ids
+            return vendor_product_ids
 
         # Find all matches
-        matches = re.findall(regex, usb_output, re.IGNORECASE)
+        matches = re.findall(regex, usb_output, re.IGNORECASE | re.DOTALL)
 
         for match in matches:
             if platform.system() == 'Linux':
@@ -42,13 +42,14 @@ def get_midi_device_vendor_product_ids(name):
                 product_id, vendor_id = match
 
             # Convert hexadecimal to integer and add to the dictionary
-            return {'vendor_id': int(vendor_id, 16), 'product_id': int(product_id, 16)}
+            vendor_product_ids = {'vendor_id': int(vendor_id, 16), 'product_id': int(product_id, 16)}
+            break
 
-        return midi_mix_ids
-    
-    except subprocess.CalledProcessError as e:
-        print(f"Error executing command: {e}")
-        return {}
+        return vendor_product_ids
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return vendor_product_ids
 
     
 def check_midi_device_connected_pyusb(device_code):
@@ -119,8 +120,7 @@ class MidiInput:
         self.reverse_control_name = {(v[0], v[1]): k for k, v in self.id_config.items()}
         
     def init_device_hardware_code(self):
-        if self.os_name == 'linux':
-            self.device_hardware_code = get_midi_device_vendor_product_ids(self.system_device_name)
+        self.device_hardware_code = get_midi_device_vendor_product_ids(self.system_device_name)
 
     def init_vars(self):
         # Initializes all variables
