@@ -589,20 +589,21 @@ class MetaInput:
         else:
             raise ValueError(f"Device '{self.device_name}' not specified in arguments, and it is the active connected device.")
 
+    def show(self):
+        self.control_device.show()
 
 #%%
 
 # Example of usage
-if __name__ == "__main__a":
+if __name__ == "__main__":
     self = MetaInput()
     while True:
         time.sleep(0.1)
         a = self.get(keyboard='a', akai_lpd8="A0", button_mode='is_pressed')
         bo = self.get(keyboard='b', akai_lpd8="B0", button_mode='is_pressed')
-        print(f"{a}" )
+        print(f"{a} {bo}" )
 
-
-if __name__ == "__main__":
+if __name__ == "__main__a":
     keyboard_input = KeyboardInput()
     # ... In some update loop
     while True:
