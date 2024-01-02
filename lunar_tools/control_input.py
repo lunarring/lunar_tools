@@ -146,6 +146,7 @@ class MidiInput:
     def check_device_id(self, is_input):
         if self.allow_fail and self.device_id_input is None:
             self.simulate_device = True
+            print("Simulating midi device!")
             return
         elif not self.allow_fail and self.device_id_input is None:
             raise ValueError("Device init failed! If you want to simulate, set allow_fail=True")
@@ -175,8 +176,11 @@ class MidiInput:
             self.auto_determine_device_id(is_input=False)
             
         # Check the device_ids
-        assert(self.check_device_id(is_input=True))
-        assert(self.check_device_id(is_input=False))
+        is_valid_input = self.check_device_id(is_input=True)
+        is_valid_output = self.check_device_id(is_input=False)
+        if not self.simulate_device: 
+            assert is_valid_input
+            assert is_valid_output
         
         # Init midi in and out
         if not self.simulate_device:
