@@ -11,33 +11,45 @@ import json
 import subprocess
 import re
 import usb.core     # pip install pyusb
-from sys import platform
+import platform
 
 def get_midi_device_vendor_product_ids(name):
     # Initialize the result dictionary
     midi_mix_ids = {}
 
     try:
-        # Run the lsusb command and capture the output
-        lsusb_output = subprocess.check_output(['lsusb'], text=True)
-
-        # Regular expression to match the vendor and product IDs of device called <name>
-        regex = f'ID (\w+:\w+).+{name}'
+        if platform.system() == 'Linux':
+            # Run the lsusb command for Linux
+            usb_output = subprocess.check_output(['lsusb'], text=True)
+            regex = f'ID (\w+:\w+).+{name}'
+        elif platform.system() == 'Darwin':
+            # Run the system_profiler command for macOS
+            usb_output = subprocess.check_output(['system_profiler', 'SPUSBDataType'], text=True)
+            regex = f'Product ID: (0x\w+)\n.*Vendor ID: (0x\w+).*\n.*{name}'
+        else:
+            print("Unsupported operating system.")
+            return midi_mix_ids
 
         # Find all matches
-        matches = re.findall(regex, lsusb_output)
+        matches = re.findall(regex, usb_output, re.IGNORECASE)
 
         for match in matches:
-            # Split the match into vendor and product IDs
-            vendor_id, product_id = match.split(':')
+            if platform.system() == 'Linux':
+                # Split the match into vendor and product IDs for Linux
+                vendor_id, product_id = match.split(':')
+            elif platform.system() == 'Darwin':
+                # Assign vendor and product IDs for macOS
+                product_id, vendor_id = match
 
-            # Add to the dictionary
+            # Convert hexadecimal to integer and add to the dictionary
             return {'vendor_id': int(vendor_id, 16), 'product_id': int(product_id, 16)}
 
         return midi_mix_ids
+    
     except subprocess.CalledProcessError as e:
-        print(f"Error executing lsusb: {e}")
+        print(f"Error executing command: {e}")
         return {}
+
     
 def check_midi_device_connected_pyusb(device_code):
     if len(device_code) > 0:
@@ -61,16 +73,16 @@ class MidiInput:
                  enforce_local_config=False,
                  do_auto_reconnect=False
                  ):
-        
+
         # get operating system
-        if (platform == "linux" or platform == "linux2"):
+        if platform.system() == 'Linux':
             self.os_name = 'linux'
-        elif platform == "darwin":
+        elif platform.system() == 'Darwin':
             self.os_name = 'macos'
         else:
-            self.os_name = 'windows'
-        self.do_auto_reconnect = do_auto_reconnect
+            raise NotImplementedError("Only Linux and MacOS supported at the moment.")            
         
+        self.do_auto_reconnect = do_auto_reconnect
         self.simulate_device = False
         self.device_name = device_name
         self.allow_fail = allow_fail
@@ -83,6 +95,7 @@ class MidiInput:
         self.reset_all_leds()
         self.autodetect_varname = True
         self.autoshow_names = True
+        
         
     def init_device_config(self, enforce_local_config):
         # Determine the path to the YAML file
@@ -97,7 +110,7 @@ class MidiInput:
             config = yaml.safe_load(file)
 
         # Set the device configuration from the YAML file
-        self.name_device = config['name_device']
+        self.system_device_name = config['name_device']
         self.button_down = config['button_down']
         self.button_release = config['button_release']
         self.id_config = config['controls']
@@ -107,7 +120,7 @@ class MidiInput:
         
     def init_device_hardware_code(self):
         if self.os_name == 'linux':
-            self.device_hardware_code = get_midi_device_vendor_product_ids(self.name_device)
+            self.device_hardware_code = get_midi_device_vendor_product_ids(self.system_device_name)
 
     def init_vars(self):
         # Initializes all variables
@@ -126,9 +139,9 @@ class MidiInput:
             self.id_nmb_scan_cycles[key] = 0
 
     def compare_device_names(self, dev_info):
-        if self.name_device in dev_info[1].decode():
+        if self.system_device_name in dev_info[1].decode():
             return True
-        elif dev_info[1].decode() in self.name_device:
+        elif dev_info[1].decode() in self.system_device_name:
             return True
         else:
             return False
@@ -163,7 +176,7 @@ class MidiInput:
             dev_info = midi.get_device_info(self.device_id_output)
         
         if not self.compare_device_names(dev_info):
-            print(f"Device mismatch: name_device={self.name_device} and get_device_info={dev_info[1].decode()}")
+            print(f"Device mismatch: name_device={self.system_device_name} and get_device_info={dev_info[1].decode()}")
             return False
         else:
             return True
