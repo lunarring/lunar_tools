@@ -1,4 +1,4 @@
-name_device: "LPD8 MIDI"
+name_device: "LPD8"
 button_down: 144
 button_release: 128
 controls:
