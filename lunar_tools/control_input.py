@@ -373,6 +373,7 @@ class KeyboardInput:
         self.slider_values = {}
         self.listener = keyboard.Listener(on_press=self.on_press, on_release=self.on_release)
         self.listener.start()
+        self.nmb_slider_steps = 64
 
     def on_press(self, key):
         """ Adds a pressed key to the dictionary of pressed keys and updates its state. """
@@ -412,12 +413,15 @@ class KeyboardInput:
         else:
             return key.name
 
-    def get(self, key, val_min=None, val_max=None, val_default=None, button_mode=None, step=0.1):
+    def get(self, key, val_min=None, val_max=None, val_default=None, button_mode=None, step=None):
         """ Checks the state of a specific key based on the requested mode (button or slider). """
         key = key.lower()
         if val_min is not None and val_max is not None:
             # Slider mode
             if key not in self.slider_values:
+                if step is None:
+                    # Calculate step size for approximately self.nmb_slider_steps
+                    step = (val_max - val_min) / self.nmb_slider_steps
                 self.slider_values[key] = {
                     'val_min': val_min, 'val_max': val_max, 'step': step,
                     'value': val_default if val_default is not None else (val_min + val_max) / 2
@@ -439,7 +443,6 @@ class KeyboardInput:
 
 
 
-
 #%%
 
 # Example of usage
@@ -452,7 +455,8 @@ if __name__ == "__main__":
         s = keyboard_input.get('s', button_mode='was_pressed')
         d = keyboard_input.get('d', button_mode='toggle')
         x = keyboard_input.get('x', val_min=3, val_max=6)
-        print(f"{a} {s} {d} {x}")
+        y = keyboard_input.get('y', val_min=3, val_max=4000)
+        print(f"{a} {s} {d} {x} {y}" )
         
         
                     
