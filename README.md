@@ -39,19 +39,33 @@ cam = lt.WebCam()
 img = cam.get_img()
 ```
 
-## Grab keyboard inputs
+## Control Inputs
+Allow real-time change of variables, ideal for changing variables on the fly during a infinete *while True* loop.. The logic is that buttons can change boolean variables and sliders can change numerical values. 
+For buttons, we support the following modes:
+* **toggle**: button activation toggles the state, like a light switch.
+* **is_pressed**: returns if the button is currently, at this moment, being pressed down.
+* **was_pressed**: checks if the button has been pressed (and released) since the last time we checked. In this case, True is returned once, then False again.
+
+For sliders, the default is a range between 0.0 and 1.0. The default return value is the middle point between your supplied val_min and val_max, e.g. 0.5.
+  
+### Keyboard inputs
+As we have plenty of buttons on the keyboard but no sliders, we have to emulate the sliders using *cursor up* and *cursor down* to increase/decrease the respective value. For instance, you could map some numerical value to "x" with minimum 3 and maximum 6 as in the example below. Then whenever the user presses "x", this slider becomes active, and the user can change it's value by *cursor up* and *cursor down*. 
+
 ```python
 keyb = lt.KeyboardInput()
 while True:
-    if keyb.detect("space"):
-        print("Space pressed")
-    if keyb.detect("enter"):
-        print("Enter pressed")
-    if keyb.detect("f"):
-        print("f pressed")
+    time.sleep(0.1)
+    a = keyb.get('a', button_mode='is_pressed')
+    s = keyb.get('s', button_mode='was_pressed')
+    d = keyb.get('d', button_mode='toggle')
+    x = keyb.get('x', val_min=3, val_max=6)
+    print(f"{a} {s} {d} {x}")
 ```
 
-## Midi Controller
+### Midi Controller
+We currently support akai lpd8 and akai midimix devices. However, in principle all midi devices can be added, you just need to specify it in the midi_configs/your_device.yml.
+We think of the midi device as a grid, where we name the colums with letters ("A", "B", "C", ...) and the rows with numbers (0, 1 , 2, ...). This allows us to identify the buttons/sliders, e.g. "A0" is the most upper left button/slider, and "A1" is the one below it. 
+
 ```python
 import lunar_tools as lt
 akai_lpd8 = lt.MidiInput(device_name="akai_lpd8")
