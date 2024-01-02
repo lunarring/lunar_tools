@@ -449,7 +449,7 @@ class KeyboardInput:
 #%%
 
 # Example of usage
-if __name__ == "__main__":
+if __name__ == "__main__keyb":
     keyboard_input = KeyboardInput()
     # ... In some update loop
     while True:
@@ -458,12 +458,12 @@ if __name__ == "__main__":
         s = keyboard_input.get('s', button_mode='was_pressed')
         d = keyboard_input.get('d', button_mode='toggle')
         x = keyboard_input.get('x', val_min=3, val_max=6)
-        y = keyboard_input.get('y', val_min=3, val_max=)
+        y = keyboard_input.get('y', val_min=3, val_max=5)
         print(f"{a} {s} {d} {x} {y}" )
         
         
                     
-if __name__ == "__main__midi":
+if __name__ == "__main__":
     import lunar_tools as lt
     import time
     akai_lpd8 = MidiInput(device_name="akai_lpd8")
