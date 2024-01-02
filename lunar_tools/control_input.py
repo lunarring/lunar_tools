@@ -373,7 +373,6 @@ class KeyboardInput:
         self.slider_values = {}
         self.listener = keyboard.Listener(on_press=self.on_press, on_release=self.on_release)
         self.listener.start()
-        self.nmb_slider_steps = 64
 
     def on_press(self, key):
         """ Adds a pressed key to the dictionary of pressed keys and updates its state. """
@@ -416,19 +415,23 @@ class KeyboardInput:
     def get(self, key, val_min=None, val_max=None, val_default=None, button_mode=None, step=None):
         """ Checks the state of a specific key based on the requested mode (button or slider). """
         key = key.lower()
+
+        # Assertions to ensure correct parameter usage
         if val_min is not None and val_max is not None:
-            # Slider mode
+            assert button_mode is None, "Button mode should not be provided for slider usage"
+            if step is None:
+                # Calculate step size for approximately 128 steps
+                step = (val_max - val_min) / 128
             if key not in self.slider_values:
-                if step is None:
-                    # Calculate step size for approximately self.nmb_slider_steps
-                    step = (val_max - val_min) / self.nmb_slider_steps
                 self.slider_values[key] = {
                     'val_min': val_min, 'val_max': val_max, 'step': step,
                     'value': val_default if val_default is not None else (val_min + val_max) / 2
                 }
             return self.slider_values[key]['value']
-        else:
-            # Button mode
+        elif button_mode is not None:
+            assert val_min is None and val_max is None, "val_min and val_max should not be provided for button usage"
+            assert button_mode in ['is_pressed', 'was_pressed', 'toggle'], "Invalid button mode"
+            # Button mode logic
             if button_mode == 'is_pressed':
                 return self.pressed_keys.get(key, False)
             elif button_mode == 'was_pressed':
@@ -438,8 +441,8 @@ class KeyboardInput:
                 return was_pressed
             elif button_mode == 'toggle':
                 return np.mod(self.key_press_count.get(key, 0), 2) == 1
-            else:
-                raise ValueError(f"Invalid button mode: {button_mode}")
+        else:
+            raise ValueError("Invalid parameters: provide either val_min and val_max for a slider or button_mode for a button")
 
 
 
@@ -455,7 +458,7 @@ if __name__ == "__main__":
         s = keyboard_input.get('s', button_mode='was_pressed')
         d = keyboard_input.get('d', button_mode='toggle')
         x = keyboard_input.get('x', val_min=3, val_max=6)
-        y = keyboard_input.get('y', val_min=3, val_max=4000)
+        y = keyboard_input.get('y', val_min=3, val_max=)
         print(f"{a} {s} {d} {x} {y}" )
         
         
