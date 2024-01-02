@@ -55,10 +55,10 @@ As we have plenty of buttons on the keyboard but no sliders, we have to emulate 
 keyb = lt.KeyboardInput()
 while True:
     time.sleep(0.1)
-    a = keyboard_input.get('a', button_mode='is_pressed')
-    s = keyboard_input.get('s', button_mode='was_pressed')
-    d = keyboard_input.get('d', button_mode='toggle')
-    x = keyboard_input.get('x', val_min=3, val_max=6)
+    a = keyb.get('a', button_mode='is_pressed')
+    s = keyb.get('s', button_mode='was_pressed')
+    d = keyb.get('d', button_mode='toggle')
+    x = keyb.get('x', val_min=3, val_max=6)
     print(f"{a} {s} {d} {x}")
 ```
 
