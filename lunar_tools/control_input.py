@@ -13,6 +13,8 @@ import re
 import usb.core     # pip install pyusb
 import platform
 
+
+
 def get_midi_device_vendor_product_ids(system_device_name):
     # Initialize the result dictionary
     vendor_product_ids = {}
@@ -63,6 +65,19 @@ def check_midi_device_connected_pyusb(device_code):
                 return True
 
     return False    
+
+
+def check_any_midi_device_connected():
+    config_dir = "midi_configs"
+    for filename in os.listdir(config_dir):
+        if filename.endswith(".yml"):
+            with open(os.path.join(config_dir, filename), 'r') as file:
+                config = yaml.safe_load(file)
+                device_name = config['name_device']
+                device_ids = get_midi_device_vendor_product_ids(device_name)
+                if device_ids is not None:
+                    return filename.split(".yml")[0]
+    return None
 
 class MidiInput:
     """ A class to track midi inputs. """
@@ -381,6 +396,7 @@ class MidiInput:
             print(row)
         print('\n')
         
+
         
 #%%
 class KeyboardInput:
