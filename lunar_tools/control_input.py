@@ -421,7 +421,6 @@ class KeyboardInput:
 
     def on_press(self, key):
         """ Adds a pressed key to the dictionary of pressed keys and updates its state. """
-        key = key.lower()
         key_name = self.get_key_name(key)
         self.pressed_keys[key_name] = True
         self.key_last_time_pressed[key_name] = time.time()
@@ -535,7 +534,7 @@ if __name__ == "__main__":
     self = MetaInput()
     while True:
         time.sleep(0.1)
-        a = self.get(keyboard='a', akai_lpd8="A0", button_mode='is_pressed')
+        a = self.get(keyboard='a', bobaxx="A0", button_mode='is_pressed')
         print(f"{a}" )
 
 
