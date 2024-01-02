@@ -6,7 +6,7 @@ import string
 sys.path.append(os.path.abspath('.'))
 sys.path.append(os.path.abspath('lunar_tools'))
 sys.path.append(os.path.join(os.getcwd(), 'lunar_tools'))
-from osc import OSCSender, OSCReceiver
+from comms import OSCSender, OSCReceiver
 import numpy as np
 
 

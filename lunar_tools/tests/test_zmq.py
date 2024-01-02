@@ -7,7 +7,7 @@ sys.path.append(os.path.abspath('.'))
 sys.path.append(os.path.abspath('lunar_tools'))
 sys.path.append(os.path.join(os.getcwd(), 'lunar_tools'))
 import numpy as np
-from zmq_comms import ZMQPairEndpoint 
+from comms import ZMQPairEndpoint 
 import time
 
 class TestZMQPairEndpoint(unittest.TestCase):
