@@ -421,6 +421,7 @@ class KeyboardInput:
 
     def on_press(self, key):
         """ Adds a pressed key to the dictionary of pressed keys and updates its state. """
+        key = key.lower()
         key_name = self.get_key_name(key)
         self.pressed_keys[key_name] = True
         self.key_last_time_pressed[key_name] = time.time()
