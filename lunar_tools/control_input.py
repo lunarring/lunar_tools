@@ -75,10 +75,14 @@ def check_any_midi_device_connected():
                 config = yaml.safe_load(file)
                 device_name = config['name_device']
                 device_ids = get_midi_device_vendor_product_ids(device_name)
-                if device_ids is not None:
+                if len(device_ids) > 0:
                     return filename.split(".yml")[0]
     return None
 
+            
+
+
+#%%
 class MidiInput:
     """ A class to track midi inputs. """
     def __init__(self,
@@ -413,6 +417,7 @@ class KeyboardInput:
         self.slider_values = {}
         self.listener = keyboard.Listener(on_press=self.on_press, on_release=self.on_release)
         self.listener.start()
+        self.nmb_steps = 64
 
     def on_press(self, key):
         """ Adds a pressed key to the dictionary of pressed keys and updates its state. """
@@ -452,16 +457,15 @@ class KeyboardInput:
         else:
             return key.name
 
-    def get(self, key, val_min=None, val_max=None, val_default=None, button_mode=None, step=None):
+    def get(self, key, val_min=None, val_max=None, val_default=None, button_mode=None):
         """ Checks the state of a specific key based on the requested mode (button or slider). """
         key = key.lower()
 
         # Assertions to ensure correct parameter usage
         if val_min is not None and val_max is not None:
             assert button_mode is None, "Button mode should not be provided for slider usage"
-            if step is None:
-                # Calculate step size for approximately 128 steps
-                step = (val_max - val_min) / 128
+            # Calculate step size for approximately 64
+            step = (val_max - val_min) / self.nmb_steps
             if key not in self.slider_values:
                 self.slider_values[key] = {
                     'val_min': val_min, 'val_max': val_max, 'step': step,
@@ -484,11 +488,56 @@ class KeyboardInput:
         else:
             raise ValueError("Invalid parameters: provide either val_min and val_max for a slider or button_mode for a button")
 
+#%%
 
+class MetaInput:
+    """ Automatically selects the control method based on what is plugged in. Using keyboard as fallback. """
+    
+    def __init__(self,
+                 force_device = None
+                 ):
+        if force_device:
+            if "keyb" in force_device:
+                device_name = "keyboard"
+            else:
+                device_name = force_device
+        else:
+            device_name = check_any_midi_device_connected()
+            if device_name is None:
+                device_name = "keyboard"
+        
+        self.device_name = device_name
+        
+        if self.device_name == "keyboard":
+            self.control_device = KeyboardInput()
+        else:
+            self.control_device = MidiInput(self.device_name)
+            
+        print(f"MetaInput: using device {self.device_name}")
+        
+
+    def get(self, **kwargs):
+        device_control_key = f"{self.device_name}"
+        if device_control_key in kwargs:
+            valid_kwargs = {k: v for k, v in kwargs.items() if k in ["val_min", "val_max", "val_default", "button_mode"]}
+            if self.device_name == "keyboard":
+                return self.control_device.get(kwargs[device_control_key], **valid_kwargs)
+            else:
+                return self.control_device.get(kwargs[device_control_key], **valid_kwargs)
+        else:
+            raise ValueError(f"Device '{self.device_name}' control not specified in arguments.")
 
 #%%
 
 # Example of usage
+if __name__ == "__main__":
+    self = MetaInput()
+    while True:
+        time.sleep(0.1)
+        a = self.get(keyboard='a', akai_lpd8="A0", button_mode='is_pressed')
+        print(f"{a}" )
+
+
 if __name__ == "__main__keyb":
     keyboard_input = KeyboardInput()
     # ... In some update loop
@@ -503,7 +552,7 @@ if __name__ == "__main__keyb":
         
         
                     
-if __name__ == "__main__":
+if __name__ == "__main__midi":
     import lunar_tools as lt
     import time
     akai_lpd8 = MidiInput(device_name="akai_lpd8")
