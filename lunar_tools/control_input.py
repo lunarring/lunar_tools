@@ -13,39 +13,6 @@ import re
 import usb.core     # pip install pyusb
 from sys import platform
 
-class KeyboardInput:
-    """ A class to track keyboard inputs. """
-
-    def __init__(self):
-        """ Initializes the keyboard listener and a set to store pressed keys. """
-        self.pressed_keys = set()
-        self.listener = keyboard.Listener(on_press=self.on_press, on_release=self.on_release)
-        self.listener.start()
-
-    def on_press(self, key):
-        """ Adds a pressed key to the set of pressed keys. """
-        key_name = self.get_key_name(key)
-        self.pressed_keys.add(key_name)
-
-    def on_release(self, key):
-        """ Handles key release events. Currently does nothing. """
-        pass
-
-    def get_key_name(self, key):
-        """ Returns the character of the key if available, else returns the key name. """
-        if hasattr(key, 'char'):
-            return key.char
-        else:
-            return key.name
-
-    def detect(self, key):
-        """ Checks if a specific key has been pressed and removes it from the set if found. """
-        key = key.lower()
-        if key in self.pressed_keys:
-            self.pressed_keys.remove(key)
-            return True
-        return False
-
 def get_midi_device_vendor_product_ids(name):
     # Initialize the result dictionary
     midi_mix_ids = {}
@@ -389,8 +356,78 @@ class MidiInput:
                 row += self.id_name.get(key, '-').center(max_widths[letter]) + '|'
             print(row)
         print('\n')
-                    
+        
+        
+#%%
+class KeyboardInput:
+    """ A class to track keyboard inputs. """
+
+    def __init__(self):
+        """ Initializes the keyboard listener and dictionaries to store pressed keys and their states. """
+        self.pressed_keys = {}
+        self.key_last_time_pressed = {}
+        self.key_last_time_released = {}
+        self.key_press_count = {}
+        self.was_pressed_flags = {}
+        self.listener = keyboard.Listener(on_press=self.on_press, on_release=self.on_release)
+        self.listener.start()
+
+    def on_press(self, key):
+        """ Adds a pressed key to the dictionary of pressed keys and updates its state. """
+        key_name = self.get_key_name(key)
+        self.pressed_keys[key_name] = True
+        self.key_last_time_pressed[key_name] = time.time()
+        self.key_press_count[key_name] = self.key_press_count.get(key_name, 0) + 1
+        # Reset the was_pressed flag on key press
+        self.was_pressed_flags[key_name] = False
+
+    def on_release(self, key):
+        """ Handles key release events and updates the state of the key. """
+        key_name = self.get_key_name(key)
+        self.pressed_keys[key_name] = False
+        self.key_last_time_released[key_name] = time.time()
+        # Set the was_pressed flag on key release
+        self.was_pressed_flags[key_name] = True
+
+    def get_key_name(self, key):
+        """ Returns the character of the key if available, else returns the key name. """
+        if hasattr(key, 'char'):
+            return key.char
+        else:
+            return key.name
+
+    def get(self, key, button_mode='is_pressed'):
+        """ Checks the state of a specific key based on the requested button mode. """
+        key = key.lower()
+        if button_mode == 'is_pressed':
+            return self.pressed_keys.get(key, False)
+        elif button_mode == 'was_pressed':
+            was_pressed = self.was_pressed_flags.get(key, False)
+            if was_pressed:
+                # Reset the flag so it only returns True once
+                self.was_pressed_flags[key] = False
+            return was_pressed
+        elif button_mode == 'toggle':
+            return np.mod(self.key_press_count.get(key, 0), 2) == 1
+        else:
+            raise ValueError(f"Invalid button mode: {button_mode}")
+
+#%%
+
+# Example of usage
 if __name__ == "__main__":
+    keyboard_input = KeyboardInput()
+    # ... In some update loop
+    while True:
+        time.sleep(0.1)
+        a = keyboard_input.get('a', 'is_pressed')
+        s = keyboard_input.get('s', 'was_pressed')
+        d = keyboard_input.get('d', 'toggle')
+        print(f"{a} {s} {d}")
+        
+        
+                    
+if __name__ == "__main__midi":
     import lunar_tools as lt
     import time
     akai_lpd8 = MidiInput(device_name="akai_lpd8")
