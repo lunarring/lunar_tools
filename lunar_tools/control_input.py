@@ -125,13 +125,20 @@ class MidiInput:
             self.id_nmb_button_down[key] = 0 if control_type == "button" else None
             self.id_nmb_scan_cycles[key] = 0
 
+    def compare_device_names(self, dev_info):
+        if self.name_device in dev_info[1].decode():
+            return True
+        elif dev_info[1].decode() in self.name_device:
+            return True
+        else:
+            return False
         
     def auto_determine_device_id(self, is_input):
         dev_count = midi.get_count()
         device_id = None
         for i in range(dev_count):
             dev_info = midi.get_device_info(i)
-            if self.name_device in dev_info[1].decode():
+            if self.compare_device_names(dev_info):
                 if is_input and dev_info[2] == 1:
                     device_id = i
                 elif not is_input and dev_info[3] == 1:
@@ -155,7 +162,7 @@ class MidiInput:
         else:
             dev_info = midi.get_device_info(self.device_id_output)
         
-        if self.name_device not in dev_info[1].decode():
+        if not self.compare_device_names(dev_info):
             print(f"Device mismatch: name_device={self.name_device} and get_device_info={dev_info[1].decode()}")
             return False
         else:
