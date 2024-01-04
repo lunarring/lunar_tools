@@ -395,6 +395,7 @@ class Renderer:
         if image.shape[1] != self.width or image.shape[0] != self.height:
             image = cv2.resize(image, (self.width, self.height))
         
+        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
         cv2.imshow(self.window_title, image) 
         cv2_keycode = cv2.waitKey(1)
         if cv2_keycode == 27:  # exit code
