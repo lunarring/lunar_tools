@@ -26,4 +26,4 @@ from .comms import OSCReceiver
 from .control_input import KeyboardInput
 from .control_input import MidiInput
 from .control_input import MetaInput
-
+from .fontrender import add_text_to_image
