@@ -1,14 +1,14 @@
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 
-
 def add_text_to_image(
         img_input, 
         text, 
         align='center', 
         y_pos=0.5, 
         font_path='Arial.ttf', 
-        font_size=20
+        font_size=20,
+        width_fract=None
         ):
     # Create an image or load it based on the type of img_input
     if isinstance(img_input, tuple):
@@ -24,13 +24,22 @@ def add_text_to_image(
         raise ValueError("img_input must be a PIL.Image, numpy array, or a (width, height) tuple.")
 
     draw = ImageDraw.Draw(image)
-    font = ImageFont.truetype(font_path, font_size)
+    width, height = image.size
 
+    if width_fract is not None:
+        # Adjust font size based on width fraction
+        font = ImageFont.truetype(font_path, font_size)
+        text_width = draw.textlength(text, font=font)
+        while text_width < width_fract * width and font_size < height:
+            font_size += 1
+            font = ImageFont.truetype(font_path, font_size)
+            text_width = draw.textlength(text, font=font)
+        font_size -= 1  # Decrease font size to fit in width
+
+    font = ImageFont.truetype(font_path, font_size)
     text_width = draw.textlength(text, font=font)
     text_height = font_size  # Using font size as height
 
-    width, height = image.size
-    
     if align == 'left':
         x = 0
     elif align == 'center':
@@ -46,10 +55,6 @@ def add_text_to_image(
     
     return image
 
-
-
-
-
 if __name__ == "__main__":
     # Creating new samples using the updated function
-    image1 = add_text_to_image((400, 300), 'Center Aligned', 'center', 0.5)
+    image1 = add_text_to_image((400, 300), 'Center Aligned', 'center', 0.5, width_fract=0.8)
