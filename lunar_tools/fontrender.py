@@ -8,7 +8,8 @@ def add_text_to_image(
         y_pos=0.5, 
         font_path='Arial.ttf', 
         font_size=20,
-        width_fract=None
+        min_width=0,
+        max_width=1
         ):
     # Create an image or load it based on the type of img_input
     if isinstance(img_input, tuple):
@@ -26,15 +27,22 @@ def add_text_to_image(
     draw = ImageDraw.Draw(image)
     width, height = image.size
 
-    if width_fract is not None:
-        # Adjust font size based on width fraction
+    # Scale min_width and max_width according to the image width
+    scaled_min_width = min_width * width
+    scaled_max_width = max_width * width
+
+    # Initialize font size and calculate text width
+    font = ImageFont.truetype(font_path, font_size)
+    text_width = draw.textlength(text, font=font)
+
+    while (text_width < scaled_min_width or text_width > scaled_max_width) and font_size < height:
+        if text_width < scaled_min_width:
+            font_size += 1
+        else:  # text_width > scaled_max_width
+            font_size -= 1
+
         font = ImageFont.truetype(font_path, font_size)
         text_width = draw.textlength(text, font=font)
-        while text_width < width_fract * width and font_size < height:
-            font_size += 1
-            font = ImageFont.truetype(font_path, font_size)
-            text_width = draw.textlength(text, font=font)
-        font_size -= 1  # Decrease font size to fit in width
 
     font = ImageFont.truetype(font_path, font_size)
     text_width = draw.textlength(text, font=font)
@@ -57,4 +65,4 @@ def add_text_to_image(
 
 if __name__ == "__main__":
     # Creating new samples using the updated function
-    image1 = add_text_to_image((400, 300), 'Center Aligned', 'center', 0.5, width_fract=0.8)
+    image1 = add_text_to_image((400, 300), 'Center Aligned', 'center', 0.5, min_width=0.2, max_width=0.3)
