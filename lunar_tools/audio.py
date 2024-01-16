@@ -141,18 +141,31 @@ class Speech2Text:
             raise ValueError("Audio recorder is not available")
         self.audio_recorder.start_recording(output_filename, max_time)
 
-    def stop_recording(self):
-        """
-        Stop the audio recording.
 
-        Raises:
-            ValueError: If the audio recorder is not available.
+    def stop_recording(self, minimum_duration=1):
         """
+Stop the audio recording and check if the recording meets the minimum duration.
+
+Args:
+    minimum_duration (float, optional): The minimum duration in seconds for a recording to be valid.
+                                      Default is 1 second.
+
+Returns:
+    str: The transcribed text if the recording meets the minimum duration requirement, otherwise None.
+
+Raises:
+    ValueError: If the audio recorder is not available.
+"""
         if self.audio_recorder is None:
             raise ValueError("Audio recorder is not available")
         self.audio_recorder.stop_recording()
-        return self.translate(self.audio_recorder.output_filename)
 
+        audio_duration = AudioSegment.from_mp3(self.audio_recorder.output_filename).duration_seconds
+        if audio_duration < minimum_duration:
+            self.logger.print(f"Recording is too short, only {audio_duration:.2f} seconds. Minimum required is {minimum_duration} seconds.")
+            return None
+        return self.translate(self.audio_recorder.output_filename)
+    
     def translate(self, audio_filepath):
         """
         Translate the audio file to text using OpenAI's translation model.
@@ -422,11 +435,11 @@ if __name__ == "__main__":
     # audio_recorder.stop_recording()
     
     
-    # speech_detector = Speech2Text()
-    # speech_detector.start_recording()
-    # time.sleep(3)
-    # translation = speech_detector.stop_recording()
-    # print(f"translation: {translation}")
+    speech_detector = Speech2Text()
+    speech_detector.start_recording()
+    time.sleep(0.3)
+    translation = speech_detector.stop_recording()
+    print(f"translation: {translation}")
     
     # speech_detector.start_recording()
     # time.sleep(3)
@@ -434,9 +447,9 @@ if __name__ == "__main__":
     # print(f"translation: {translation}")
     
     # # Example Usage
-    text2speech = Text2SpeechElevenlabs(blocking_playback=True)
-    text2speech.change_voice("FU5JW1L0DwfWILWkNpW6")
-    text2speech.play("well how are you we are making this very long test of sound playback but is it blocking")
+    # text2speech = Text2SpeechElevenlabs(blocking_playback=True)
+    # text2speech.change_voice("FU5JW1L0DwfWILWkNpW6")
+    # text2speech.play("well how are you we are making this very long test of sound playback but is it blocking")
     
     
     # # text2speech.change_voice("nova")
