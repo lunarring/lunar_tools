@@ -79,7 +79,77 @@ def check_any_midi_device_connected():
                     return filename.split(".yml")[0]
     return None
 
+     
+#%%
+class MetaInput:
+    """ Automatically selects the control method based on what is plugged in. Using keyboard as fallback. """
+    
+    def __init__(self,
+                 force_device = None
+                 ):
+        self.valid_get_args = ["val_min", "val_max", "val_default", "button_mode", "variable_name"]
+        self.autoshow_names = True
+        self.id_name = {}
+        self.id_nmb_scan_cycles = {}
+        if force_device:
+            if "keyb" in force_device:
+                device_name = "keyboard"
+            else:
+                device_name = force_device
+        else:
+            device_name = check_any_midi_device_connected()
+            if device_name is None:
+                device_name = "keyboard"
+        
+        self.device_name = device_name
+        
+        if self.device_name == "keyboard":
+            self.control_device = KeyboardInput()
+        else:
+            self.control_device = MidiInput(self.device_name)
             
+        print(f"MetaInput: using device {self.device_name}")
+        
+    def get(self, **kwargs):
+        device_control_key = f"{self.device_name}"
+        if device_control_key in kwargs:
+            valid_kwargs = {k: v for k, v in kwargs.items() if k in self.valid_get_args}
+
+            alpha_num = kwargs[device_control_key]
+            # Autodetect varname feature
+            if self.id_nmb_scan_cycles.get(alpha_num, 0) <= 2:
+                frame = inspect.currentframe()
+                try:
+                    outer_frame = frame.f_back
+                    call_line = outer_frame.f_lineno
+                    source_lines, starting_line = inspect.getsourcelines(outer_frame)
+                    line_index = call_line - starting_line
+                    call_code = source_lines[line_index-1].strip()
+    
+                    # Extracting the variable name
+                    variable_name = call_code.split('=')[0].strip()
+                except Exception:
+                    variable_name = "autodetect failed"
+                finally:
+                    del frame  # Prevent reference cycles
+                
+                if self.id_nmb_scan_cycles.get(alpha_num, 0) == 1:
+                    assert variable_name == self.id_name.get(alpha_num, ""), f"Double assignment for {alpha_num}: {variable_name} and {self.id_name.get(alpha_num, '')}"
+                self.id_nmb_scan_cycles[alpha_num] = self.id_nmb_scan_cycles.get(alpha_num, 0) + 1
+                self.id_name[alpha_num] = variable_name
+            else:
+                variable_name = self.id_name[alpha_num]
+        
+            if self.id_nmb_scan_cycles[alpha_num] == 2 and self.autoshow_names:
+                self.control_device.show()
+                self.autoshow_names = False
+            
+            return self.control_device.get(alpha_num, variable_name=variable_name, **valid_kwargs)
+        else:
+            raise ValueError(f"Device '{self.device_name}' not specified in arguments, and it is the active connected device.")
+
+    def show(self):
+        self.control_device.show()       
 
 
 #%%
@@ -301,8 +371,8 @@ class MidiInput:
         if val_max is None:
             val_max = 1
         if button_mode is None:
-            button_mode = 'down_once'
-        assert button_mode in ['down_currently', 'down_once', 'toggle']
+            button_mode = 'up_once'
+        assert button_mode in ['down_currently', 'up_once', 'toggle']
         
         if self.autodetect_varname and variable_name is None:
             if self.id_nmb_scan_cycles[alpha_num] <= 2:
@@ -353,7 +423,7 @@ class MidiInput:
         elif self.id_config[alpha_num][1] == "button":
             if button_mode == 'down_currently':
                 val_return = self.id_value[alpha_num]
-            elif button_mode == "down_once":
+            elif button_mode == "up_once":
                 val_return = self.id_last_time_scanned[alpha_num] > self.id_last_time_retrieved[alpha_num]
             elif button_mode == "toggle":
                 val_return = np.mod(self.id_nmb_button_down[alpha_num]+1,2) == 0
@@ -417,7 +487,7 @@ class KeyboardInput:
         self.id_name = {}
         self.id_nmb_scan_cycles = {}
         self.key_press_count = {}
-        self.down_once_flags = {}
+        self.up_once_flags = {}
         self.active_slider = None
         self.slider_values = {}
         self.listener = keyboard.Listener(on_press=self.on_press, on_release=self.on_release)
@@ -430,7 +500,7 @@ class KeyboardInput:
         self.pressed_keys[key_name] = True
         self.key_last_time_pressed[key_name] = time.time()
         self.key_press_count[key_name] = self.key_press_count.get(key_name, 0) + 1
-        self.down_once_flags[key_name] = False
+        self.up_once_flags[key_name] = False
 
         # Activate slider or adjust its value
         if key_name in self.slider_values:
@@ -453,7 +523,8 @@ class KeyboardInput:
         key_name = self.get_key_name(key)
         self.pressed_keys[key_name] = False
         self.key_last_time_released[key_name] = time.time()
-        self.down_once_flags[key_name] = True
+        print(f"was released: {key} {self.key_last_time_released[key_name]}")
+        self.up_once_flags[key_name] = True
 
     def get_key_name(self, key):
         """ Returns the character of the key if available, else returns the key name. """
@@ -503,15 +574,15 @@ class KeyboardInput:
             return self.slider_values[key]['value']
         elif button_mode is not None:
             assert val_min is None and val_max is None, "val_min and val_max should not be provided for button usage"
-            assert button_mode in ['down_currently', 'down_once', 'toggle'], "Invalid button mode"
+            assert button_mode in ['down_currently', 'up_once', 'toggle'], "Invalid button mode"
             # Button mode logic
             if button_mode == 'down_currently':
                 return self.pressed_keys.get(key, False)
-            elif button_mode == 'down_once':
-                down_once = self.down_once_flags.get(key, False)
-                if down_once:
-                    self.down_once_flags[key] = False
-                return down_once
+            elif button_mode == 'up_once':
+                up_once = self.up_once_flags.get(key, False)
+                if up_once:
+                    self.up_once_flags[key] = False
+                return up_once
             elif button_mode == 'toggle':
                 return np.mod(self.key_press_count.get(key, 0), 2) == 1
         else:
@@ -521,76 +592,6 @@ class KeyboardInput:
         for key in sorted(self.id_name):
             print(f"{key}: {self.id_name[key]}")
 
-#%%
-class MetaInput:
-    """ Automatically selects the control method based on what is plugged in. Using keyboard as fallback. """
-    
-    def __init__(self,
-                 force_device = None
-                 ):
-        self.valid_get_args = ["val_min", "val_max", "val_default", "button_mode", "variable_name"]
-        self.autoshow_names = True
-        self.id_name = {}
-        self.id_nmb_scan_cycles = {}
-        if force_device:
-            if "keyb" in force_device:
-                device_name = "keyboard"
-            else:
-                device_name = force_device
-        else:
-            device_name = check_any_midi_device_connected()
-            if device_name is None:
-                device_name = "keyboard"
-        
-        self.device_name = device_name
-        
-        if self.device_name == "keyboard":
-            self.control_device = KeyboardInput()
-        else:
-            self.control_device = MidiInput(self.device_name)
-            
-        print(f"MetaInput: using device {self.device_name}")
-        
-    def get(self, **kwargs):
-        device_control_key = f"{self.device_name}"
-        if device_control_key in kwargs:
-            valid_kwargs = {k: v for k, v in kwargs.items() if k in self.valid_get_args}
-
-            alpha_num = kwargs[device_control_key]
-            # Autodetect varname feature
-            if self.id_nmb_scan_cycles.get(alpha_num, 0) <= 2:
-                frame = inspect.currentframe()
-                try:
-                    outer_frame = frame.f_back
-                    call_line = outer_frame.f_lineno
-                    source_lines, starting_line = inspect.getsourcelines(outer_frame)
-                    line_index = call_line - starting_line
-                    call_code = source_lines[line_index-1].strip()
-    
-                    # Extracting the variable name
-                    variable_name = call_code.split('=')[0].strip()
-                except Exception:
-                    variable_name = "autodetect failed"
-                finally:
-                    del frame  # Prevent reference cycles
-                
-                if self.id_nmb_scan_cycles.get(alpha_num, 0) == 1:
-                    assert variable_name == self.id_name.get(alpha_num, ""), f"Double assignment for {alpha_num}: {variable_name} and {self.id_name.get(alpha_num, '')}"
-                self.id_nmb_scan_cycles[alpha_num] = self.id_nmb_scan_cycles.get(alpha_num, 0) + 1
-                self.id_name[alpha_num] = variable_name
-            else:
-                variable_name = self.id_name[alpha_num]
-        
-            if self.id_nmb_scan_cycles[alpha_num] == 2 and self.autoshow_names:
-                self.control_device.show()
-                self.autoshow_names = False
-            
-            return self.control_device.get(alpha_num, variable_name=variable_name, **valid_kwargs)
-        else:
-            raise ValueError(f"Device '{self.device_name}' not specified in arguments, and it is the active connected device.")
-
-    def show(self):
-        self.control_device.show()
 
 #%%
 
@@ -609,7 +610,7 @@ if __name__ == "__main__":
     while True:
         time.sleep(0.1)
         aaa = keyboard_input.get('a', button_mode='down_currently')
-        s = keyboard_input.get('s', button_mode='down_once')
+        s = keyboard_input.get('s', button_mode='up_once')
         d = keyboard_input.get('d', button_mode='toggle')
         x = keyboard_input.get('x', val_min=3, val_max=6)
         y = keyboard_input.get('y', val_min=3, val_max=5)
@@ -626,7 +627,7 @@ if __name__ == "__main__midi":
         time.sleep(0.1)
         variable1 = akai_lpd8.get("A0", button_mode='toggle') # toggle switches the state with every press between on and off
         do_baba = akai_lpd8.get("B1", button_mode='down_currently') # down_currently checks if the button is pressed down at the moment
-        strange_effect = akai_lpd8.get("C0", button_mode='down_once') # down_once checks if the button was pressed since we checked last time
+        strange_effect = akai_lpd8.get("C0", button_mode='up_once') # up_once checks if the button was pressed since we checked last time
         supermorph = akai_lpd8.get("E1", val_min=3, val_max=6, val_default=5) # e0 is a slider float between val_min and val_max
         print(f"variable1: {variable1}, do_baba: {do_baba}, strange_effect: {strange_effect}, supermorph: {supermorph}")
         
