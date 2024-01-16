@@ -43,8 +43,8 @@ img = cam.get_img()
 Allow real-time change of variables, ideal for changing variables on the fly during a infinete *while True* loop.. The logic is that buttons can change boolean variables and sliders can change numerical values. 
 For buttons, we support the following modes:
 * **toggle**: button activation toggles the state, like a light switch.
-* **is_pressed**: returns if the button is currently, at this moment, being pressed down.
-* **was_pressed**: checks if the button has been pressed (and released) since the last time we checked. In this case, True is returned once, then False again.
+* **down_currently**: returns if the button is currently, at this moment, being pressed down.
+* **down_once**: checks if the button has been pressed (and released) since the last time we checked. In this case, True is returned once, then False again.
 
 For sliders, the default is a range between 0.0 and 1.0. The default return value is the middle point between your supplied val_min and val_max, e.g. 0.5.
   
@@ -55,8 +55,8 @@ As we have plenty of buttons on the keyboard but no sliders, we have to emulate 
 keyb = lt.KeyboardInput()
 while True:
     time.sleep(0.1)
-    a = keyb.get('a', button_mode='is_pressed')
-    s = keyb.get('s', button_mode='was_pressed')
+    a = keyb.get('a', button_mode='down_currently')
+    s = keyb.get('s', button_mode='down_once')
     d = keyb.get('d', button_mode='toggle')
     x = keyb.get('x', val_min=3, val_max=6)
     print(f"{a} {s} {d} {x}")
@@ -73,8 +73,8 @@ akai_lpd8 = lt.MidiInput(device_name="akai_lpd8")
 while True:
     time.sleep(0.1)
     a0 = akai_lpd8.get("A0", button_mode='toggle') # toggle switches the state with every press between on and off
-    b0 = akai_lpd8.get("B0", button_mode='is_pressed') # is_held checks if the button is pressed down at the moment
-    c0 = akai_lpd8.get("C0", button_mode='was_pressed') # was_pressed checks if the button was pressed since we checked last time
+    b0 = akai_lpd8.get("B0", button_mode='down_currently') # is_held checks if the button is pressed down at the moment
+    c0 = akai_lpd8.get("C0", button_mode='down_once') # down_once checks if the button was pressed since we checked last time
     e0 = akai_lpd8.get("E0", val_min=3, val_max=6) # e0 is a slider float between val_min and val_max
     print(f"a0: {a0}, b0: {b0}, c0: {c0}, e0: {e0}")
 ```

@@ -301,8 +301,8 @@ class MidiInput:
         if val_max is None:
             val_max = 1
         if button_mode is None:
-            button_mode = 'was_pressed'
-        assert button_mode in ['is_pressed', 'was_pressed', 'toggle']
+            button_mode = 'down_once'
+        assert button_mode in ['down_currently', 'down_once', 'toggle']
         
         if self.autodetect_varname and variable_name is None:
             if self.id_nmb_scan_cycles[alpha_num] <= 2:
@@ -351,9 +351,9 @@ class MidiInput:
         
         # Process button
         elif self.id_config[alpha_num][1] == "button":
-            if button_mode == 'is_pressed':
+            if button_mode == 'down_currently':
                 val_return = self.id_value[alpha_num]
-            elif button_mode == "was_pressed":
+            elif button_mode == "down_once":
                 val_return = self.id_last_time_scanned[alpha_num] > self.id_last_time_retrieved[alpha_num]
             elif button_mode == "toggle":
                 val_return = np.mod(self.id_nmb_button_down[alpha_num]+1,2) == 0
@@ -417,7 +417,7 @@ class KeyboardInput:
         self.id_name = {}
         self.id_nmb_scan_cycles = {}
         self.key_press_count = {}
-        self.was_pressed_flags = {}
+        self.down_once_flags = {}
         self.active_slider = None
         self.slider_values = {}
         self.listener = keyboard.Listener(on_press=self.on_press, on_release=self.on_release)
@@ -430,7 +430,7 @@ class KeyboardInput:
         self.pressed_keys[key_name] = True
         self.key_last_time_pressed[key_name] = time.time()
         self.key_press_count[key_name] = self.key_press_count.get(key_name, 0) + 1
-        self.was_pressed_flags[key_name] = False
+        self.down_once_flags[key_name] = False
 
         # Activate slider or adjust its value
         if key_name in self.slider_values:
@@ -453,7 +453,7 @@ class KeyboardInput:
         key_name = self.get_key_name(key)
         self.pressed_keys[key_name] = False
         self.key_last_time_released[key_name] = time.time()
-        self.was_pressed_flags[key_name] = True
+        self.down_once_flags[key_name] = True
 
     def get_key_name(self, key):
         """ Returns the character of the key if available, else returns the key name. """
@@ -503,15 +503,15 @@ class KeyboardInput:
             return self.slider_values[key]['value']
         elif button_mode is not None:
             assert val_min is None and val_max is None, "val_min and val_max should not be provided for button usage"
-            assert button_mode in ['is_pressed', 'was_pressed', 'toggle'], "Invalid button mode"
+            assert button_mode in ['down_currently', 'down_once', 'toggle'], "Invalid button mode"
             # Button mode logic
-            if button_mode == 'is_pressed':
+            if button_mode == 'down_currently':
                 return self.pressed_keys.get(key, False)
-            elif button_mode == 'was_pressed':
-                was_pressed = self.was_pressed_flags.get(key, False)
-                if was_pressed:
-                    self.was_pressed_flags[key] = False
-                return was_pressed
+            elif button_mode == 'down_once':
+                down_once = self.down_once_flags.get(key, False)
+                if down_once:
+                    self.down_once_flags[key] = False
+                return down_once
             elif button_mode == 'toggle':
                 return np.mod(self.key_press_count.get(key, 0), 2) == 1
         else:
@@ -595,21 +595,21 @@ class MetaInput:
 #%%
 
 # Example of usage
-if __name__ == "__main__":
+if __name__ == "__main__x":
     self = MetaInput()
     while True:
         time.sleep(0.1)
-        a = self.get(keyboard='a', akai_lpd8="A0", button_mode='is_pressed')
-        bo = self.get(keyboard='b', akai_lpd8="B0", button_mode='is_pressed')
+        a = self.get(keyboard='a', akai_lpd8="A0", button_mode='down_currently')
+        bo = self.get(keyboard='b', akai_lpd8="B0", button_mode='down_currently')
         print(f"{a} {bo}" )
 
-if __name__ == "__main__a":
+if __name__ == "__main__":
     keyboard_input = KeyboardInput()
     # ... In some update loop
     while True:
         time.sleep(0.1)
-        aaa = keyboard_input.get('a', button_mode='is_pressed')
-        s = keyboard_input.get('s', button_mode='was_pressed')
+        aaa = keyboard_input.get('a', button_mode='down_currently')
+        s = keyboard_input.get('s', button_mode='down_once')
         d = keyboard_input.get('d', button_mode='toggle')
         x = keyboard_input.get('x', val_min=3, val_max=6)
         y = keyboard_input.get('y', val_min=3, val_max=5)
@@ -625,8 +625,8 @@ if __name__ == "__main__midi":
     while True:
         time.sleep(0.1)
         variable1 = akai_lpd8.get("A0", button_mode='toggle') # toggle switches the state with every press between on and off
-        do_baba = akai_lpd8.get("B1", button_mode='is_pressed') # is_pressed checks if the button is pressed down at the moment
-        strange_effect = akai_lpd8.get("C0", button_mode='was_pressed') # was_pressed checks if the button was pressed since we checked last time
+        do_baba = akai_lpd8.get("B1", button_mode='down_currently') # down_currently checks if the button is pressed down at the moment
+        strange_effect = akai_lpd8.get("C0", button_mode='down_once') # down_once checks if the button was pressed since we checked last time
         supermorph = akai_lpd8.get("E1", val_min=3, val_max=6, val_default=5) # e0 is a slider float between val_min and val_max
         print(f"variable1: {variable1}, do_baba: {do_baba}, strange_effect: {strange_effect}, supermorph: {supermorph}")
         
