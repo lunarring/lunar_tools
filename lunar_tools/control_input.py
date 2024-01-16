@@ -543,7 +543,7 @@ class KeyboardInput:
     def get(self, key, val_min=None, val_max=None, val_default=None, button_mode=None, variable_name=None):
         """ Checks the state of a specific key based on the requested mode (button or slider). """
         key = key.lower()
-        
+    
         # Autodetect variable name if not provided
         if variable_name is None:
             if self.id_nmb_scan_cycles.get(key, 0) <= 2:
@@ -554,20 +554,22 @@ class KeyboardInput:
                     source_lines, starting_line = inspect.getsourcelines(outer_frame)
                     line_index = call_line - starting_line
                     call_code = source_lines[line_index - 1].strip()
-        
+    
                     # Extracting the variable name
                     variable_name = call_code.split('=')[0].strip()
                 except Exception:
                     variable_name = "autodetect failed"
                 finally:
                     del frame  # Prevent reference cycles
-        
+    
                 if self.id_nmb_scan_cycles.get(key, 0) == 1:
-                    assert variable_name == self.id_name.get(key, ""), f"Double assignment for {key}: {variable_name} and {self.id_name.get(key, '')}"
+                    if button_mode in ['pressed_once', 'released_once']:
+                        variable_name += f" ({button_mode})"
+                    else:
+                        assert variable_name == self.id_name.get(key, ""), f"Double assignment for {key}: {variable_name} and {self.id_name.get(key, '')}"
                 self.id_nmb_scan_cycles[key] = self.id_nmb_scan_cycles.get(key, 0) + 1
                 self.id_name[key] = variable_name
-                
-
+    
         # Assertions to ensure correct parameter usage
         if val_min is not None and val_max is not None:
             assert button_mode is None, "Button mode should not be provided for slider usage"
@@ -597,12 +599,10 @@ class KeyboardInput:
                 return np.mod(self.key_press_count.get(key, 0), 2) == 1
         else:
             raise ValueError("Invalid parameters: provide either val_min and val_max for a slider or button_mode for a button")
-            
+    
     def show(self):
         for key in sorted(self.id_name):
             print(f"{key}: {self.id_name[key]}")
-
-
 
 
 
@@ -622,14 +622,19 @@ if __name__ == "__main__":
     # ... In some update loop
     while True:
         time.sleep(0.1)
-        aaa = keyboard_input.get('a', button_mode='held_down')
-        s = keyboard_input.get('s', button_mode='pressed_once')
-        d = keyboard_input.get('d', button_mode='released_once')
-        f = keyboard_input.get('f', button_mode='toggle')
-        g = keyboard_input.get('g', val_min=3, val_max=6)
-        h = keyboard_input.get('h', val_min=3, val_max=5)
-        print(f"{aaa} {s} {d} {f} {g} {h}" )
         
+        x1 = keyboard_input.get('s', button_mode='pressed_once')
+        x2 = keyboard_input.get('s', button_mode='released_once')
+        print(f"x1 {x1} x2 {x2}")
+        
+        # a = keyboard_input.get('a', button_mode='held_down')
+        # s = keyboard_input.get('s', button_mode='pressed_once')
+        # d = keyboard_input.get('d', button_mode='released_once')
+        # f = keyboard_input.get('f', button_mode='toggle')
+        # g = keyboard_input.get('g', val_min=3, val_max=6)
+        # h = keyboard_input.get('h', val_min=3, val_max=5)
+        # print(f"{aaa} {s} {d} {f} {g} {h}" )
+        # 
         
                     
 if __name__ == "__main__midi":
