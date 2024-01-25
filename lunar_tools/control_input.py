@@ -219,8 +219,10 @@ class MidiInput:
         self.id_nmb_button_down = {}
         self.id_nmb_scan_cycles = {}
         self.id_name = {}
+        self.released_once_flags = {}  # Adding a new dictionary to track released_once flags
         for key in self.id_config:
             control_type = self.id_config[key][1]
+            self.released_once_flags[key] = False 
             self.id_value[key] = False if control_type == "button" else 0.0
             self.id_last_time_scanned[key] = 0
             self.id_last_time_retrieved[key] = 0
@@ -349,6 +351,7 @@ class MidiInput:
                     self.id_value[alpha_num] = True
                 else:
                     self.id_value[alpha_num] = False
+                    self.released_once_flags[alpha_num] = True 
     
             
     def get(self, alpha_num, val_min=None, val_max=None, val_default=False, button_mode=None, variable_name=None):
@@ -372,7 +375,7 @@ class MidiInput:
             val_max = 1
         if button_mode is None:
             button_mode = 'released_once'
-        assert button_mode in ['held_down', 'released_once', 'toggle']
+        # assert button_mode in ['held_down', 'released_once', 'toggle']
         
         if self.autodetect_varname and variable_name is None:
             if self.id_nmb_scan_cycles[alpha_num] <= 2:
@@ -423,10 +426,16 @@ class MidiInput:
         elif self.id_config[alpha_num][1] == "button":
             if button_mode == 'held_down':
                 val_return = self.id_value[alpha_num]
+            elif button_mode == "pressed_once":
+                val_return = self.id_value[alpha_num] and self.id_last_time_scanned[alpha_num] > self.id_last_time_retrieved[alpha_num]
+                if val_return:
+                    self.id_value[alpha_num] = False  # Reset the value after being processed
             elif button_mode == "released_once":
-                val_return = self.id_last_time_scanned[alpha_num] > self.id_last_time_retrieved[alpha_num]
+                val_return = self.released_once_flags.get(alpha_num, False)
+                if val_return:
+                    self.released_once_flags[alpha_num] = False # Reset the last time scanned after being processed
             elif button_mode == "toggle":
-                val_return = np.mod(self.id_nmb_button_down[alpha_num]+1,2) == 0
+                val_return = np.mod(self.id_nmb_button_down[alpha_num]+1, 2) == 0
                 # Set LED
                 self.set_led(alpha_num, val_return)
                 
@@ -617,7 +626,7 @@ if __name__ == "__main__x":
         bo = self.get(keyboard='b', akai_lpd8="B0", button_mode='held_down')
         print(f"{a} {bo}" )
 
-if __name__ == "__main__":
+if __name__ == "__main__xxx":
     keyboard_input = KeyboardInput()
     # ... In some update loop
     while True:
@@ -637,22 +646,24 @@ if __name__ == "__main__":
         # 
         
                     
-if __name__ == "__main__midi":
-    import lunar_tools as lt
-    import time
+if __name__ == "__main__":
+    # import lunar_tools as lt
+    # import time
     akai_lpd8 = MidiInput(device_name="akai_lpd8")
     
     while True:
         time.sleep(0.1)
-        variable1 = akai_lpd8.get("A0", button_mode='toggle') # toggle switches the state with every press between on and off
-        do_baba = akai_lpd8.get("B1", button_mode='held_down') # held_down checks if the button is pressed down at the moment
-        strange_effect = akai_lpd8.get("C0", button_mode='released_once') # released_once checks if the button was pressed since we checked last time
-        supermorph = akai_lpd8.get("E1", val_min=3, val_max=6, val_default=5) # e0 is a slider float between val_min and val_max
-        print(f"variable1: {variable1}, do_baba: {do_baba}, strange_effect: {strange_effect}, supermorph: {supermorph}")
+        # variable1 = akai_lpd8.get("A0", button_mode='toggle') # toggle switches the state with every press between on and off
+        # do_baba = akai_lpd8.get("B1", button_mode='held_down') # held_down checks if the button is pressed down at the moment
+        strange_effect = akai_lpd8.get("C0", button_mode='pressed_once') # released_once checks if the button was pressed since we checked last time
+        bbb = akai_lpd8.get("C1", button_mode='released_once') # released_once checks if the button was pressed since we checked last time
+        # supermorph = akai_lpd8.get("E1", val_min=3, val_max=6, val_default=5) # e0 is a slider float between val_min and val_max
+        # print(f"variable1: {variable1}, do_baba: {do_baba}, strange_effect: {strange_effect}, supermorph: {supermorph}")
+        print(f"strange_effect: {strange_effect}, bbb: {bbb}")
         
     akai_lpd8.show()
                     
-if __name__ == "__main__midimix":
+if __name__ == "__main__":
     import lunar_tools as lt
     import time
     akai_lpd8 = MidiInput(device_name="akai_midimix")
