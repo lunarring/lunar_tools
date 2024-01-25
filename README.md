@@ -21,10 +21,7 @@ export REPLICATE_API_TOKEN="XXX"
 export ELEVEN_API_KEY="XXX"
 ```
 
-
-
-
-# Audio
+# Inputs
 ## AudioRecorder
 ```python
 import lunar_tools as lt
@@ -33,6 +30,121 @@ audio_recorder = lt.AudioRecorder()
 audio_recorder.start_recording("myvoice.mp3")
 time.sleep(3)
 audio_recorder.stop_recording()    
+```
+
+## Get image from webcam
+```python
+import lunar_tools as lt
+cam = lt.WebCam()
+img = cam.get_img()
+```
+
+## Control Inputs
+Allow real-time change of variables, ideal for changing variables on the fly during a infinete *while True* loop.. The logic is that buttons can change boolean variables and sliders can change numerical values. 
+For buttons, we support the following modes:
+* **toggle**: button activation toggles the state, like a light switch.
+* **held_down**: returns if the button is currently, at this moment, being pressed down.
+* **pressed_once**: checks if the button has been pressed since the last time we checked, returning a single time "True" if the button is held down (at the beginning). 
+* **released_once**: checks if the button has been released since the last time we checked, returning a single time "True" if the button is held down (at the end). 
+
+For sliders, the default is a range between 0.0 and 1.0. The default return value is the middle point between your supplied val_min and val_max, e.g. 0.5.
+  
+### Keyboard inputs
+As we have plenty of buttons on the keyboard but no sliders, we have to emulate the sliders using *cursor up* and *cursor down* to increase/decrease the respective value. For instance, you could map some numerical value to "x" with minimum 3 and maximum 6 as in the example below. Then whenever the user presses "x", this slider becomes active, and the user can change it's value by *cursor up* and *cursor down*. 
+
+```python
+keyb = lt.KeyboardInput()
+while True:
+    time.sleep(0.1)
+    a = keyboard_input.get('a', button_mode='held_down')
+    s = keyboard_input.get('s', button_mode='pressed_once')
+    d = keyboard_input.get('d', button_mode='released_once')
+    f = keyboard_input.get('f', button_mode='toggle')
+    g = keyboard_input.get('g', val_min=3, val_max=6)
+    h = keyboard_input.get('h', val_min=3, val_max=5)
+    print(f"{a} {s} {d} {f} {g} {h}")
+```
+
+### Midi Controller
+We currently support akai lpd8 and akai midimix devices. However, in principle all midi devices can be added, you just need to specify it in the midi_configs/your_device.yml.
+We think of the midi device as a grid, where we name the colums with letters ("A", "B", "C", ...) and the rows with numbers (0, 1 , 2, ...). This allows us to identify the buttons/sliders, e.g. "A0" is the most upper left button/slider, and "A1" is the one below it. 
+
+```python
+import lunar_tools as lt
+akai_lpd8 = lt.MidiInput(device_name="akai_lpd8")
+
+while True:
+    time.sleep(0.1)
+    a0 = akai_lpd8.get("A0", button_mode='toggle') # toggle switches the state with every press between on and off
+    b0 = akai_lpd8.get("B0", button_mode='held_down') # is_held checks if the button is pressed down at the moment
+    c0 = akai_lpd8.get("C0", button_mode='released_once') # down_once checks if the button was pressed since we checked last time
+    e0 = akai_lpd8.get("E0", val_min=3, val_max=6) # e0 is a slider float between val_min and val_max
+    print(f"a0: {a0}, b0: {b0}, c0: {c0}, e0: {e0}")
+```
+
+# Outputs
+## Play sounds
+```python
+import lunar_tools as lt
+player = lt.SoundPlayer()
+player.play_sound("myvoice.mp3")
+```
+
+## Real-time display (Torch, PIL, numpy)
+Allows to fast render images from torch, numpy or PIL in a window. Can be directly from the GPU, without need to copy. Works with np arrays, PIL.Image and torch tensors (just uncomment from below).
+```python
+import lunar_tools as lt
+import torch
+from PIL import Image
+import numpy as np
+sz = (1080, 1920)
+renderer = lt.Renderer(width=sz[1], height=sz[0])
+while True:
+    # image = np.random.rand(sz[0],sz[1],4) * 255 # numpy array
+    # image = Image.fromarray(np.uint8(np.random.rand(sz[0],sz[1],4) * 255)) # PIL array
+    image = torch.rand((sz[0],sz[1],4)) * 255 # Torch tensors
+    renderer.render(image)
+```
+
+### Real-time display example with remote streaming
+Remote streaming allows to generate images on one PC, typically with a beefy GPU, and to show them on another one, which may not have a GPU. The streaming is handled via ZMQ and automatically compresses the images using jpeg compression.
+
+Sender code example: generates an image and sends it to receiver. This is your backend server with GPU and we are emulating the image creation process by generating random arrays.
+```python
+import lunar_tools as lt
+import numpy as np
+sz = (800, 800)
+ip = '127.0.0.1'
+
+server = lt.ZMQPairEndpoint(is_server=True, ip='127.0.0.1', port='5556')
+
+while True:
+    test_image = np.random.randint(0, 256, (sz[0], sz[1], 3), dtype=np.uint8)
+    img_reply = server.send_img(test_image)
+```
+
+
+Reveiver code example: receives the image and renders it, this would be the frontend client e.g. a macbook.
+```python
+import lunar_tools as lt
+sz = (800, 800)
+ip = '127.0.0.1'
+
+client = lt.ZMQPairEndpoint(is_server=False, ip='127.0.0.1', port='5556')
+renderer = lt.Renderer(width=sz[1], height=sz[0])
+while True:
+    image = client.get_img()
+    if image is not None:
+        renderer.render(image)
+```
+
+# Language
+
+## GPT4
+```python
+import lunar_tools as lt
+gpt4 = lt.GPT4()
+msg = gpt4.generate("tell me about yourself")
 ```
 
 ## Speech2Text
@@ -46,12 +158,6 @@ translation = speech_detector.stop_recording()
 print(f"translation: {translation}")
 ```
 
-## Play sounds
-```python
-import lunar_tools as lt
-player = lt.SoundPlayer()
-player.play_sound("myvoice.mp3")
-```
 The playback is threaded and does not block the main application. You can stop the playback via: 
 ```python
 player.stop_sound()
@@ -77,25 +183,7 @@ text2speech.change_voice("FU5JW1L0DwfWILWkNpW6")
 text2speech.play("hey there can you hear me?")
 ```
 
-
-# Large Language Models
-## GPT4
-```python
-import lunar_tools as lt
-gpt4 = lt.GPT4()
-msg = gpt4.generate("tell me about yourself")
-```
-
-# Logging and terminal printing
-```python
-import lunar_tools as lt
-logger = lt.LogPrint()  # No filename provided, will use default current_dir/logs/%y%m%d_%H%M
-logger.print("white")
-logger.print("red", "red")
-logger.print("green", "green")
-```    
-
-# Image gen
+# Image generation APIs
 ## Generate Images with Dall-e-3
 ```python
 import lunar_tools as lt
@@ -110,30 +198,6 @@ sdxl_turbo = lt.SDXL_TURBO()
 image, img_url = sdxl_turbo.generate("An astronaut riding a rainbow unicorn", "cartoon")
 ```
 
-# Camera
-## Get image from webcam
-
-```python
-import lunar_tools as lt
-cam = lt.WebCam()
-img = cam.get_img()
-```
-
-# Fast rendering
-Allows to fast render images from torch, numpy or PIL in a window. Can be directly from the GPU, without need to copy.
-```python
-import lunar_tools as lt
-import torch
-from PIL import Image
-import numpy as np
-sz = (1080, 1920)
-renderer = lt.Renderer(width=sz[1], height=sz[0])
-while True:
-    # image = np.random.rand(sz[0],sz[1],4) * 255 # numpy array
-    # image = Image.fromarray(np.uint8(np.random.rand(sz[0],sz[1],4) * 255)) # PIL array
-    image = torch.rand((sz[0],sz[1],4)) * 255 # Torch tensors
-    renderer.render(image)
-```
 
 # Movie handling
 ## Saving a series of images as movie
@@ -154,24 +218,47 @@ for _ in range(mr.nmb_frames):
     img = mr.get_next_frame()
 ```
 
-
 # Communication
 ## ZMQ
+We have a unified client-server setup in this example, which demonstrates bidirectional communication using ZMQPairEndpoints.
 ```python
-import lunar_tools as lt
-# First we launch a server
-receiver = lt.ZMQReceiver(ip_receiver='127.0.0.1', port=5556)
+# Create server and client
+server = lt.ZMQPairEndpoint(is_server=True, ip='127.0.0.1', port='5556')
+client = lt.ZMQPairEndpoint(is_server=False, ip='127.0.0.1', port='5556')
 
-# And we launch a client
-sender = lt.ZMQSender(ip_receiver='127.0.0.1', port=5556)
-reply = sender.send_json({"message": "Hello, Server!", 'bobo': 'huhu'})
-print(f"Received reply: {reply}")
+# Client: Send JSON to Server
+client.send_json({"message": "Hello from Client!"})
+time.sleep(0.01)
+# Server: Check for received messages
+server_msgs = server.get_messages()
+print("Messages received by server:", server_msgs)
 
-# On the server, we can get the message
-msgs = receiver.get_messages()
-for msg in msgs: # iterating over all messages that were received
-    for field, payload in msg.items(): # iterating over all fields
-        print(f"Field: {field}, Payload: {payload}")
+# Server: Send JSON to Client
+server.send_json({"response": "Hello from Server!"})
+time.sleep(0.01)
+
+# Client: Check for received messages
+client_msgs = client.get_messages()
+print("Messages received by client:", client_msgs)
+
+# Bidirectional Image Sending
+sz = (800, 800)
+client_image = np.random.randint(0, 256, (sz[0], sz[1], 3), dtype=np.uint8)
+server_image = np.random.randint(0, 256, (sz[0], sz[1], 3), dtype=np.uint8)
+
+# Client sends image to Server
+client.send_img(client_image)
+time.sleep(0.01)
+server_received_image = server.get_img()
+if server_received_image is not None:
+    print("Server received image from Client")
+
+# Server sends image to Client
+server.send_img(server_image)
+time.sleep(0.01)
+client_received_image = client.get_img()
+if client_received_image is not None:
+    print("Client received image from Server")
 ```
 
 ## OSC
@@ -191,6 +278,14 @@ for i in range(10):
 receiver.get_all_values("/env1")
 ```
 
+# Logging and terminal printing
+```python
+import lunar_tools as lt
+logger = lt.LogPrint()  # No filename provided, will use default current_dir/logs/%y%m%d_%H%M
+logger.print("white")
+logger.print("red", "red")
+logger.print("green", "green")
+```   
 
 # Devinfos
 ## Testing

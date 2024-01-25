@@ -323,8 +323,8 @@ class Renderer:
         image = torch.clamp(image, 0, 1)
         
         # resize 
-        if image.shape[0] != self.width or image.shape[1] != self.height:
-            image = torch.nn.functional.interpolate(image.permute([2,0,1])[None], size=(self.width, self.height))
+        if image.shape[1] != self.width or image.shape[0] != self.height:
+            image = torch.nn.functional.interpolate(image.permute([2,0,1])[None], size=(self.height, self.width))
             image = image[0].permute([1,2,0])
         
         # transpose X/Y for openGL consistency
@@ -391,6 +391,11 @@ class Renderer:
         image = np.clip(image, 0, 255)
         image = image.astype(np.uint8)
         
+        # reshape if there is a mismatched between supply image size and window size
+        if image.shape[1] != self.width or image.shape[0] != self.height:
+            image = cv2.resize(image, (self.width, self.height))
+        
+        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
         cv2.imshow(self.window_title, image) 
         cv2_keycode = cv2.waitKey(1)
         if cv2_keycode == 27:  # exit code
@@ -430,19 +435,19 @@ if __name__ == '__main__':
 
     while True:
         # numpy array
-        # image = np.random.rand(sz[0],sz[1],4)*255
+        image = np.random.rand(sz[0]//4,sz[1]//4,4)*255
         
         # PIL array
         # image = Image.fromarray(np.uint8(np.random.rand(sz[0],sz[1],4)*255))
         
         # Torch tensors
-        image = torch.rand((sz[0]//2,sz[1]//2,4))*255
+        # image = torch.rand((sz[0]//2,sz[1]//2,4))*255
         # image = torch.rand((sz[0],sz[1]), device='cuda:0')*255
         # image = torch.rand((sz[0],sz[1],3), device='cuda:0')*255
         # image = torch.rand((sz[0],sz[1],4), device='cuda:0')*255
         
         peripheralEvent = renderer.render(image)
-        if peripheralEvent.pressed_key_code != -1:
+        if peripheralEvent.pressed_key_code != -1 and peripheralEvent.pressed_key_code is not None:
             print(f'the pressed key code was {peripheralEvent.pressed_key_code}')
         if peripheralEvent.mouse_button_state > 0:
             print(f'mouse_button_state was {peripheralEvent.mouse_button_state}')

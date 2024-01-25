@@ -6,8 +6,11 @@ with open('requirements.txt') as f:
 
 setup(
     name='lunar_tools',
-    version='0.0.5',
+    version='0.0.7',
     packages=find_packages(),
+    package_data={
+    'lunar_tools': ['midi_configs/*.yml'],
+    },
     url='https://github.com/lunarring/lunar_tools',
     description='Lunar Ring auxiliary tools and modules',
     long_description=open('README.md').read(),

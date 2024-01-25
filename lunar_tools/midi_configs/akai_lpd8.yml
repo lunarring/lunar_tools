@@ -1,0 +1,20 @@
+name_device: "LPD8"
+button_down: 144
+button_release: 128
+controls:
+  A0: [40, "button"]
+  A1: [36, "button"]
+  B0: [41, "button"]
+  B1: [37, "button"]
+  C0: [42, "button"]
+  C1: [38, "button"]
+  D0: [43, "button"]
+  D1: [39, "button"]
+  E0: [1, "slider"]
+  E1: [5, "slider"]
+  F0: [2, "slider"]
+  F1: [6, "slider"]
+  G0: [3, "slider"]
+  G1: [7, "slider"]
+  H0: [4, "slider"]
+  H1: [8, "slider"]

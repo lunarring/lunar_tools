@@ -54,7 +54,7 @@ class TestLCMSDXL(unittest.TestCase):
         
     def test_correct_client(self):
         """Test the SDXL_LCM class with the correct client type."""
-        client = replicate.Client(api_token=read_api_key("REPLICATE_API_KEY"))
+        client = replicate.Client(api_token=read_api_key("REPLICATE_API_TOKEN"))
         try:
             sdxl_lcm = SDXL_LCM(client=client)
         except Exception as e:

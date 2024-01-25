@@ -94,7 +94,7 @@ class Dalle3ImageGenerator:
 class SDXL_LCM:
     def __init__(self, client=None, logger=None, size_output=(1024, 1024), num_inference_steps=4):
         if client is None:
-            self.client = replicate.Client(api_token=read_api_key("REPLICATE_API_KEY"))
+            self.client = replicate.Client(api_token=read_api_key("REPLICATE_API_TOKEN"))
         else:
             if not isinstance(client, replicate.Client):
                 raise TypeError("Invalid client type. Expected a 'replicate.Client' instance.")
@@ -155,7 +155,7 @@ class SDXL_LCM:
 class SDXL_TURBO:
     def __init__(self, client=None, logger=None, size_output=(512, 512), num_inference_steps=1):
         if client is None:
-            self.client = replicate.Client(api_token=read_api_key("REPLICATE_API_KEY"))
+            self.client = replicate.Client(api_token=read_api_key("REPLICATE_API_TOKEN"))
         else:
             if not isinstance(client, replicate.Client):
                 raise TypeError("Invalid client type. Expected a 'replicate.Client' instance.")

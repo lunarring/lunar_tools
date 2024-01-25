@@ -14,14 +14,16 @@ from .movie import add_sound
 from .movie import add_subtitles_to_video
 from .movie import MovieReader
 from .cam import WebCam
-from .gl import Renderer
+from .display_window import Renderer
 from .utils import get_os_type
 from .utils import save_api_key_to_lunar_config
 from .utils import read_api_key_from_lunar_config
 from .utils import read_all_api_keys_from_lunar_config
 from .utils import read_api_key
-from .zmq_comms import ZMQSender
-from .zmq_comms import ZMQReceiver
-from .osc import OSCSender
-from .osc import OSCReceiver
-
+from .comms import ZMQPairEndpoint
+from .comms import OSCSender
+from .comms import OSCReceiver
+from .control_input import KeyboardInput
+from .control_input import MidiInput
+from .control_input import MetaInput
+from .fontrender import add_text_to_image

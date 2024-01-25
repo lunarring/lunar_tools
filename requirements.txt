@@ -8,10 +8,13 @@ numpy
 openai
 opencv_python
 Pillow
+pygame
+pynput
 pydub
 python-osc
 PyOpenGL
 PySDL2
+PyYAML
 pysdl2-dll
 replicate
 Requests
@@ -21,3 +24,4 @@ simpleaudio
 sounddevice
 torch
 tqdm
+pyusb

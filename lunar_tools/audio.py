@@ -141,18 +141,31 @@ class Speech2Text:
             raise ValueError("Audio recorder is not available")
         self.audio_recorder.start_recording(output_filename, max_time)
 
-    def stop_recording(self):
-        """
-        Stop the audio recording.
 
-        Raises:
-            ValueError: If the audio recorder is not available.
+    def stop_recording(self, minimum_duration=1):
         """
+Stop the audio recording and check if the recording meets the minimum duration.
+
+Args:
+    minimum_duration (float, optional): The minimum duration in seconds for a recording to be valid.
+                                      Default is 1 second.
+
+Returns:
+    str: The transcribed text if the recording meets the minimum duration requirement, otherwise None.
+
+Raises:
+    ValueError: If the audio recorder is not available.
+"""
         if self.audio_recorder is None:
             raise ValueError("Audio recorder is not available")
         self.audio_recorder.stop_recording()
-        return self.translate(self.audio_recorder.output_filename)
 
+        audio_duration = AudioSegment.from_mp3(self.audio_recorder.output_filename).duration_seconds
+        if audio_duration < minimum_duration:
+            self.logger.print(f"Recording is too short, only {audio_duration:.2f} seconds. Minimum required is {minimum_duration} seconds.")
+            return None
+        return self.translate(self.audio_recorder.output_filename)
+    
     def translate(self, audio_filepath):
         """
         Translate the audio file to text using OpenAI's translation model.
@@ -182,7 +195,8 @@ class Text2SpeechOpenAI:
         client=None, 
         logger=None, 
         voice_model="nova", 
-        sound_player=None
+        sound_player=None,
+        blocking_playback=False
     ):
         """
         Initialize the Text2Speech with an OpenAI client, a logger, a text source, a default voice model, and optionally a sound player.
@@ -199,6 +213,7 @@ class Text2SpeechOpenAI:
         self.sound_player = sound_player
         self.output_filename = None  # Initialize output filename
         self.voice_model = voice_model
+        self.blocking_playback = blocking_playback
 
     def play(self, text=None):
         """
@@ -206,7 +221,7 @@ class Text2SpeechOpenAI:
         """
         self.generate(text)
         if self.sound_player is None:
-            self.sound_player = SoundPlayer()
+            self.sound_player = SoundPlayer(blocking_playback=self.blocking_playback)
         self.sound_player.play_sound(self.output_filename)
 
     def stop(self):
@@ -271,7 +286,8 @@ class Text2SpeechElevenlabs:
         self, 
         logger=None, 
         sound_player=None,
-        voice_id="hImDzxfr9oCUsMI8JeWN"
+        voice_id="hImDzxfr9oCUsMI8JeWN",
+        blocking_playback=False
     ):
         """
         Initialize the Text2Speech for elevenlabs, a optional logger and optionally a sound player.
@@ -280,7 +296,8 @@ class Text2SpeechElevenlabs:
         # Initialize the sound player only if provided
         self.sound_player = sound_player
         self.output_filename = None  # Initialize output filename
-        self.voice_id = voice_id
+        self.voice_id = voice_id,
+        self.blocking_playback=blocking_playback
 
     def play(
             self, 
@@ -296,7 +313,7 @@ class Text2SpeechElevenlabs:
         """
         self.generate(text, output_filename, self.voice_id, stability, similarity_boost, style, use_speaker_boost)
         if self.sound_player is None:
-            self.sound_player = SoundPlayer()
+            self.sound_player = SoundPlayer(blocking_playback=self.blocking_playback)
         self.sound_player.play_sound(self.output_filename)
 
     def change_voice(self, voice_id):
@@ -371,9 +388,10 @@ class Text2SpeechElevenlabs:
 
 
 class SoundPlayer:
-    def __init__(self):
+    def __init__(self, blocking_playback=False):
         self._play_thread = None
         self._playback_object = None
+        self.blocking_playback = blocking_playback
 
     def _play_sound_threaded(self, sound):
         self._playback_object = simpleaudio.play_buffer(
@@ -394,6 +412,8 @@ class SoundPlayer:
         # Start a new thread for playing the sound
         self._play_thread = threading.Thread(target=self._play_sound_threaded, args=(sound,))
         self._play_thread.start()
+        if self.blocking_playback:
+            self._play_thread.join()
 
     def stop_sound(self):
         if self._play_thread and self._play_thread.is_alive():
@@ -415,11 +435,11 @@ if __name__ == "__main__":
     # audio_recorder.stop_recording()
     
     
-    # speech_detector = Speech2Text()
-    # speech_detector.start_recording()
-    # time.sleep(3)
-    # translation = speech_detector.stop_recording()
-    # print(f"translation: {translation}")
+    speech_detector = Speech2Text()
+    speech_detector.start_recording()
+    time.sleep(0.3)
+    translation = speech_detector.stop_recording()
+    print(f"translation: {translation}")
     
     # speech_detector.start_recording()
     # time.sleep(3)
@@ -427,9 +447,9 @@ if __name__ == "__main__":
     # print(f"translation: {translation}")
     
     # # Example Usage
-    text2speech = Text2SpeechElevenlabs()
-    text2speech.change_voice("FU5JW1L0DwfWILWkNpW6")
-    text2speech.play("well how are you?")
+    # text2speech = Text2SpeechElevenlabs(blocking_playback=True)
+    # text2speech.change_voice("FU5JW1L0DwfWILWkNpW6")
+    # text2speech.play("well how are you we are making this very long test of sound playback but is it blocking")
     
     
     # # text2speech.change_voice("nova")
