@@ -11,14 +11,17 @@ import cv2
 from lunar_tools.utils import get_os_type
 
 if get_os_type() == "Linux":
-    from cuda import cudart as cu
-    
-    with warnings.catch_warnings():
-        warnings.filterwarnings(action="ignore", category=UserWarning)
-        import sdl2
-    
-    from sdl2 import video
-    from OpenGL import GL as gl    
+    try:
+        from cuda import cudart as cu
+        
+        with warnings.catch_warnings():
+            warnings.filterwarnings(action="ignore", category=UserWarning)
+            import sdl2
+        
+        from sdl2 import video
+        from OpenGL import GL as gl   
+    except Exception as e:
+        print(f"Cuda import fail! {e}")
 
 import logging
 
@@ -148,22 +151,29 @@ def sdl_to_cv2_keycode(sdl_keycode):
 class Renderer:
     def __init__(self, width: int = 1920, height: int = 1080, 
                  gpu_id: int = 0,
-                 window_title: str = "lunar_render_window"):
+                 window_title: str = "lunar_render_window",
+                 backend = None):
         
         self.window_title = window_title
         self.gpu_id = gpu_id
         self.width = width
         self.height = height
         
-        if get_os_type() == "Linux":
-            self.backend = 'gl'
+        if backend is None:
+            if get_os_type() == "Linux":
+                self.backend = 'gl'
+            else:
+                self.backend = 'opencv'
+        else:
+            assert backend in ['gl', 'opencv']
+            self.backend = backend
+        
+        if self.backend == 'gl':
             self.cuda_is_setup = False
             self.running = True
             self.sdl_setup()
             self.gl_setup()
             self.cuda_setup()
-        else:
-            self.backend = 'opencv'
         
     def sdl_setup(self):
         if sdl2.SDL_Init(sdl2.SDL_INIT_VIDEO):
