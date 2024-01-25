@@ -1,5 +1,8 @@
-from pynput import keyboard
-from pygame import midi
+try:
+    from pynput import keyboard
+    from pygame import midi
+except Exception as e:
+    print(f"IMPORT FAIL: {e}")
 import numpy as np
 import time
 import os
