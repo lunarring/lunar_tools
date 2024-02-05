@@ -215,15 +215,67 @@ class SDXL_TURBO:
                 return None, None
 
 
+class GlifAPI:
+    def __init__(self, api_token=None):
+        if api_token is None:
+            api_token = read_api_key("GLIF_API_KEY")
+        self.base_url = "https://simple-api.glif.app"
+        self.headers = {
+            "Authorization": f"Bearer {api_token}",
+            "Content-Type": "application/json"
+        }
 
+    def run_glif(self, glif_id, inputs, timeout=60):
+        """Run a glif with given inputs, with error handling and timeout."""
+        url = f"{self.base_url}/{glif_id}"
+        payload = {"inputs": inputs}
+        try:
+            response = requests.post(url, json=payload, headers=self.headers, timeout=timeout)
+            response.raise_for_status()  # Raises an HTTPError if the response status code is 4XX/5XX
+            result = response.json()
+            if 'output' in result and len(result['output']) > 0:
+            
+                image_url = result['output']
+                if image_url.endswith(('.jpg', '.png')):
+                    image_response = requests.get(image_url)
+                    image_response.raise_for_status()
+                    image = Image.open(BytesIO(image_response.content))
+                    return {"image": image}
+        except requests.exceptions.HTTPError as errh:
+            return {"error": "Http Error", "message": str(errh)}
+        except requests.exceptions.ConnectionError as errc:
+            return {"error": "Connection Error", "message": str(errc)}
+        except requests.exceptions.Timeout as errt:
+            return {"error": "Timeout Error", "message": str(errt)}
+        except requests.exceptions.RequestException as err:
+            return {"error": "Something went wrong", "message": str(err)}
+
+
+        return result
+
+# Example usage
 if __name__ == "__main__":
+     
+    glif = GlifAPI()
+    glif_id = "clgh1vxtu0011mo081dplq3xs"
+    inputs = {"node_6": "cute friendly oval shaped bot friend"}
+    result = glif.run_glif(glif_id, inputs)
+    print(result)
+
+
+
+
+
+    
+
+
     # Example usage Dalle3
     # dalle3 = Dalle3ImageGenerator()
     # image, revised_prompt = dalle3.generate("realistic photo of a ")
     # image = image.resize((1024, 576))
     # image.save("/Users/jjj/glif/git_remote/generative-models/assets/fluid3.jpg")
     # image.show()
-    
+
     # output = replicate.run(
     #     "lucataco/sdxl-lcm:fbbd475b1084de80c47c35bfe4ae64b964294aa7e237e6537eed938cfd24903d",
     #     input={"prompt": "An astronaut riding a rainbow unicorn, cinematic, dramatic",
@@ -239,14 +291,8 @@ if __name__ == "__main__":
     # sdxl_turbo = SDXL_TURBO()
     # image, img_url = sdxl_turbo.generate("An astronaut riding a rainbow unicorn", "cartoon")
 
-    sdxl_lcm = SDXL_LCM()
-    image, img_url = sdxl_lcm.generate("An astronaut riding a rainbow unicorn", "cartoon")
+    # sdxl_lcm = SDXL_LCM()
+    # image, img_url = sdxl_lcm.generate("An astronaut riding a rainbow unicorn", "cartoon")
 
 
-    
-    
-    """
-    assert clients are correct
-    """
-    
     
