@@ -274,7 +274,7 @@ class MovieReader():
             return np.zeros(self.shape)
 
 
-def fill_frames_linear_interpolate(img1, img2, nmb_frames):
+def interpolate_between_images(img1, img2, nmb_frames):
     list_imgs_interp = []  # Initialize the list to store interpolated images
     list_fracts_linblend = np.linspace(0, 1, nmb_frames)  # Generate linearly spaced fractions
     # Check if img1 or img2 are PIL Images and convert them to numpy arrays if so
@@ -286,6 +286,7 @@ def fill_frames_linear_interpolate(img1, img2, nmb_frames):
         img_blend = interpolate_linear(img1, img2, fract_linblend).astype(np.uint8)  # Corrected variable name from img0 to img1
         list_imgs_interp.append(img_blend)  # Append the blended image to the list
     return list_imgs_interp
+
 
 
 

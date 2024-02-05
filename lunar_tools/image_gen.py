@@ -263,12 +263,6 @@ if __name__ == "__main__":
     print(result)
 
 
-
-
-
-    
-
-
     # Example usage Dalle3
     # dalle3 = Dalle3ImageGenerator()
     # image, revised_prompt = dalle3.generate("realistic photo of a ")
