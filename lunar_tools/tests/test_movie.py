@@ -8,6 +8,26 @@ sys.path.append(os.path.abspath('.'))
 sys.path.append(os.path.abspath('lunar_tools'))
 from movie import MovieSaver, concatenate_movies, add_sound, add_subtitles_to_video, MovieReader
 import numpy as np
+from lunar_tools.movie import fill_frames_linear_interpolate
+
+def test_fill_frames_linear_interpolate():
+    # Create a black and a white frame with smaller dimensions
+    black_frame = np.zeros((10, 10, 3), dtype=np.uint8)
+    white_frame = np.ones((10, 10, 3), dtype=np.uint8) * 255
+
+    # Number of frames to interpolate set to exactly 256
+    nmb_frames = 256
+
+    # Perform linear interpolation
+    interpolated_frames = fill_frames_linear_interpolate(black_frame, white_frame, nmb_frames)
+
+    # Check if the middle frame is gray (all channels have the value 127 or 128 due to rounding)
+    middle_frame = interpolated_frames[len(interpolated_frames) // 2]
+    middle_pixel = middle_frame[5, 5]  # Assuming a 10x10 image, this gets the middle pixel
+    if not np.all(np.isclose(middle_pixel, 127, atol=1)):
+        print(f"Middle pixel value is not 127, but {middle_pixel}")
+        assert False, "The middle frame should be gray with a middle pixel value close to 127."
+
 
 def test_movie_creation():
     fps = 2
