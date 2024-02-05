@@ -1,5 +1,6 @@
 import os
 import platform
+import numpy as np
 
 def get_os_type():
     os_name = platform.system()
