@@ -7,6 +7,7 @@ from typing import List
 import ffmpeg  # pip install ffmpeg-python. if error with broken pipe: conda update ffmpeg
 from lunar_tools.utils import interpolate_linear
 from PIL import Image
+from typing import Union, List
 
 class MovieSaver():
     def __init__(
@@ -289,6 +290,78 @@ def interpolate_between_images(img1, img2, nmb_frames):
 
 
 
+def fill_up_frames_linear_interpolation(
+        list_imgs: List[np.ndarray],
+        fps_target: Union[float, int] = None,
+        duration_target: Union[float, int] = None,
+        nmb_frames_target: int = None):
+    r"""
+    Helper function to cheaply increase the number of frames given a list of images,
+    using linear interpolation.
+    The number of inserted frames between the images in the list will be 
+    automatically adjusted so that the total of number
+    of frames can be fixed precisely, using a random shuffling technique.
+
+    Args:
+        list_imgs: List[np.ndarray)
+            List of images, between each image new frames will be inserted via linear interpolation.
+        fps_target:
+            OptionA: specify here the desired frames per second.
+        duration_target:
+            OptionA: specify here the desired duration of the transition in seconds.
+        nmb_frames_target:
+            OptionB: directly fix the total number of frames of the output.
+    """
+
+    # Sanity
+    if nmb_frames_target is not None and fps_target is not None:
+        raise ValueError("You cannot specify both fps_target and nmb_frames_target")
+    if fps_target is None:
+        assert nmb_frames_target is not None, "Either specify nmb_frames_target or nmb_frames_target"
+    if nmb_frames_target is None:
+        assert fps_target is not None, "Either specify duration_target and fps_target OR nmb_frames_target"
+        assert duration_target is not None, "Either specify duration_target and fps_target OR nmb_frames_target"
+        nmb_frames_target = fps_target * duration_target
+
+    # Get number of frames that are missing
+    nmb_frames_source = len(list_imgs) - 1
+    nmb_frames_missing = nmb_frames_target - nmb_frames_source - 1
+
+    if nmb_frames_missing < 1:
+        return list_imgs
+
+    if type(list_imgs[0]) == Image.Image:
+        list_imgs = [np.asarray(l) for l in list_imgs]
+    list_imgs_float = [img.astype(np.float32) for img in list_imgs]
+    # Distribute missing frames, append nmb_frames_to_insert(i) frames for each frame
+    mean_nmb_frames_insert = nmb_frames_missing / nmb_frames_source
+    constfact = np.floor(mean_nmb_frames_insert)
+    remainder_x = 1 - (mean_nmb_frames_insert - constfact)
+    nmb_iter = 0
+    while True:
+        nmb_frames_to_insert = np.random.rand(nmb_frames_source)
+        nmb_frames_to_insert[nmb_frames_to_insert <= remainder_x] = 0
+        nmb_frames_to_insert[nmb_frames_to_insert > remainder_x] = 1
+        nmb_frames_to_insert += constfact
+        if np.sum(nmb_frames_to_insert) == nmb_frames_missing:
+            break
+        nmb_iter += 1
+        if nmb_iter > 100000:
+            print("add_frames_linear_interp: issue with inserting the right number of frames")
+            break
+
+    nmb_frames_to_insert = nmb_frames_to_insert.astype(np.int32)
+    list_imgs_interp = []
+    for i in range(len(list_imgs_float) - 1):
+        img0 = list_imgs_float[i]
+        img1 = list_imgs_float[i + 1]
+        list_blended = interpolate_between_images(img0, img1, nmb_frames_to_insert[i]+2)
+        if i == len(list_imgs_float) - 2:
+            list_imgs_interp.extend(list_blended)
+        else:
+            list_imgs_interp.extend(list_blended[0:-1])
+
+    return list_imgs_interp
 
 if __name__ == "__main__":
     fps = 2

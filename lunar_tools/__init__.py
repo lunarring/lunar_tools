@@ -13,6 +13,8 @@ from .movie import concatenate_movies
 from .movie import add_sound
 from .movie import add_subtitles_to_video
 from .movie import MovieReader
+from .movie import interpolate_between_images
+from .movie import fill_up_frames_linear_interpolation
 from .cam import WebCam
 from .display_window import Renderer
 from .utils import get_os_type
@@ -28,3 +30,4 @@ from .control_input import MidiInput
 from .control_input import MetaInput
 from .fontrender import add_text_to_image
 from .utils import interpolate_linear
+

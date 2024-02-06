@@ -8,7 +8,7 @@ sys.path.append(os.path.abspath('.'))
 sys.path.append(os.path.abspath('lunar_tools'))
 from movie import MovieSaver, concatenate_movies, add_sound, add_subtitles_to_video, MovieReader
 import numpy as np
-from lunar_tools.movie import fill_frames_linear_interpolate
+from lunar_tools.movie import interpolate_between_images, fill_up_frames_linear_interpolation
 
 def test_fill_frames_linear_interpolate():
     # Create a black and a white frame with smaller dimensions
@@ -19,7 +19,7 @@ def test_fill_frames_linear_interpolate():
     nmb_frames = 256
 
     # Perform linear interpolation
-    interpolated_frames = fill_frames_linear_interpolate(black_frame, white_frame, nmb_frames)
+    interpolated_frames = interpolate_between_images(black_frame, white_frame, nmb_frames)
 
     # Check if the middle frame is gray (all channels have the value 127 or 128 due to rounding)
     middle_frame = interpolated_frames[len(interpolated_frames) // 2]
@@ -27,6 +27,36 @@ def test_fill_frames_linear_interpolate():
     if not np.all(np.isclose(middle_pixel, 127, atol=1)):
         print(f"Middle pixel value is not 127, but {middle_pixel}")
         assert False, "The middle frame should be gray with a middle pixel value close to 127."
+
+def test_fill_up_frames_linear_interpolation():
+    # Create a sequence of three distinct frames
+    frame1 = np.zeros((10, 10, 3), dtype=np.uint8)  # Black frame
+    frame2 = np.ones((10, 10, 3), dtype=np.uint8) * 127  # Gray frame
+    frame3 = np.ones((10, 10, 3), dtype=np.uint8) * 255  # White frame
+    list_imgs = [frame1, frame2, frame3]
+
+    # Target number of frames including the original frames
+    nmb_frames_target = 10
+
+    # Perform linear interpolation to fill up frames
+    interpolated_frames = fill_up_frames_linear_interpolation(list_imgs, nmb_frames_target=nmb_frames_target)
+
+    # Check if the total number of frames is correct
+    assert len(interpolated_frames) == nmb_frames_target, f"Expected {nmb_frames_target} frames, got {len(interpolated_frames)}"
+
+    # Check if the interpolation between the first and second frame is correct
+    # The value should gradually increase from 0 to 127
+    for i, frame in enumerate(interpolated_frames[1:4], start=1):
+        expected_value = i * 127 / 3  # Linear interpolation
+        middle_pixel = frame[5, 5]
+        assert np.all(np.isclose(middle_pixel, expected_value, atol=1)), f"Frame {i} middle pixel value is not close to {expected_value}, but {middle_pixel}"
+
+    # Check if the interpolation between the second and third frame is correct
+    # The value should gradually increase from 127 to 255
+    for i, frame in enumerate(interpolated_frames[5:8], start=1):
+        expected_value = 127 + i * 128 / 3  # Linear interpolation
+        middle_pixel = frame[5, 5]
+        assert np.all(np.isclose(middle_pixel, expected_value, atol=1)), f"Frame {i+4} middle pixel value is not close to {expected_value}, but {middle_pixel}"
 
 
 def test_movie_creation():
