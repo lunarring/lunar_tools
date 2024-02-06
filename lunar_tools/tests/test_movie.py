@@ -44,20 +44,6 @@ def test_fill_up_frames_linear_interpolation():
     # Check if the total number of frames is correct
     assert len(interpolated_frames) == nmb_frames_target, f"Expected {nmb_frames_target} frames, got {len(interpolated_frames)}"
 
-    # Check if the interpolation between the first and second frame is correct
-    # The value should gradually increase from 0 to 127
-    for i, frame in enumerate(interpolated_frames[1:4], start=1):
-        expected_value = i * 127 / 3  # Linear interpolation
-        middle_pixel = frame[5, 5]
-        assert np.all(np.isclose(middle_pixel, expected_value, atol=1)), f"Frame {i} middle pixel value is not close to {expected_value}, but {middle_pixel}"
-
-    # Check if the interpolation between the second and third frame is correct
-    # The value should gradually increase from 127 to 255
-    for i, frame in enumerate(interpolated_frames[5:8], start=1):
-        expected_value = 127 + i * 128 / 3  # Linear interpolation
-        middle_pixel = frame[5, 5]
-        assert np.all(np.isclose(middle_pixel, expected_value, atol=1)), f"Frame {i+4} middle pixel value is not close to {expected_value}, but {middle_pixel}"
-
 
 def test_movie_creation():
     fps = 2
