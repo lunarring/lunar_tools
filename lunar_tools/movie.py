@@ -96,17 +96,19 @@ class MovieSaver():
         self.shape_hw = tuple(self.shape_hw)
         print(f"Initialization done. Movie shape: {self.shape_hw}")
 
-    def write_frame(self, out_frame: np.ndarray):
+    def write_frame(self, out_frame: Union[np.ndarray, Image.Image]):
         r"""
-        Function to dump a numpy array as frame of a movie.
+        Function to dump a numpy array or a PIL Image as frame of a movie.
         Args:
-            out_frame: np.ndarray
-                Numpy array, in np.uint8 format. Convert with np.astype(x, np.uint8).
+            out_frame: Union[np.ndarray, Image.Image]
+                If np.ndarray, it should be in np.uint8 format. Convert with np.astype(x, np.uint8).
+                If Image.Image, it should be in 'RGB' mode.
                 Dim 0: y
                 Dim 1: x
-                Dim 2: RGB
+                Dim 2: RGB (only for np.ndarray)
         """
-        assert out_frame.dtype == np.uint8, "Convert to np.uint8 before"
+        if isinstance(out_frame, Image.Image):
+            out_frame = np.array(out_frame)
         assert len(out_frame.shape) == 3, "out_frame needs to be three dimensional, Y X C"
         assert out_frame.shape[2] == 3, f"need three color channels, but you provided {out_frame.shape[2]}."
 

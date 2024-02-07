@@ -44,6 +44,27 @@ def test_fill_up_frames_linear_interpolation():
     # Check if the total number of frames is correct
     assert len(interpolated_frames) == nmb_frames_target, f"Expected {nmb_frames_target} frames, got {len(interpolated_frames)}"
 
+def test_write_frame_with_pil_image():
+    from PIL import Image
+
+    # Create a PIL Image and a MovieSaver instance
+    pil_image = Image.new('RGB', (10, 10), color='red')
+    fps = 24
+    fp_movie = "/tmp/test_pil_movie.mp4"
+    ms = MovieSaver(fp_movie, fps=fps)
+
+    # Write the PIL image as a frame
+    for i in range(10):
+        ms.write_frame(pil_image)
+    ms.finalize()
+
+    # Check if the movie file was created and is not empty
+    assert os.path.exists(fp_movie), "The movie file was not created."
+    assert os.path.getsize(fp_movie) > 0, "The movie file is empty."
+
+    # Clean up the created file
+    os.remove(fp_movie)
+
 
 def test_movie_creation():
     fps = 2
