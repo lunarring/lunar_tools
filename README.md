@@ -18,8 +18,9 @@ cd /usr/lib/x86_64-linux-gnu/
 sudo ln -s alsa-lib/libasound_module_conf_pulse.so libasound_module_conf_pulse.so
 ```
 
-Our system includes a convenient automatic mode for reading and writing API keys. This feature enables you to dynamically set your API key as needed, and the file will be stored on your local computer.
+## API Keys
 
+Our system includes a convenient automatic mode for reading and writing API keys. This feature enables you to dynamically set your API key as needed, and the file will be stored on your local computer.
 However, if you prefer, you can specify your API keys in your shell configuration file (e.g. ~/.bash_profile or ~/.zshrc or ~/.bash_rc). In this case, paste the below lines with the API keys you want to add.
 ```bash
 export OPENAI_API_KEY="XXX"
