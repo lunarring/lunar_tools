@@ -5,11 +5,17 @@ Welcome to Lunar Tools, a comprehensive toolkit designed to fascilitate the prog
 ```bash
 pip install git+https://github.com/lunarring/lunar_tools
 ```
-
+## Ubuntu
 On Ubuntu, you may have to install additional dependencies for sound playback/recording.
 
 ```bash
 sudo apt-get install libasound2-dev libportaudio2
+```
+
+For running the midi controllers, you might have to create a symlink:
+```bash
+cd /usr/lib/x86_64-linux-gnu/
+sudo ln -s alsa-lib/libasound_module_conf_pulse.so libasound_module_conf_pulse.so
 ```
 
 Our system includes a convenient automatic mode for reading and writing API keys. This feature enables you to dynamically set your API key as needed, and the file will be stored on your local computer.
@@ -69,11 +75,6 @@ while True:
 We currently support akai lpd8 and akai midimix devices. However, in principle all midi devices can be added, you just need to specify it in the midi_configs/your_device.yml.
 We think of the midi device as a grid, where we name the colums with letters ("A", "B", "C", ...) and the rows with numbers (0, 1 , 2, ...). This allows us to identify the buttons/sliders, e.g. "A0" is the most upper left button/slider, and "A1" is the one below it. 
 
-In Ubuntu you might need to prepare ALSA lib first by running:
-```bash
-cd /usr/lib/x86_64-linux-gnu/
-sudo ln -s alsa-lib/libasound_module_conf_pulse.so libasound_module_conf_pulse.so
-```
 
 ```python
 import lunar_tools as lt
