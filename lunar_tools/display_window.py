@@ -275,7 +275,7 @@ class Renderer:
         if self.running:
             key_press_tracker_array = np.zeros((sdl2.SDL_NUM_SCANCODES,), dtype=np.int8)
             while sdl2.SDL_PollEvent(ctypes.byref(event)):
-                mouse_buttonstate = sdl2.mouse.SDL_GetMouseState(ctypes.byref(mouse_posX), ctypes.byref(mouse_posX))
+                mouse_buttonstate = sdl2.mouse.SDL_GetMouseState(ctypes.byref(mouse_posX), ctypes.byref(mouse_posY))
                 
                 if (event.type == sdl2.SDL_WINDOWEVENT and event.window.event == sdl2.SDL_WINDOWEVENT_CLOSE):
                     self.running = False
@@ -305,8 +305,8 @@ class Renderer:
         peripheralEvent = PeripheralEvent()
         peripheralEvent.pressed_key_code = pressed_key_code
         peripheralEvent.mouse_button_state = mouse_buttonstate
-        peripheralEvent.mouse_posX = mouse_posX
-        peripheralEvent.mouse_posY = mouse_posY
+        peripheralEvent.mouse_posX = mouse_posX.value
+        peripheralEvent.mouse_posY = mouse_posY.value
         
         return peripheralEvent
 
