@@ -60,7 +60,7 @@ For sliders, the default is a range between 0.0 and 1.0. The default return valu
 As we have plenty of buttons on the keyboard but no sliders, we have to emulate the sliders using *cursor up* and *cursor down* to increase/decrease the respective value. For instance, you could map some numerical value to "x" with minimum 3 and maximum 6 as in the example below. Then whenever the user presses "x", this slider becomes active, and the user can change it's value by *cursor up* and *cursor down*. 
 
 ```python
-keyb = lt.KeyboardInput()
+keyboard_input = lt.KeyboardInput()
 while True:
     time.sleep(0.1)
     a = keyboard_input.get('a', button_mode='held_down')
