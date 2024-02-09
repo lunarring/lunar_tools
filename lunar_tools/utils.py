@@ -1,6 +1,8 @@
 import os
 import platform
 import numpy as np
+from threading import Thread
+import time
 
 def get_os_type():
     os_name = platform.system()
@@ -105,9 +107,49 @@ def interpolate_linear(p0, p1, fract_mixing):
 
     return interp
 
+def get_time_ms():
+    return int(round(time.time() * 1000))
+
+class MultiThreader():
+    def __init__(self, runfunc, sleeptime=0.5, idx=None):
+        """
+        Helper class to make threading easier
+        runfunc is the function you want to run in the thread
+        sleeptime is the delay between executions
+        note to self: if more arguments shall be passed, please refactor and use that args= things.
+        """
+        
+        self.t_refreshlast_slow = 0
+        self.running = True
+        self.runfunc = runfunc
+        self.sleeptime = sleeptime
+        self.thread = Thread(target = self.thread_loop, args = (1, ))
+        self.thread.daemon = True
+        self.thread.start()
+
+
+    def thread_loop(self, arg):
+        refreshrate_slow = 10
+        
+        while self.running:
+            t_now = get_time_ms()
+
+            t_diff_slow = t_now - self.t_refreshlast_slow
+            if t_diff_slow > refreshrate_slow:
+                self.t_refreshlast_slow = t_now
+                self.runfunc()
+
+            time.sleep(self.sleeptime) 
+    
+    def stop(self):
+        self.running = False
+        self.thread.join()
+
 if __name__ == "__main__":
     # Example usage
     # save_api_key_to_lunar_config('ELEVEN_API_KEY', "bba")
     # # Reading a specific key
+    
     api_key_value = read_api_key('ELEVEN_API_KEY')
     delete_api_key_from_lunar_config('ELEVEN_API_KEY')
+
