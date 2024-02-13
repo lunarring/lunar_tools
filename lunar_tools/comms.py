@@ -257,10 +257,16 @@ class OSCReceiver():
             plt.title(identifier)
             plt.show()
 
-
-
+    def show_last_received(self):
+        if not self.dict_time:
+            print("Nothing was received since you started the receiver.")
+        else:
+            current_time = time.time()
+            for identifier, timestamp in self.dict_time.items():
+                time_since_received = current_time - timestamp
+                print(f"Signal '{identifier}' was last received {time_since_received:.2f} seconds ago.")
 # Example usage ZMQ
-if __name__ == "__main__":
+if __name__ == "__main__xxx":
     import numpy as np
     import time
 
@@ -301,3 +307,11 @@ if __name__ == "__main__":
     client_received_image = client.get_img()
     if client_received_image is not None:
         print("Client received image from Server")
+        
+if __name__ == "__main__":
+    # import lunar_tools as lt
+    import numpy as np
+    import time
+    receiver = OSCReceiver('10.40.50.126')
+    receiver.get_all_values("/env1")
+    
