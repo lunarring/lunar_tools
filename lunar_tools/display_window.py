@@ -8,6 +8,7 @@ import torch
 from sys import platform
 from PIL import Image
 import cv2
+import random
 from lunar_tools.utils import get_os_type
 
 if get_os_type() == "Linux":
@@ -437,7 +438,96 @@ class Renderer:
         sdl2.SDL_DestroyWindow(self.sdl_window)
         sdl2.SDL_Quit()
 
+
+class GridRenderer():
+    def __init__(self, nmb_rows, nmb_cols, shape_hw):
+        """
+        nmb_rows: Number of tiles in vertical direction
+        nmb_cols: Number of tiles in horizontal direction
+        shape_hw: (H,W) = tuple (height,width) of individual tile
+        """
+        self.H = shape_hw[0]
+        self.W = shape_hw[1]
+        self.nmb_rows = nmb_rows
+        self.nmb_cols = nmb_cols
+        self.canvas = np.zeros((nmb_rows, nmb_cols, shape_hw[0], shape_hw[1], 3))
+        self.renderer = Renderer(width=shape_hw[1]*nmb_cols, height=shape_hw[0]*nmb_rows)
+        
+    def update(self, tiles):
+        """
+        Concatenate image tiles into one large canvas.
+    
+        :param tiles: NumPy array of shape nmb_rowsxnmb_colsxHxW*C
+                       nmb_rows: Number of tiles in vertical direction
+                       nmb_cols: Number of tiles in horizontal direction
+                       H: Height of each tile
+                       W: Width of each tile
+                       C: Number of RGB channels
+        :return: NumPy array representing the large canvas with shape (nmb_rows*H)x(nmb_cols*W)
+        """
+        if isinstance(tiles, list):
+            tiles = self.list_to_tiles(tiles)
+        nmb_rows, nmb_cols, H, W, C = tiles.shape
+        fail_msg = 'GridRenderer->inject_tiles: tiles shape inconsistent with initialization'
+        assert (nmb_rows == self.nmb_rows) and (nmb_cols == self.nmb_cols), print(fail_msg)
+        assert (H == self.H) and (W == self.W), print(fail_msg)
+        
+        # Reshape and transpose to bring tiles next to each other
+        self.canvas = tiles.transpose(0, 2, 1, 3, 4).reshape(nmb_rows*H, nmb_cols*W, C)
+        
+    def list_to_tiles(self, list_images):
+        """
+        Reshape image tiles from list to tensor.
+    
+        :param list_images: list of images of shape H*W*3
+        :return: NumPy array of shape nmb_rowsxnmb_colsxHxW*C
+        """        
+        
+        grid_input = np.zeros((self.nmb_rows, self.nmb_cols, self.H, self.W, 3))
+        for m in range(self.nmb_rows):
+            for n in range(self.nmb_cols):
+                if m*self.nmb_cols + n < len(list_images):
+                    grid_input[m,n,:,:,:] = list_images[m*self.nmb_cols + n]
+        return grid_input        
+
+    def render(self):
+        """
+        Render canvas abd find the index of the tile given a mouse click pixel coordinate on the 2D canvas.
+        :return: A tuple (m, n) representing the tile index in the range (0..nmb_rows, 0..nmb_cols).
+        """
+        
+        peripheralEvent = self.renderer.render(self.canvas)
+        
+        if peripheralEvent.mouse_button_state > 0:
+            x = peripheralEvent.mouse_posX
+            y = peripheralEvent.mouse_posY
+            
+            m = y // self.H
+            n = x // self.W
+            return m, n
+        else:
+            return -1, -1
+
 if __name__ == '__main__':
+    import time
+    nmb_rows = 2
+    nmb_cols = 2
+    shape_hw = (200, 300)
+    gridrenderer = GridRenderer(nmb_rows, nmb_cols, shape_hw)
+
+
+    while True:
+        time.sleep(0.1)
+        list_imgs = []
+        for _ in range(nmb_rows * nmb_cols):
+            img = Image.new('RGB', shape_hw[::-1], (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)))
+            list_imgs.append(img)
+        gridrenderer.update(list_imgs)
+        gridrenderer.render()
+
+
+
+if __name__ == '__main__xxx':
     
     sz = (1080, 1920)
 
