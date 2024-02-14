@@ -15,6 +15,7 @@ from pythonosc import osc_server
 from lunar_tools.logprint import LogPrint
 from lunar_tools.display_window import GridRenderer
 
+
 class ZMQPairEndpoint:
     def __init__(self, is_server, ip='localhost', port='5555', timeout=2, logger=None):
         self.address = f"tcp://{ip}:{port}"
@@ -200,22 +201,32 @@ class OSCReceiver():
             for key in sorted_keys[:max_items]:
                 values = self.get_all_values(key)
                 # Limit the number of values to the width of the image to avoid out-of-bounds errors
-                values = values[-self.shape_hw_vis[1]:]  # Only keep the last 'shape_hw[1]' number of values
+                values = np.array(values[-self.shape_hw_vis[1]:])
                 # Determine the background color based on the last value received
-                last_value = values[-1] if values else 0  # Use the last value or 0 if no values
-                gray_value = np.interp(last_value, (min(values), max(values)), (self.low_val_vis, self.high_val_vis))
-                gray_value = int(gray_value)
-                # Create an image with a uniform gray background
-                image = np.ones((self.shape_hw_vis[0], self.shape_hw_vis[1], 3), dtype=np.uint8) * gray_value
-                # Normalize the values to fit in the image height
-                normalized_values = np.interp(values, (min(values), max(values)), (0, self.shape_hw_vis[0]-1))
-                # Convert to integer for pixel indices
-                normalized_values = normalized_values.astype(np.uint8)
-                # Draw the curve in red
-                image = lt.add_text_to_image(image, key, y_pos=0.01, font_color=(255,255,255))
+                if len(values) > 0:
+                    min_val = min(values)
+                    max_val = max(values)
+                    if max_val - min_val == 0:
+                        grey_value = int(0)
+                        values = [0]
+                    else:
+                        grey_value = int(round(self.low_val_vis + (self.high_val_vis - self.low_val_vis) * (values[-1] - min_val) / (max_val - min_val)))
+                        grey_value = np.clip(grey_value, self.low_val_vis, self.high_val_vis)
+                        rescaled_values = (values - min_val) / (max_val - min_val) * (self.shape_hw_vis[0]-1) + 1
+                        values = rescaled_values
+                else:
+                    continue
+                
+
+                values = np.asarray(np.floor(values), dtype=np.int16)
+                values = self.shape_hw_vis[0] - values
+                valid_indices = (0 <= values) & (values < self.shape_hw_vis[0])
+                curve_array = grey_value*np.ones((*self.shape_hw_vis, 3), dtype=np.uint8)  # Adding a third dimension for RGB channels
+                curve_array[values[valid_indices].astype(int), np.arange(len(values))[valid_indices], 1] = 255  # Setting the green channel
+
+                image = lt.add_text_to_image(curve_array, key, y_pos=0.01, font_color=(255,255,255))
                 image = np.copy(np.asarray(image))
-                for i in range(1, len(normalized_values)):
-                    image[self.shape_hw_vis[0] - 1 - normalized_values[i], i] = (0, 255, 0)  
+
                 list_images.append(image)
                 # Stop filling the list if it reaches the maximum number of items
                 if len(list_images) >= max_items:
@@ -254,6 +265,11 @@ class OSCReceiver():
         if len(self.dict_messages[identifier]) >= self.BUFFER_SIZE:
             self.dict_messages[identifier].pop(0)
         
+        try:
+            message = float(message)
+        except ValueError:
+            print(f"Received non-numerical message: {message}")
+            return
         self.dict_messages[identifier].append(message)
         
         if self.verbose_high:
@@ -303,12 +319,6 @@ class OSCReceiver():
                 
                 return self.dict_messages[identifier]
         
-    def plot_nice(self):
-        for j, identifier in enumerate(self.dict_messages.keys()):
-            data = self.get_all_values(identifier)
-            plt.plot(data)
-            plt.title(identifier)
-            plt.show()
 
     def show_last_received(self):
         if not self.dict_time:
