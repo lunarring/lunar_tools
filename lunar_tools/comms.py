@@ -176,10 +176,10 @@ class OSCReceiver():
     def start(self):
         self.thread_osc.start()
 
-    def start_visualization(self):
-        self.shape_hw_vis = (200, 300)
-        self.nmb_cols_vis = 2
-        self.nmb_rows_vis = 2
+    def start_visualization(self, shape_hw_vis=(200, 300), nmb_cols_vis=3, nmb_rows_vis=3):
+        self.shape_hw_vis = shape_hw_vis
+        self.nmb_cols_vis = nmb_cols_vis
+        self.nmb_rows_vis = nmb_rows_vis
         self.list_images = []
         self.renderer = lt.GridRenderer(nmb_cols=self.nmb_cols_vis, nmb_rows=self.nmb_rows_vis, shape_hw=self.shape_hw_vis)
         self.low_val_vis = 0
@@ -370,7 +370,7 @@ if __name__ == "__main__":
     import time
     import lunar_tools as lt
     
-    receiver = OSCReceiver('10.40.50.126')
+    receiver = OSCReceiver('10.40.48.97')
     receiver.start_visualization()
     while True:
         receiver.show_visualization()
