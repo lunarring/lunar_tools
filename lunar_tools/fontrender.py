@@ -8,12 +8,11 @@ def add_text_to_image(
         text, 
         align='center', 
         y_pos=0.5, 
-        font_name='Arial',
+        fp_font=None,
         font_size=20,
         min_width=0,
         max_width=1,
-        font_color=(0, 0, 0),
-        font_type=None
+        font_color=(0, 0, 0)
         ):
     """
     Add text to an image with specified alignment, position, font, size, and style.
@@ -26,7 +25,7 @@ def add_text_to_image(
                                Defaults to 'center'.
         y_pos (float, optional): Vertical position of text, as a fraction of image height. 
                                  Defaults to 0.5.
-        font_name (str, optional): Name of the font to be used. Defaults to 'Arial'.
+        fp_font (str, optional): File pointer to font. Defaults to 'Arial'.
         font_size (int, optional): Initial font size. Adjusts to fit min_width and max_width. 
                                    Defaults to 20.
         min_width (float, optional): Minimum width of text as a fraction of image width. 
@@ -34,8 +33,7 @@ def add_text_to_image(
         max_width (float, optional): Maximum width of text as a fraction of image width. 
                                      Defaults to 1.
         font_color (tuple, optional): Font color in RGB. Defaults to black (0, 0, 0).
-        font_type (str, optional): Font style, can be 'italic', 'bold', or 'bold/italic'. 
-                                    Defaults to None.
+
 
     Returns:
         Image.Image: PIL Image with text added.
@@ -60,23 +58,18 @@ def add_text_to_image(
     # Determine font path based on OS and style
     os_name = platform.system()
     font_extension = '.ttf'
-    if font_type == 'italic':
-        font_extension = 'i.ttf'
-    elif font_type == 'bold':
-        font_extension = 'bd.ttf'
-    
     if os_name == "Darwin":  # macOS
-        font_path = f"/System/Library/Fonts/{font_name}{font_extension}"
+        fp_font = "/System/Library/Fonts/Supplemental/Arial Unicode.ttf"
     elif os_name == "Linux":
-        font_path = f"/usr/share/fonts/truetype/{font_name}{font_extension}"
+        fp_font = f"/usr/share/fonts/truetype/Arial{font_extension}"
     elif os_name == "Windows":
-        font_path = f"C:\\Windows\\Fonts\\{font_name}{font_extension}"
+        fp_font = f"C:\\Windows\\Fonts\\Arial{font_extension}"
     else:
         raise ValueError("Unsupported operating system for font path.")
         
-    assert os.path.exists(font_path), f"{font_path} does not exist! "
+    assert os.path.exists(fp_font), f"{fp_font} does not exist! "
     
-    font = ImageFont.truetype(font_path, font_size)
+    font = ImageFont.truetype(fp_font, font_size)
     text_width = draw.textlength(text, font=font)
     
     # Adjust font size to fit within min and max width constraints
@@ -86,7 +79,7 @@ def add_text_to_image(
         else:
             font_size -= 1
     
-        font = ImageFont.truetype(font_path, font_size)
+        font = ImageFont.truetype(fp_font, font_size)
         text_width = draw.textlength(text, font=font)
     
     # Calculate text position based on alignment
@@ -110,4 +103,4 @@ def add_text_to_image(
 
 if __name__ == "__main__":
     # Creating new samples using the updated function
-    image1 = add_text_to_image((700, 500), 'Center Aligned', font_size=50, font_name='Calibri', font_type="bold")
+    image1 = add_text_to_image((700, 500), 'center', font_size=50)
