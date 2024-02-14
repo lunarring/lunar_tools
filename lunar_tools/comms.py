@@ -244,7 +244,6 @@ class OSCReceiver():
         if identifier not in self.dict_messages.keys():
             self.dict_messages[identifier] = []
             
-            
         if identifier not in self.dict_time.keys():
             self.dict_time[identifier] = 0
         self.dict_time[identifier] = time.time()
