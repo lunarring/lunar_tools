@@ -152,7 +152,7 @@ class OSCReceiver():
         self.ip_receiver = ip_receiver
         self.port_receiver = port_receiver
         self.rescale_all_input = rescale_all_input
-        self.thread = Thread(target=self.runfunc_thread)
+        self.thread_osc = Thread(target=self.runfunc_thread_osc)
         self.running = False
 
         self.dict_messages = {}
@@ -165,7 +165,7 @@ class OSCReceiver():
         if start:
             self.start()
     
-    def runfunc_thread(self):
+    def runfunc_thread_osc(self):
         self.running = True
         dispatcher = Dispatcher()
         dispatcher.map('/*', self.process_incoming)
@@ -174,7 +174,60 @@ class OSCReceiver():
         self.server.serve_forever()
 
     def start(self):
-        self.thread.start()
+        self.thread_osc.start()
+
+    def start_visualization(self):
+        self.shape_hw_vis = (200, 300)
+        self.nmb_cols_vis = 2
+        self.nmb_rows_vis = 2
+        self.list_images = []
+        self.renderer = lt.GridRenderer(nmb_cols=self.nmb_cols_vis, nmb_rows=self.nmb_rows_vis, shape_hw=self.shape_hw_vis)
+        self.low_val_vis = 0
+        self.high_val_vis = 30
+        self.running_vis = True
+        self.thread_vis = Thread(target=self.runfunc_thread_vis)
+        self.thread_vis.start()
+
+    def runfunc_thread_vis(self):
+        while self.running_vis:
+            time.sleep(0.01)
+            list_images = []
+            # Sort the keys of dict_messages alphabetically
+            sorted_keys = sorted(self.dict_messages.keys())
+            # Truncate the sorted keys to limit the number of items processed
+            max_items = self.nmb_cols_vis * self.nmb_rows_vis
+            for key in sorted_keys[:max_items]:
+                values = self.get_all_values(key)
+                # Limit the number of values to the width of the image to avoid out-of-bounds errors
+                values = values[-self.shape_hw_vis[1]:]  # Only keep the last 'shape_hw[1]' number of values
+                # Determine the background color based on the last value received
+                last_value = values[-1] if values else 0  # Use the last value or 0 if no values
+                gray_value = np.interp(last_value, (min(values), max(values)), (self.low_val_vis, self.high_val_vis))
+                gray_value = int(gray_value)
+                # Create an image with a uniform gray background
+                image = np.ones((self.shape_hw_vis[0], self.shape_hw_vis[1], 3), dtype=np.uint8) * gray_value
+                # Normalize the values to fit in the image height
+                normalized_values = np.interp(values, (min(values), max(values)), (0, self.shape_hw_vis[0]-1))
+                # Convert to integer for pixel indices
+                normalized_values = normalized_values.astype(np.uint8)
+                # Draw the curve in red
+                image = lt.add_text_to_image(image, key, y_pos=0.01, font_color=(255,255,255))
+                image = np.copy(np.asarray(image))
+                for i in range(1, len(normalized_values)):
+                    image[self.shape_hw_vis[0] - 1 - normalized_values[i], i] = (0, 255, 0)  
+                list_images.append(image)
+                # Stop filling the list if it reaches the maximum number of items
+                if len(list_images) >= max_items:
+                    break
+            self.list_images = list_images 
+
+    def show_visualization(self): 
+        if self.running_vis:
+            self.renderer.update(self.list_images)
+            self.renderer.render()
+        else:
+            return
+        
 
     def stop(self):
         if self.running:
@@ -265,6 +318,9 @@ class OSCReceiver():
             for identifier, timestamp in self.dict_time.items():
                 time_since_received = current_time - timestamp
                 print(f"Signal '{identifier}' was last received {time_since_received:.2f} seconds ago.")
+
+
+
 # Example usage ZMQ
 if __name__ == "__main__xxx":
     import numpy as np
@@ -312,6 +368,10 @@ if __name__ == "__main__":
     # import lunar_tools as lt
     import numpy as np
     import time
-    receiver = OSCReceiver('10.40.50.126')
-    receiver.get_all_values("/env1")
+    import lunar_tools as lt
     
+    receiver = OSCReceiver('10.40.50.126')
+    receiver.start_visualization()
+    while True:
+        receiver.show_visualization()
+ 
