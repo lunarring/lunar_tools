@@ -61,9 +61,9 @@ def add_text_to_image(
     if os_name == "Darwin":  # macOS
         fp_font = "/System/Library/Fonts/Supplemental/Arial Unicode.ttf"
     elif os_name == "Linux":
-        fp_font = f"/usr/share/fonts/truetype/Arial{font_extension}"
+        fp_font = "/usr/share/fonts/truetype/ubuntu/Ubuntu-C.ttf"
     elif os_name == "Windows":
-        fp_font = f"C:\\Windows\\Fonts\\Arial{font_extension}"
+        fp_font = f"C:\\Windows\\Fonts\\Arial.ttf"
     else:
         raise ValueError("Unsupported operating system for font path.")
         
