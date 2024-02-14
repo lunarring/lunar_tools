@@ -13,6 +13,7 @@ from threading import Thread
 from pythonosc.dispatcher import Dispatcher
 from pythonosc import osc_server
 from lunar_tools.logprint import LogPrint
+from lunar_tools.display_window import GridRenderer
 
 class ZMQPairEndpoint:
     def __init__(self, is_server, ip='localhost', port='5555', timeout=2, logger=None):
@@ -181,7 +182,7 @@ class OSCReceiver():
         self.nmb_cols_vis = nmb_cols_vis
         self.nmb_rows_vis = nmb_rows_vis
         self.list_images = []
-        self.renderer = lt.GridRenderer(nmb_cols=self.nmb_cols_vis, nmb_rows=self.nmb_rows_vis, shape_hw=self.shape_hw_vis)
+        self.renderer = GridRenderer(nmb_cols=self.nmb_cols_vis, nmb_rows=self.nmb_rows_vis, shape_hw=self.shape_hw_vis)
         self.low_val_vis = 0
         self.high_val_vis = 30
         self.running_vis = True
