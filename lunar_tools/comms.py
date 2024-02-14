@@ -371,7 +371,7 @@ if __name__ == "__main__":
     import lunar_tools as lt
     
     receiver = OSCReceiver('10.40.48.97')
-    receiver.start_visualization()
+    receiver.start_visualization(shape_hw_vis=(300, 500), nmb_cols_vis=3, nmb_rows_vis=2)
     while True:
         receiver.show_visualization()
  
