@@ -179,6 +179,37 @@ class OSCReceiver():
     def start(self):
         self.thread_osc.start()
 
+
+    def process_incoming(self, *args):
+        identifier = args[0]
+        message = args[1]
+        # print(f"process_incoming: {identifier} {message}")
+        
+        if identifier not in self.dict_messages.keys():
+            self.dict_messages[identifier] = []
+            
+        if identifier not in self.dict_time.keys():
+            self.dict_time[identifier] = []
+            
+        
+        # buffer length
+        if len(self.dict_messages[identifier]) >= self.BUFFER_SIZE:
+            self.dict_messages[identifier].pop(0)
+            self.dict_time[identifier].pop(0)
+        
+        try:
+            message = float(message)
+        except ValueError:
+            print(f"Received non-numerical message: {message}")
+            return
+        self.dict_messages[identifier].append(message)
+        self.dict_time[identifier].append(time.time())
+        
+        if self.verbose_high:
+            # if identifier in self.filter_identifiers:
+            print(f"OSCReceiver: {identifier} {message} from {self.ip_receiver}:{self.port_receiver}")
+        
+
     def start_visualization(self, shape_hw_vis=(200, 300), nmb_cols_vis=3, nmb_rows_vis=3, backend=None):
         self.shape_hw_vis = shape_hw_vis
         self.nmb_cols_vis = nmb_cols_vis
@@ -199,8 +230,8 @@ class OSCReceiver():
             sorted_keys = sorted(self.dict_messages.keys())
             # Truncate the sorted keys to limit the number of items processed
             max_items = self.nmb_cols_vis * self.nmb_rows_vis
-            for key in sorted_keys[:max_items]:
-                values = self.get_all_values(key)
+            for identifier in sorted_keys[:max_items]:
+                values = self.get_all_values(identifier)
                 # Limit the number of values to the width of the image to avoid out-of-bounds errors
                 values = np.array(values[-self.shape_hw_vis[1]:])
                 # Determine the background color based on the last value received
@@ -224,8 +255,14 @@ class OSCReceiver():
                 valid_indices = (0 <= values) & (values < self.shape_hw_vis[0])
                 curve_array = grey_value*np.ones((*self.shape_hw_vis, 3), dtype=np.uint8)  # Adding a third dimension for RGB channels
                 curve_array[values[valid_indices].astype(int), np.arange(len(values))[valid_indices], 1] = 255  # Setting the green channel
-
-                image = add_text_to_image(curve_array, key, y_pos=0.01, font_color=(255,255,255))
+                
+                if len(self.dict_time[identifier]) > 1:
+                    dt = np.mean(np.diff(self.dict_time[identifier][-10:]))
+                    dt = int(1000*dt)
+                else:
+                    dt = 0
+                text = f"{identifier} {dt}ms"
+                image = add_text_to_image(curve_array, text, y_pos=0.01, font_color=(255,255,255))
                 image = np.copy(np.asarray(image))
 
                 list_images.append(image)
@@ -249,34 +286,6 @@ class OSCReceiver():
             print("OSC server stopped")
             self.running = False
 
-    def process_incoming(self, *args):
-        identifier = args[0]
-        message = args[1]
-        # print(f"process_incoming: {identifier} {message}")
-        
-        if identifier not in self.dict_messages.keys():
-            self.dict_messages[identifier] = []
-            
-        if identifier not in self.dict_time.keys():
-            self.dict_time[identifier] = 0
-        self.dict_time[identifier] = time.time()
-            
-        
-        # buffer length
-        if len(self.dict_messages[identifier]) >= self.BUFFER_SIZE:
-            self.dict_messages[identifier].pop(0)
-        
-        try:
-            message = float(message)
-        except ValueError:
-            print(f"Received non-numerical message: {message}")
-            return
-        self.dict_messages[identifier].append(message)
-        
-        if self.verbose_high:
-            # if identifier in self.filter_identifiers:
-            print(f"OSCReceiver: {identifier} {message} from {self.ip_receiver}:{self.port_receiver}")
-        
         
     def get_last_value(self, 
                        identifier, 
@@ -326,8 +335,8 @@ class OSCReceiver():
             print("Nothing was received since you started the receiver.")
         else:
             current_time = time.time()
-            for identifier, timestamp in self.dict_time.items():
-                time_since_received = current_time - timestamp
+            for identifier, timestamp_all in self.dict_time.items():
+                time_since_received = current_time - timestamp_all[-1]
                 print(f"Signal '{identifier}' was last received {time_since_received:.2f} seconds ago.")
 
 
