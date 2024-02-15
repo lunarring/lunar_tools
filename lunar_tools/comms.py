@@ -263,6 +263,9 @@ class OSCReceiver():
                     dt = 0
                 text = f"{identifier} {dt}ms"
                 image = add_text_to_image(curve_array, text, y_pos=0.01, font_color=(255,255,255))
+                image = add_text_to_image(image, f"{max_val:.2e}", y_pos=0.01, align='left', font_color=(0,255,0), font_size=15)
+                image = add_text_to_image(image, f"{min_val:.2e}", y_pos=0.99, align='left', font_color=(0,255,0), font_size=15)
+                
                 image = np.copy(np.asarray(image))
 
                 list_images.append(image)
@@ -301,7 +304,7 @@ class OSCReceiver():
         if identifier in self.dict_messages.keys():
             # Check if timeout applies
             
-            if time.time() - self.dict_time[identifier] > self.dt_timeout:
+            if time.time() - self.dict_time[identifier][-1] > self.dt_timeout:
                 return val_default
             
             value = self.dict_messages[identifier][-1]
