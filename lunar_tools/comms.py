@@ -14,6 +14,7 @@ from pythonosc.dispatcher import Dispatcher
 from pythonosc import osc_server
 from lunar_tools.logprint import LogPrint
 from lunar_tools.display_window import GridRenderer
+from lunar_tools.fontrender import add_text_to_image
 
 
 class ZMQPairEndpoint:
@@ -178,12 +179,12 @@ class OSCReceiver():
     def start(self):
         self.thread_osc.start()
 
-    def start_visualization(self, shape_hw_vis=(200, 300), nmb_cols_vis=3, nmb_rows_vis=3):
+    def start_visualization(self, shape_hw_vis=(200, 300), nmb_cols_vis=3, nmb_rows_vis=3, backend=None):
         self.shape_hw_vis = shape_hw_vis
         self.nmb_cols_vis = nmb_cols_vis
         self.nmb_rows_vis = nmb_rows_vis
         self.list_images = []
-        self.renderer = GridRenderer(nmb_cols=self.nmb_cols_vis, nmb_rows=self.nmb_rows_vis, shape_hw=self.shape_hw_vis)
+        self.renderer = GridRenderer(nmb_cols=self.nmb_cols_vis, nmb_rows=self.nmb_rows_vis, shape_hw=self.shape_hw_vis, backend=backend, window_title='osc monitor')
         self.low_val_vis = 0
         self.high_val_vis = 30
         self.running_vis = True
@@ -224,7 +225,7 @@ class OSCReceiver():
                 curve_array = grey_value*np.ones((*self.shape_hw_vis, 3), dtype=np.uint8)  # Adding a third dimension for RGB channels
                 curve_array[values[valid_indices].astype(int), np.arange(len(values))[valid_indices], 1] = 255  # Setting the green channel
 
-                image = lt.add_text_to_image(curve_array, key, y_pos=0.01, font_color=(255,255,255))
+                image = add_text_to_image(curve_array, key, y_pos=0.01, font_color=(255,255,255))
                 image = np.copy(np.asarray(image))
 
                 list_images.append(image)

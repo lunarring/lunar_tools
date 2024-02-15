@@ -440,7 +440,7 @@ class Renderer:
 
 
 class GridRenderer():
-    def __init__(self, nmb_rows, nmb_cols, shape_hw):
+    def __init__(self, nmb_rows, nmb_cols, shape_hw, backend=None, window_title='lunar_render_window'):
         """
         nmb_rows: Number of tiles in vertical direction
         nmb_cols: Number of tiles in horizontal direction
@@ -451,7 +451,7 @@ class GridRenderer():
         self.nmb_rows = nmb_rows
         self.nmb_cols = nmb_cols
         self.canvas = np.zeros((nmb_rows, nmb_cols, shape_hw[0], shape_hw[1], 3))
-        self.renderer = Renderer(width=shape_hw[1]*nmb_cols, height=shape_hw[0]*nmb_rows)
+        self.renderer = Renderer(width=shape_hw[1]*nmb_cols, height=shape_hw[0]*nmb_rows, backend=backend, window_title=window_title)
         
     def update(self, tiles):
         """
