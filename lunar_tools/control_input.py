@@ -188,6 +188,7 @@ class MidiInput:
         self.reset_all_leds()
         self.autodetect_varname = True
         self.autoshow_names = True
+        self.valid_button_modes = ['held_down', 'released_once', 'toggle', 'pressed_once']
         
         
     def init_device_config(self, enforce_local_config):
@@ -358,6 +359,20 @@ class MidiInput:
     
             
     def get(self, alpha_num, val_min=None, val_max=None, val_default=False, button_mode=None, variable_name=None):
+        """
+        Retrieves the value of a control input based on its alphanumeric identifier.
+
+        Parameters:
+        - alpha_num (str): The alphanumeric identifier of the control input.
+        - val_min (float, optional): The minimum value for sliders. Defaults to None.
+        - val_max (float, optional): The maximum value for sliders. Defaults to None.
+        - val_default (bool or float, optional): The default value for the control input. For buttons, it's a boolean indicating pressed state; for sliders, it's their position. Defaults to False.
+        - button_mode (str, optional): The mode of button operation. Can be one of ['held_down', 'released_once', 'toggle', 'pressed_once']. Defaults to None.
+        - variable_name (str, optional): The name of the variable to override the autodetection. Defaults to None.
+
+        Returns:
+        - The current value of the control input based on its configuration and the provided parameters.
+        """
         # Asserts
         if alpha_num not in self.id_config:
             print(f"Warning! {alpha_num} is unknown. Returning val_default")
@@ -378,7 +393,7 @@ class MidiInput:
             val_max = 1
         if button_mode is None:
             button_mode = 'released_once'
-        # assert button_mode in ['held_down', 'released_once', 'toggle']
+        assert button_mode in self.valid_button_modes
         
         if self.autodetect_varname and variable_name is None:
             if self.id_nmb_scan_cycles[alpha_num] <= 2:
@@ -507,6 +522,7 @@ class KeyboardInput:
         self.listener = keyboard.Listener(on_press=self.on_press, on_release=self.on_release)
         self.listener.start()
         self.nmb_steps = 64
+        self.valid_button_modes = ['held_down', 'released_once', 'toggle', 'pressed_once']
 
     def on_press(self, key):
         """ Adds a pressed key to the dictionary of pressed keys and updates its state. """
@@ -594,7 +610,7 @@ class KeyboardInput:
             return self.slider_values[key]['value']
         elif button_mode is not None:
             assert val_min is None and val_max is None, "val_min and val_max should not be provided for button usage"
-            assert button_mode in ['held_down', 'released_once', 'toggle', 'pressed_once'], "Invalid button mode"
+            assert button_mode in self.valid_button_modes, "Invalid button mode"
             if button_mode == 'held_down':
                 return self.pressed_keys.get(key, False)
             elif button_mode == 'released_once':
@@ -649,7 +665,7 @@ if __name__ == "__main__xxx":
         # 
         
                     
-if __name__ == "__main__":
+if __name__ == "__main__xxx":
     # import lunar_tools as lt
     # import time
     akai_lpd8 = MidiInput(device_name="akai_lpd8")
@@ -669,11 +685,13 @@ if __name__ == "__main__":
 if __name__ == "__main__":
     import lunar_tools as lt
     import time
-    akai_lpd8 = MidiInput(device_name="akai_midimix")
+    akai_midimix = MidiInput(device_name="akai_midimix")
     
     while True:
         time.sleep(0.1)
-        a0 = akai_lpd8.get("A0", val_min=3, val_max=6, val_default=5)
-        print(a0)
+        a0 = akai_midimix.get("A0", val_min=3, val_max=6, val_default=5)
+        ba = akai_midimix.get("A3", button_mode="toggle")
+        print(ba)
+
         
     
