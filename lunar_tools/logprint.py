@@ -3,6 +3,15 @@ import logging
 from datetime import datetime
 from rich.console import Console
 from rich.logging import RichHandler
+import sys
+
+def dynamic_print(message):
+    """
+    Dynamically prints a message to the console, replacing the previous message.
+    """
+    sys.stdout.write('\r' + message)
+    sys.stdout.flush()
+
 
 class LogPrint:
     def __init__(self, filename=None):
@@ -46,8 +55,15 @@ class LogPrint:
 
 if __name__ == "__main__":
     # Example usage
-    logger = LogPrint()  # No filename provided, will use default current_dir/logs/%y%m%d_%H%M
-    logger.print("white")
-    logger.print("red", "red")
-    logger.print("green", "green")
+    # logger = LogPrint()  # No filename provided, will use default current_dir/logs/%y%m%d_%H%M
+    # logger.print("white")
+    # logger.print("red", "red")
+    # logger.print("green", "green")
+
+    import numpy as np
+    while True:
+        str = f"{np.random.rand():.2f} fps"
+        dynamic_print(str)
     
+
+
