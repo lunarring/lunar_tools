@@ -450,7 +450,7 @@ class GridRenderer():
         self.W = shape_hw[1]
         self.nmb_rows = nmb_rows
         self.nmb_cols = nmb_cols
-        self.canvas = np.zeros((nmb_rows, nmb_cols, shape_hw[0], shape_hw[1], 3))
+        self.canvas = np.zeros((nmb_rows, nmb_cols, shape_hw[0], shape_hw[1], 3), dtype=np.uint8)
         self.renderer = Renderer(width=shape_hw[1]*nmb_cols, height=shape_hw[0]*nmb_rows, backend=backend, window_title=window_title)
         
     def update(self, tiles):
@@ -483,7 +483,7 @@ class GridRenderer():
         :return: NumPy array of shape nmb_rowsxnmb_colsxHxW*C
         """        
         
-        grid_input = np.zeros((self.nmb_rows, self.nmb_cols, self.H, self.W, 3))
+        grid_input = np.zeros((self.nmb_rows, self.nmb_cols, self.H, self.W, 3), dtype=np.uint8)
         for m in range(self.nmb_rows):
             for n in range(self.nmb_cols):
                 if m*self.nmb_cols + n < len(list_images):
