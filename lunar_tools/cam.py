@@ -122,10 +122,11 @@ class WebCam():
         
 if __name__ == "__main__":
     from PIL import Image
-    cam = WebCam()
-    img = cam.get_img()
-    img = Image.fromarray(img)
-    img.show()
+    cam = WebCam(cam_id=-1)
+    while True:
+        img = cam.get_img()
+        cv2.imshow('webcam', img[:,:,::-1])
+        cv2.waitKey(1)
     
 
     

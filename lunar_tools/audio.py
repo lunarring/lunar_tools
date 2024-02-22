@@ -142,7 +142,7 @@ class Speech2Text:
         self.audio_recorder.start_recording(output_filename, max_time)
 
 
-    def stop_recording(self, minimum_duration=1):
+    def stop_recording(self, minimum_duration=0.4):
         """
 Stop the audio recording and check if the recording meets the minimum duration.
 
