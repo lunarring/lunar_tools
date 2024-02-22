@@ -71,10 +71,10 @@ def check_midi_device_connected_pyusb(device_code):
 
 
 def check_any_midi_device_connected():
-    config_dir = "midi_configs"
-    for filename in os.listdir(config_dir):
+    config_path = pkg_resources.resource_filename('lunar_tools', 'midi_configs')
+    for filename in os.listdir(config_path):
         if filename.endswith(".yml"):
-            with open(os.path.join(config_dir, filename), 'r') as file:
+            with open(os.path.join(config_path, filename), 'r') as file:
                 config = yaml.safe_load(file)
                 device_name = config['name_device']
                 device_ids = get_midi_device_vendor_product_ids(device_name)
@@ -637,8 +637,9 @@ class KeyboardInput:
 #%%
 
 # Example of usage
-if __name__ == "__main__x":
-    self = MetaInput()
+if __name__ == "__main__":
+    import lunar_tools as lt
+    self = lt.MetaInput()
     while True:
         time.sleep(0.1)
         a = self.get(keyboard='a', akai_lpd8="A0", button_mode='held_down')
@@ -669,23 +670,25 @@ if __name__ == "__main__xxx":
     # import lunar_tools as lt
     # import time
     akai_lpd8 = MidiInput(device_name="akai_lpd8")
-    
+
+    # xxx
     while True:
-        time.sleep(0.1)
+        time.sleep(0.2)
         # variable1 = akai_lpd8.get("A0", button_mode='toggle') # toggle switches the state with every press between on and off
         # do_baba = akai_lpd8.get("B1", button_mode='held_down') # held_down checks if the button is pressed down at the moment
         strange_effect = akai_lpd8.get("C0", button_mode='pressed_once') # released_once checks if the button was pressed since we checked last time
         bbb = akai_lpd8.get("C1", button_mode='released_once') # released_once checks if the button was pressed since we checked last time
-        # supermorph = akai_lpd8.get("E1", val_min=3, val_max=6, val_default=5) # e0 is a slider float between val_min and val_max
+        supermorph = akai_lpd8.get("E0", val_min=3, val_max=6, val_default=5) # e0 is a slider float between val_min and val_max
         # print(f"variable1: {variable1}, do_baba: {do_baba}, strange_effect: {strange_effect}, supermorph: {supermorph}")
-        print(f"strange_effect: {strange_effect}, bbb: {bbb}")
+        print(f"strange_effect: {strange_effect}, bbb: {bbb} supermorph: {supermorph}")
         
     akai_lpd8.show()
                     
-if __name__ == "__main__":
+if __name__ == "__main__xxx":
     import lunar_tools as lt
     import time
     akai_midimix = MidiInput(device_name="akai_midimix")
+    
     
     while True:
         time.sleep(0.1)
