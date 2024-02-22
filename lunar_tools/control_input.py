@@ -149,7 +149,21 @@ class MetaInput:
             
             return self.control_device.get(alpha_num, variable_name=variable_name, **valid_kwargs)
         else:
-            raise ValueError(f"Device '{self.device_name}' not specified in arguments, and it is the active connected device.")
+            if "button_mode" in kwargs:
+                if "val_default" in kwargs:
+                    return kwargs['val_default']
+                else:
+                    return False
+            else: 
+                if "val_default" in kwargs:
+                    return kwargs['val_default']
+                elif "val_min" in kwargs and "val_max" in kwargs:
+                    return (kwargs['val_max'] - kwargs['val_min'])/2
+                else:
+                    return 0.0
+            
+                
+            # raise ValueError(f"Device '{self.device_name}' not specified in arguments, and it is the active connected device.")
 
     def show(self):
         self.control_device.show()       
@@ -639,10 +653,10 @@ class KeyboardInput:
 # Example of usage
 if __name__ == "__main__":
     import lunar_tools as lt
-    self = lt.MetaInput()
+    self = MetaInput()
     while True:
         time.sleep(0.1)
-        a = self.get(keyboard='a', akai_lpd8="A0", button_mode='held_down')
+        a = self.get(keyboard='a', akai_midimix="A0", button_mode='held_down')
         bo = self.get(keyboard='b', akai_lpd8="B0", button_mode='held_down')
         print(f"{a} {bo}" )
 
