@@ -114,6 +114,11 @@ while True:
     renderer.render(image)
 ```
 
+note you can speed-up opengl render calls by upto a factor of 3 by disabling
+VSYNC on your system
+On Ubuntu do: Run nvidia-settings 2. Screen 0 > OpenGl > Sync to VBLank ->
+off
+
 ### Real-time display example with remote streaming
 Remote streaming allows to generate images on one PC, typically with a beefy GPU, and to show them on another one, which may not have a GPU. The streaming is handled via ZMQ and automatically compresses the images using jpeg compression.
 
