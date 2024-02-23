@@ -111,7 +111,7 @@ class MetaInput:
         else:
             self.control_device = MidiInput(self.device_name)
             
-        print(f"MetaInput: using device {self.device_name}")
+        print(f"MetaInput: using exclusively {self.device_name}")
         
     def get(self, **kwargs):
         device_control_key = f"{self.device_name}"
@@ -657,8 +657,10 @@ if __name__ == "__main__":
     while True:
         time.sleep(0.1)
         a = self.get(keyboard='a', akai_midimix="A0", button_mode='held_down')
-        bo = self.get(keyboard='b', akai_lpd8="B0", button_mode='held_down')
-        print(f"{a} {bo}" )
+        # bo = self.get(keyboard='b', akai_lpd8="B0", button_mode='held_down')
+        b = self.get(keyboard='b', akai_lpd8="E0", val_min=3, val_max=5)
+        c = self.get(keyboard='c', val_min=3, val_max=5)
+        print(f"{a} {b} {c}" )
 
 if __name__ == "__main__xxx":
     keyboard_input = KeyboardInput()
@@ -666,24 +668,25 @@ if __name__ == "__main__xxx":
     while True:
         time.sleep(0.1)
         
-        x1 = keyboard_input.get('s', button_mode='pressed_once')
-        x2 = keyboard_input.get('s', button_mode='released_once')
-        print(f"x1 {x1} x2 {x2}")
+        # x1 = keyboard_input.get('s', button_mode='presses_once')
+        # x2 = keyboard_input.get('s', button_mode='released_once')
+        # print(f"x1 {x1} x2 {x2}")
         
-        # a = keyboard_input.get('a', button_mode='held_down')
-        # s = keyboard_input.get('s', button_mode='pressed_once')
-        # d = keyboard_input.get('d', button_mode='released_once')
-        # f = keyboard_input.get('f', button_mode='toggle')
-        # g = keyboard_input.get('g', val_min=3, val_max=6)
-        # h = keyboard_input.get('h', val_min=3, val_max=5)
-        # print(f"{aaa} {s} {d} {f} {g} {h}" )
+        a = keyboard_input.get('a', button_mode='held_down')
+        s = keyboard_input.get('s', button_mode='pressed_once')
+        d = keyboard_input.get('d', button_mode='released_once')
+        f = keyboard_input.get('f', button_mode='toggle')
+        g = keyboard_input.get('g', val_min=3, val_max=6)
+        h = keyboard_input.get('h', val_min=3, val_max=5)
+        print(f"{a} {s} {d} {f} {g} {h}" )
         # 
         
                     
-if __name__ == "__main__xxx":
+if __name__ == "__main__":
     # import lunar_tools as lt
     # import time
     akai_lpd8 = MidiInput(device_name="akai_lpd8")
+    
 
     # xxx
     while True:
