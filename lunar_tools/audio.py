@@ -102,7 +102,7 @@ class AudioRecorder:
             
 
 class Speech2Text:
-    def __init__(self, client=None, logger=None, audio_recorder=None):
+    def __init__(self, client=None, logger=None, audio_recorder=None, offline_model_type=None):
         """
         Initialize the Speech2Text with an OpenAI client, a logger, and an audio recorder.
 
@@ -110,6 +110,7 @@ class Speech2Text:
             client: An instance of OpenAI client. If None, it will be created using the OPENAI_API_KEY.
             logger: A logging instance. If None, a default logger will be used.
             audio_recorder: An instance of an audio recorder. If None, recording functionalities will be disabled.
+            offline_model_type: An instance of an offline model for speech recognition. If None, it will use the API for transcription.
 
         Raises:
             ValueError: If no OpenAI API key is found in the environment variables.
@@ -121,6 +122,14 @@ class Speech2Text:
             self.client = OpenAI(api_key=api_key)
         else:
             self.client = client
+
+        if offline_model_type is not None:
+            import whisper
+            self.whisper_model = whisper.load_model(offline_model_type)
+            self.offline_mode = True
+        else:
+            self.offline_mode = False
+        
         self.logger = logger if logger else LogPrint()
 
         if audio_recorder is None:
@@ -181,12 +190,24 @@ Raises:
         """
         if not os.path.exists(audio_filepath):
             raise FileNotFoundError(f"Audio file not found: {audio_filepath}")
-        with open(audio_filepath, "rb") as audio_file:
-            transcript = self.client.audio.translations.create(
-                model="whisper-1", 
-                file=audio_file
-            )
-        return transcript.text
+        if self.offline_mode:
+            audio_segment = AudioSegment.from_file(audio_filepath)
+            # Convert audio_segment to a numpy array
+            # Note: Pydub's samples are interleaved, so for multi-channel audio, every Nth sample is a sample from a different channel
+            numpydata = np.array(audio_segment.get_array_of_samples()).astype(np.int16)
+            numpydata = np.hstack(numpydata).astype(np.float32)
+            numpydata = numpydata.astype(np.float32) / 32768.0  # Convert to float32 in range [-1, 1]
+            options = dict(language="english", beam_size=5, best_of=5)
+            translate_options = dict(task="translate", **options)
+            result = self.whisper_model.transcribe(numpydata, **translate_options)
+            return result["text"].strip()
+        else:
+            with open(audio_filepath, "rb") as audio_file:
+                transcript = self.client.audio.translations.create(
+                    model="whisper-1", 
+                    file=audio_file
+                )
+                return transcript.text
 
 
 class Text2SpeechOpenAI:
@@ -436,8 +457,10 @@ if __name__ == "__main__":
     
     
     speech_detector = Speech2Text()
+    # speech_detector = Speech2Text(offline_model_type='large-v3')
+
     speech_detector.start_recording()
-    time.sleep(0.3)
+    time.sleep(2.3)
     translation = speech_detector.stop_recording()
     print(f"translation: {translation}")
     
