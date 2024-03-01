@@ -15,7 +15,7 @@ import subprocess
 import re
 import usb.core     # pip install pyusb
 import platform
-
+from datetime import datetime
 
 
 def get_midi_device_vendor_product_ids(system_device_name):
@@ -514,7 +514,27 @@ class MidiInput:
             print(row)
         print('\n')
         
+        def print_values(self):
+            print('id\tname\tvalue\n')
+            for id_, name in self.id_name.items():
+                value = self.id_value[id_]
+                print(f'{id_}\t{name}\t{value}')
+            print('\n')
 
+        def yaml_dump(self, path='/tmp', fn=None, **misc):
+            """ Write all assigned parameters and their values to a yaml file. Additional information can be passed as kwargs"""
+            parameters = []
+            if fn == None:
+                current_datetime_string = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+                fn = f'midi_dump_{current_datetime_string}.yml'
+            fp = os.path.join(path, fn)
+            for id_, name in self.id_name.items():
+                value = self.id_value[id_]
+                parameters.append({'id':id_, 'name':name, 'value':value})
+            if misc:
+                parameters.append(misc)
+            with open(fp, 'w') as file:
+                yaml.dump(parameters, file)
         
 #%%
 class KeyboardInput:
