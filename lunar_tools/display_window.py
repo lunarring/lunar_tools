@@ -407,11 +407,15 @@ class Renderer:
             image = cv2.resize(image, (self.width, self.height))
         
         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+        
         cv2.imshow(self.window_title, image) 
         cv2_keycode = cv2.waitKey(1)
         if cv2_keycode == 27:  # exit code
             cv2.destroyAllWindows()
             sys.exit(0)
+            
+        cv2.namedWindow(self.window_title,cv2.WND_PROP_FULLSCREEN)
+        cv2.setWindowProperty(self.window_title, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
             
         peripheralEvent = PeripheralEvent()
         peripheralEvent.pressed_key_code = cv2_keycode
@@ -508,7 +512,7 @@ class GridRenderer():
         else:
             return -1, -1
 
-if __name__ == '__main__':
+if __name__ == '__main__z':
     import time
     nmb_rows = 2
     nmb_cols = 2
@@ -527,11 +531,10 @@ if __name__ == '__main__':
 
 
 
-if __name__ == '__main__xxx':
+if __name__ == '__main__':
     
     sz = (1080, 1920)
-
-    renderer = Renderer(width=sz[1], height=sz[0])
+    renderer = Renderer(width=sz[1], height=sz[0], backend='opencv')
 
     while True:
         # numpy array
@@ -545,12 +548,8 @@ if __name__ == '__main__xxx':
         # image = torch.rand((sz[0],sz[1]), device='cuda:0')*255
         # image = torch.rand((sz[0],sz[1],3), device='cuda:0')*255
         # image = torch.rand((sz[0],sz[1],4), device='cuda:0')*255
-        
-        peripheralEvent = renderer.render(image)
-        if peripheralEvent.pressed_key_code != -1 and peripheralEvent.pressed_key_code is not None:
-            print(f'the pressed key code was {peripheralEvent.pressed_key_code}')
-        if peripheralEvent.mouse_button_state > 0:
-            print(f'mouse_button_state was {peripheralEvent.mouse_button_state}')
+        renderer.render(image)
+
 
 
     
