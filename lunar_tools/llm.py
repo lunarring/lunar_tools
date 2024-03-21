@@ -32,7 +32,7 @@ class GPT4:
             model (str): The initial model to use. Defaults to "gpt-4-0613".
         """
         if client is None:
-            api_key = read_api_key('OPEN_AI_KEY') 
+            api_key = read_api_key('OPENAI_API_KEY') 
             self.client = OpenAI(api_key=api_key)
         else:
             self.client = client
