@@ -153,12 +153,14 @@ class Renderer:
     def __init__(self, width: int = 1920, height: int = 1080, 
                  gpu_id: int = 0,
                  window_title: str = "lunar_render_window",
+                 do_fullscreen: bool = False,
                  backend = None):
         
         self.window_title = window_title
         self.gpu_id = gpu_id
         self.width = width
         self.height = height
+        self.do_fullscreen = do_fullscreen
         
         if backend is None:
             if get_os_type() == "Linux":
@@ -414,8 +416,9 @@ class Renderer:
             cv2.destroyAllWindows()
             sys.exit(0)
             
-        cv2.namedWindow(self.window_title,cv2.WND_PROP_FULLSCREEN)
-        cv2.setWindowProperty(self.window_title, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+        if self.do_fullscreen:
+            cv2.namedWindow(self.window_title,cv2.WND_PROP_FULLSCREEN)
+            cv2.setWindowProperty(self.window_title, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
             
         peripheralEvent = PeripheralEvent()
         peripheralEvent.pressed_key_code = cv2_keycode
