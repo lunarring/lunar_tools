@@ -9,8 +9,8 @@ import time
 from openai import OpenAI
 from lunar_tools.logprint import LogPrint
 import simpleaudio
-from elevenlabs import voices, generate, save, Voice, VoiceSettings
-
+from elevenlabs.client import ElevenLabs
+from elevenlabs import Voice, VoiceSettings, play, save
 import sounddevice as sd
 import numpy as np
 import wave
@@ -304,29 +304,34 @@ class Text2SpeechOpenAI:
     
 class Text2SpeechElevenlabs:
     def __init__(
-        self, 
-        logger=None, 
+        self,
+        logger=None,
         sound_player=None,
-        voice_id="hImDzxfr9oCUsMI8JeWN",
+        voice_id=None,
         blocking_playback=False
     ):
         """
         Initialize the Text2Speech for elevenlabs, a optional logger and optionally a sound player.
         """
+        self.client = ElevenLabs(api_key=read_api_key("ELEVEN_API_KEY"))
         self.logger = logger if logger else LogPrint()
         # Initialize the sound player only if provided
         self.sound_player = sound_player
         self.output_filename = None  # Initialize output filename
-        self.voice_id = voice_id,
-        self.blocking_playback=blocking_playback
+        self.default_voice_id = "EXAVITQu4vr4xnSDxMaL"
+        if voice_id is None:
+            self.voice_id = self.default_voice_id
+        else:
+            self.voice_id = voice_id
+        self.blocking_playback = blocking_playback
 
     def play(
-            self, 
-            text, 
-            output_filename=None, 
-            stability=0.71, 
-            similarity_boost=0.5, 
-            style=0.0, 
+            self,
+            text,
+            output_filename=None,
+            stability=0.71,
+            similarity_boost=0.5,
+            style=0.0,
             use_speaker_boost=True
             ):
         """
@@ -356,13 +361,13 @@ class Text2SpeechElevenlabs:
 
 
     def generate(
-            self, 
-            text, 
-            output_filename=None, 
-            voice_id=None, 
-            stability=0.71, 
-            similarity_boost=0.5, 
-            style=0.0, 
+            self,
+            text,
+            output_filename=None,
+            voice_id=None,
+            stability=0.71,
+            similarity_boost=0.5,
+            style=0.0,
             use_speaker_boost=True
             ):
         """
@@ -385,18 +390,14 @@ class Text2SpeechElevenlabs:
     
         if voice_id is None:
             voice_id = self.default_voice_id
+        
+            
     
-        audio = generate(
+        audio = self.client.generate(
             text=text,
-            api_key=read_api_key("ELEVEN_API_KEY"),
             voice=Voice(
-                voice_id=voice_id,
-                settings=VoiceSettings(
-                    stability=stability,
-                    similarity_boost=similarity_boost,
-                    style=style,
-                    use_speaker_boost=use_speaker_boost
-                )
+                voice_id=self.voice_id,
+                settings=VoiceSettings(stability=stability, similarity_boost=similarity_boost, style=style, use_speaker_boost=True)
             )
         )
     
@@ -456,13 +457,13 @@ if __name__ == "__main__":
     # audio_recorder.stop_recording()
     
     
-    speech_detector = Speech2Text()
+    # speech_detector = Speech2Text()
     # speech_detector = Speech2Text(offline_model_type='large-v3')
 
-    speech_detector.start_recording()
-    time.sleep(2.3)
-    translation = speech_detector.stop_recording()
-    print(f"translation: {translation}")
+    # speech_detector.start_recording()
+    # time.sleep(2.3)
+    # translation = speech_detector.stop_recording()
+    # print(f"translation: {translation}")
     
     # speech_detector.start_recording()
     # time.sleep(3)
@@ -470,7 +471,9 @@ if __name__ == "__main__":
     # print(f"translation: {translation}")
     
     # # Example Usage
-    # text2speech = Text2SpeechElevenlabs(blocking_playback=True)
+    text2speech = Text2SpeechElevenlabs(blocking_playback=True)
+    text2speech.play("hello")
+    
     # text2speech.change_voice("FU5JW1L0DwfWILWkNpW6")
     # text2speech.play("well how are you we are making this very long test of sound playback but is it blocking")
     
