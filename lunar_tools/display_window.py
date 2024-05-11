@@ -182,14 +182,20 @@ class Renderer:
         if sdl2.SDL_Init(sdl2.SDL_INIT_VIDEO):
             raise SDLException(sdl2.SDL_GetError())
 
+        if self.do_fullscreen:
+            flags_window = sdl2.SDL_WINDOW_OPENGL | sdl2.SDL_WINDOW_FULLSCREEN
+        else:
+            flags_window = sdl2.SDL_WINDOW_OPENGL
+
         self.sdl_window = sdl2.SDL_CreateWindow(
             self.window_title.encode(),
             sdl2.SDL_WINDOWPOS_UNDEFINED,
             sdl2.SDL_WINDOWPOS_UNDEFINED,
             self.width,
             self.height,
-            sdl2.SDL_WINDOW_OPENGL,
+            flags_window,
         )
+        
         if not self.sdl_window:
             raise SDLException(sdl2.SDL_GetError())
 
