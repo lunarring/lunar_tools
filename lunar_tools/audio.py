@@ -424,12 +424,16 @@ class SoundPlayer:
         )
         self._playback_object.wait_done()  # Wait until sound has finished playing
 
-    def play_sound(self, file_path):
+    def play_sound(self, file_path, pan_value=0):
         # Stop any currently playing sound
         self.stop_sound()
 
         # Load the sound file
         sound = AudioSegment.from_file(file_path)
+        
+        # play sound from left/right speaker
+        if pan_value != 0 and pan_value > -1 and pan_value < 1:
+            sound = sound.pan(pan_value)
 
         # Start a new thread for playing the sound
         self._play_thread = threading.Thread(target=self._play_sound_threaded, args=(sound,))
