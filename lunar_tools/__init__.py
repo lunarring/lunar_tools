@@ -4,6 +4,7 @@ from .audio import Text2SpeechOpenAI
 from .audio import Text2SpeechElevenlabs
 from .audio import SoundPlayer
 from .llm import GPT4
+from .health_reporting import HealthReporter
 from .image_gen import Dalle3ImageGenerator
 from .image_gen import SDXL_LCM
 from .image_gen import SDXL_TURBO
