@@ -298,7 +298,34 @@ logger = lt.LogPrint()  # No filename provided, will use default current_dir/log
 logger.print("white")
 logger.print("red", "red")
 logger.print("green", "green")
-```   
+```
+
+# Health status reporting via telegram
+First you will need to update your bashrc or bash_profile with the telegram bot env variables.
+
+
+```bash
+export TELEGRAM_BOT_TOKEN='7191618275:AAGnTVI9eAKYpgl82sM8mWz9fFiIaoQZFc8'
+export TELEGRAM_CHAT_ID='-4106034916'
+```
+
+See the below example for the basic supported features
+```python
+health_reporter = lt.HealthReporter("Name of exhibit")
+    
+# in while loop, always report that exhibit is alive. This happens in a thread already.
+for i in range(100): #while lopp
+        health_reporter.report_alive()
+    
+# we can also just throw exceptions in there!
+try: 
+    x = y
+except Exception as e:
+    health_reporter.report_exception(e)
+    
+# or send something friendly!
+health_reporter.report_message("friendly manual message")
+```
 
 # Devinfos
 ## Testing
