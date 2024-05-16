@@ -305,8 +305,8 @@ First you will need to update your bashrc or bash_profile with the telegram bot 
 
 
 ```bash
-export TELEGRAM_BOT_TOKEN='7191618275:AAGnTVI9eAKYpgl82sM8mWz9fFiIaoQZFc8'
-export TELEGRAM_CHAT_ID='-4106034916'
+export TELEGRAM_BOT_TOKEN='XXX'
+export TELEGRAM_CHAT_ID='XXX'
 ```
 
 See the below example for the basic supported features
