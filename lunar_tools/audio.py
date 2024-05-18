@@ -37,7 +37,8 @@ class AudioRecorder:
         channels=1,
         rate=44100,
         chunk=1024,
-        logger=None
+        logger=None,
+        output_filename=None
     ):
         self.channels = channels
         self.rate = rate
@@ -45,7 +46,7 @@ class AudioRecorder:
         self.frames = []
         self.is_recording = False
         self.stream = None
-        self.output_filename = None
+        self.output_filename = output_filename
         self.logger = logger if logger else LogPrint()
 
     def _record(self, max_time=None):
@@ -461,13 +462,16 @@ if __name__ == "__main__":
     # audio_recorder.stop_recording()
     
     
-    # speech_detector = Speech2Text()
+    audio_recorder = AudioRecorder(output_filename="submersion_mic.mp3")
+    speech_detector = Speech2Text(audio_recorder=audio_recorder)
     # speech_detector = Speech2Text(offline_model_type='large-v3')
 
-    # speech_detector.start_recording()
-    # time.sleep(2.3)
-    # translation = speech_detector.stop_recording()
-    # print(f"translation: {translation}")
+    #%%
+
+    speech_detector.start_recording()
+    time.sleep(3)
+    translation = speech_detector.stop_recording()
+    print(f"translation: {translation}")
     
     # speech_detector.start_recording()
     # time.sleep(3)
@@ -475,8 +479,8 @@ if __name__ == "__main__":
     # print(f"translation: {translation}")
     
     # # Example Usage
-    text2speech = Text2SpeechElevenlabs(blocking_playback=True)
-    text2speech.play("hello")
+    # text2speech = Text2SpeechElevenlabs(blocking_playback=True)
+    # text2speech.play("hello")
     
     # text2speech.change_voice("FU5JW1L0DwfWILWkNpW6")
     # text2speech.play("well how are you we are making this very long test of sound playback but is it blocking")
