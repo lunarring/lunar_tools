@@ -109,13 +109,13 @@ class HealthReporter:
             
             if t_now - self.last_time_alive > self.maximum_time_without_alive:
                 self.send_message("ALARM! Did not receive alive signal.")
-                break
+                self.last_time_alive = time.time() # So that it will repeat again
 
 if __name__ == "__main__":
     # DO NOT FORGET TO update bashrc/profile with
     # export TELEGRAM_BOT_TOKEN='7191618275:AAGnTVI9eAKYpgl82sM8mWz9fFiIaoQZFc8'
     # export TELEGRAM_CHAT_ID='-4106034916'
-    health_reporter = HealthReporter("Altered Reflections")
+    health_reporter = HealthReporter("TESTINSTALL")
     
     # in while loop, always report that exhibit is alive. This happens in a thread already.
     for i in range(100): #while lopp
@@ -129,4 +129,5 @@ if __name__ == "__main__":
     
     # or send something friendly!
     health_reporter.report_message("friendly manual message")
+    
 
