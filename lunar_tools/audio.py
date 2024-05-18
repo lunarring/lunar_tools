@@ -37,8 +37,7 @@ class AudioRecorder:
         channels=1,
         rate=44100,
         chunk=1024,
-        logger=None,
-        output_filename=None
+        logger=None
     ):
         self.channels = channels
         self.rate = rate
@@ -46,7 +45,7 @@ class AudioRecorder:
         self.frames = []
         self.is_recording = False
         self.stream = None
-        self.output_filename = output_filename
+        self.output_filename = None
         self.logger = logger if logger else LogPrint()
 
     def _record(self, max_time=None):
@@ -452,7 +451,7 @@ class SoundPlayer:
 
 #%% EXAMPLE USE        
 if __name__ == "__main__":
-    # audio_recorder = AudioRecorder()
+    audio_recorder = AudioRecorder()
     # audio_recorder.start_recording("x.mp3")
     # time.sleep(2)
     # audio_recorder.stop_recording()
@@ -462,7 +461,7 @@ if __name__ == "__main__":
     # audio_recorder.stop_recording()
     
     
-    audio_recorder = AudioRecorder(output_filename="submersion_mic.mp3")
+    audio_recorder = AudioRecorder()
     speech_detector = Speech2Text(audio_recorder=audio_recorder)
     # speech_detector = Speech2Text(offline_model_type='large-v3')
 
