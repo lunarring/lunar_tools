@@ -2,6 +2,7 @@ from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 import platform
 import os
+import pygame
 
 def add_text_to_image(
         img_input, 
@@ -101,6 +102,51 @@ def add_text_to_image(
 
 
 
+class PopupInput:
+    def __init__(self, window_size, font_size=None, font_color=(255, 255, 255), bg_color=(0, 0, 0)):
+        """
+        Initialize PopupInput with window size, font size, font color, and background color.
+        """
+        self.window_size_subject_acronym = window_size
+        self.font_size = font_size if font_size else window_size[1] // 3
+        self.font_color = font_color
+        self.bg_color = bg_color
+
+    def get_input(self):
+        """
+        Display a popup window to get user input.
+        """
+        pygame.init()
+        screen = pygame.display.set_mode(self.window_size_subject_acronym)
+        pygame.display.set_caption('Subject info')
+
+        running = True
+        input_text = ""
+        while running:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_RETURN:
+                        running = False
+                    elif event.key == pygame.K_BACKSPACE:
+                        input_text = input_text[:-1]
+                    else:
+                        input_text += event.unicode
+
+            screen.fill(self.bg_color)
+            font = pygame.font.Font(None, self.font_size)
+            text = font.render(input_text, 1, self.font_color)
+            textpos = text.get_rect(center=(screen.get_width()/2, screen.get_height()/2))
+            screen.blit(text, textpos)
+
+            pygame.display.flip()
+        pygame.quit()
+        return input_text
+
+
+
 if __name__ == "__main__":
+
     # Creating new samples using the updated function
     image1 = add_text_to_image((700, 500), 'center', font_size=50)
