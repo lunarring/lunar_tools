@@ -110,10 +110,11 @@ class MetaInput:
             self.control_device = KeyboardInput()
         else:
             self.control_device = MidiInput(self.device_name)
-            
+        self.last_values = {}
         print(f"MetaInput: using exclusively {self.device_name}")
         
     def get(self, **kwargs):
+        return_val = None
         device_control_key = f"{self.device_name}"
         if device_control_key in kwargs:
             valid_kwargs = {k: v for k, v in kwargs.items() if k in self.valid_get_args}
@@ -147,27 +148,44 @@ class MetaInput:
                 self.control_device.show()
                 self.autoshow_names = False
             
-            return self.control_device.get(alpha_num, variable_name=variable_name, **valid_kwargs)
+            return_val = self.control_device.get(alpha_num, variable_name=variable_name, **valid_kwargs)
+            self.last_values[alpha_num] = return_val
         else:
             if "button_mode" in kwargs:
                 if "val_default" in kwargs:
-                    return kwargs['val_default']
+                    return_val = kwargs['val_default']
                 else:
-                    return False
+                    return_val = False
             else: 
                 if "val_default" in kwargs:
-                    return kwargs['val_default']
+                    return_val = kwargs['val_default']
                 elif "val_min" in kwargs and "val_max" in kwargs:
-                    return (kwargs['val_max'] - kwargs['val_min'])/2
+                    return_val = (kwargs['val_max'] - kwargs['val_min'])/2
                 else:
-                    return 0.0
-            
-                
+                    return_val = 0.0
+        
+        
+        return return_val
             # raise ValueError(f"Device '{self.device_name}' not specified in arguments, and it is the active connected device.")
 
     def show(self):
-        self.control_device.show()       
+        self.control_device.show()
 
+    def print_state(self):
+        self._display_or_save()
+
+    def show_state(self, filename):
+        self._display_or_save(filename)
+
+    def _display_or_save(self, filename=None):
+        output_lines = [f"Device: {self.device_name}"]
+        for key in sorted(self.id_name.keys()):
+            output_lines.append(f"{key} | {self.id_name[key]} | {self.last_values[key]}")
+        if filename:
+            with open(filename, 'w') as file:
+                file.write('\n'.join(output_lines))
+        else:
+            print('\n'.join(output_lines))
 
 #%%
 class MidiInput:
@@ -676,11 +694,10 @@ if __name__ == "__main__":
     self = MetaInput()
     while True:
         time.sleep(0.1)
-        a = self.get(keyboard='a', akai_midimix="A0", button_mode='held_down')
+        variable1 = self.get(keyboard='a', akai_lpd8="A0", button_mode='held_down')
         # bo = self.get(keyboard='b', akai_lpd8="B0", button_mode='held_down')
-        b = self.get(keyboard='b', akai_lpd8="E0", val_min=3, val_max=5)
-        c = self.get(keyboard='c', val_min=3, val_max=5)
-        print(f"{a} {b} {c}" )
+        variable2 = self.get(keyboard='b', akai_lpd8="E0", val_min=3, val_max=5)
+        print(f"{variable1} {variable2}" )
 
 if __name__ == "__main__xxx":
     keyboard_input = KeyboardInput()
