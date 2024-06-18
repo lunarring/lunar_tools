@@ -16,6 +16,7 @@ from .movie import concatenate_movies
 from .movie import add_sound
 from .movie import add_subtitles_to_video
 from .movie import MovieReader
+from .movie import MovieReaderThreaded
 from .movie import interpolate_between_images
 from .movie import fill_up_frames_linear_interpolation
 from .cam import WebCam
