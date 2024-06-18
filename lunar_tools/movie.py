@@ -8,6 +8,10 @@ import ffmpeg  # pip install ffmpeg-python. if error with broken pipe: conda upd
 from lunar_tools.utils import interpolate_linear
 from PIL import Image
 from typing import Union, List
+import threading
+import queue
+from typing import Union
+import time
 
 class MovieSaver():
     def __init__(
@@ -138,6 +142,68 @@ class MovieSaver():
         self.ffmpg_process.wait()
         duration = int(self.nmb_frames / self.fps)
         print(f"Movie saved, {duration}s playtime, watch here: \n{self.fp_out}")
+
+
+class MovieSaverThreaded:
+    def __init__(self, fp_out: str, fps: int = 24, shape_hw: List[int] = None, crf: int = 21, codec: str = 'libx264', preset: str = 'fast', pix_fmt: str = 'yuv420p', silent_ffmpeg: bool = True):
+        self.fp_out = fp_out
+        self.fps = fps
+        self.shape_hw = shape_hw
+        self.crf = crf
+        self.codec = codec
+        self.preset = preset
+        self.pix_fmt = pix_fmt
+        self.silent_ffmpeg = silent_ffmpeg
+
+        self.frame_queue = queue.Queue()
+        self.writer_thread = threading.Thread(target=self._write_frames)
+        self.writer_thread.start()
+        self.init_done = False
+        self.nmb_frames = 0
+        self.ffmpg_process = None
+        self.finalized = False
+
+    def initialize(self):
+        args = ['ffmpeg', '-y', '-f', 'rawvideo', '-vcodec', 'rawvideo', '-s', f'{self.shape_hw[1]}x{self.shape_hw[0]}', '-pix_fmt', 'rgb24', '-r', str(self.fps), '-i', '-', '-an', '-vcodec', 'mpeg4', self.fp_out]
+        self.ffmpg_process = subprocess.Popen(args, stdin=subprocess.PIPE)
+        self.init_done = True
+        print(f"Initialization done. Movie shape: {self.shape_hw}")
+
+    def _write_frames(self):
+        while True:
+            frame = self.frame_queue.get()
+            if frame is None:
+                break
+            self.ffmpg_process.stdin.write(frame.astype(np.uint8).tobytes())
+            self.nmb_frames += 1
+
+    def write_frame(self, out_frame: Union[np.ndarray, Image.Image]):
+        if self.finalized:
+            raise Exception("Cannot write to a finalized movie.")
+        if isinstance(out_frame, Image.Image):
+            out_frame = np.array(out_frame)
+        assert len(out_frame.shape) == 3, "out_frame needs to be three dimensional, Y X C"
+        assert out_frame.shape[2] == 3, f"need three color channels, but you provided {out_frame.shape[2]}."
+
+        if not self.init_done:
+            self.shape_hw = out_frame.shape
+            self.initialize()
+
+        assert self.shape_hw == out_frame.shape, f"You cannot change the image size after init. Initialized with {self.shape_hw}, out_frame {out_frame.shape}"
+
+        self.frame_queue.put(out_frame)
+
+    def finalize(self):
+        self.frame_queue.put(None)
+        while not self.frame_queue.empty():
+            time.sleep(0.1)  # wait for all frames to be processed
+            print(f"finalizing, writing {self.frame_queue.qsize()} remaining frames")
+        self.writer_thread.join()
+        self.ffmpg_process.stdin.close()
+        self.ffmpg_process.wait()
+        duration = int(self.nmb_frames / self.fps)
+        print(f"Movie saved, {duration}s playtime, watch here: \n{self.fp_out}")
+        self.finalized = True
 
 
 def concatenate_movies(fp_final: str, list_fp_movies: List[str]):
@@ -366,6 +432,21 @@ def fill_up_frames_linear_interpolation(
     return list_imgs_interp
 
 if __name__ == "__main__":
+    fps = 24
+    list_fp_movies = []
+    fp_movie = f"output.mp4"
+    list_fp_movies.append(fp_movie)
+    for j in range(10):
+        ms = MovieSaverThreaded(fp_movie, fps=fps)
+        nmb_frames = 300
+        imgs_all = (np.random.rand(nmb_frames, 512, 1024, 3) * 255).astype(np.uint8)
+        for i in tqdm(range(nmb_frames)):
+            img = imgs_all[i]
+            ms.write_frame(img)
+        ms.finalize()
+# 
+
+if __name__ == "__main__z":
     fps = 2
     list_fp_movies = []
     for k in range(4):
