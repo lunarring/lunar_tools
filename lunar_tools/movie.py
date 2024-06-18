@@ -165,7 +165,10 @@ class MovieSaverThreaded:
 
     def initialize(self):
         args = ['ffmpeg', '-y', '-f', 'rawvideo', '-vcodec', 'rawvideo', '-s', f'{self.shape_hw[1]}x{self.shape_hw[0]}', '-pix_fmt', 'rgb24', '-r', str(self.fps), '-i', '-', '-an', '-vcodec', 'mpeg4', self.fp_out]
-        self.ffmpg_process = subprocess.Popen(args, stdin=subprocess.PIPE)
+        if self.silent_ffmpeg:
+            self.ffmpg_process = subprocess.Popen(args, stdin=subprocess.PIPE, stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+        else:
+            self.ffmpg_process = subprocess.Popen(args, stdin=subprocess.PIPE)
         self.init_done = True
         print(f"Initialization done. Movie shape: {self.shape_hw}")
 
@@ -435,15 +438,14 @@ if __name__ == "__main__":
     fps = 24
     list_fp_movies = []
     fp_movie = f"output.mp4"
-    list_fp_movies.append(fp_movie)
-    for j in range(10):
-        ms = MovieSaverThreaded(fp_movie, fps=fps)
-        nmb_frames = 300
-        imgs_all = (np.random.rand(nmb_frames, 512, 1024, 3) * 255).astype(np.uint8)
-        for i in tqdm(range(nmb_frames)):
-            img = imgs_all[i]
-            ms.write_frame(img)
-        ms.finalize()
+    ms = MovieSaverThreaded(fp_movie, fps=fps)
+    nmb_frames = 3000
+    # imgs_all = (np.random.rand(nmb_frames, 512, 1024, 3) * 255).astype(np.uint8)
+    for i in tqdm(range(nmb_frames)):
+        # img = imgs_all[i]
+        img = (np.random.rand(512, 1024, 3) * 255).astype(np.uint8)
+        ms.write_frame(img)
+    ms.finalize()
 # 
 
 if __name__ == "__main__z":
