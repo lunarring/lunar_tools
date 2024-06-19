@@ -86,8 +86,15 @@ class WebCam():
         self.cam.set(cv2.CAP_PROP_AUTOFOCUS, 0)
         self.cam.set(cv2.CAP_PROP_FOCUS, 0)
         
-    def set_autofocus(self):
+    def autofocus_enable(self):
         self.cam.set(cv2.CAP_PROP_AUTOFOCUS, 1)
+        
+    def autofocus_disable(self):
+        self.cam.set(cv2.CAP_PROP_AUTOFOCUS, 0)
+        
+    def set_focus(self, value):
+        self.autofocus_disable()
+        self.cam.set(cv2.CAP_PROP_FOCUS, value)
 
     def threader_runfunc_cam(self):
         while self.threader_active:
@@ -122,7 +129,8 @@ class WebCam():
         
 if __name__ == "__main__":
     from PIL import Image
-    cam = WebCam(cam_id=-1)
+    cam = WebCam(cam_id=0)
+    ir = WebCam(cam_id=2)
     while True:
         img = cam.get_img()
         cv2.imshow('webcam', img[:,:,::-1])
