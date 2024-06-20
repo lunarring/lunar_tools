@@ -474,8 +474,8 @@ class MidiInput:
         
         # Process button
         elif self.id_config[alpha_num][1] == "button":
-            if val_default is not None:
-                assert button_mode == "toggle", "val_default is set, button_mode must be 'toggle'"
+            if val_default:
+                assert button_mode == "toggle", "if val_default is set True, button_mode must be 'toggle'"
             if button_mode == 'held_down':
                 val_return = self.id_value[alpha_num]
             elif button_mode == "pressed_once":
@@ -667,8 +667,8 @@ class KeyboardInput:
         elif button_mode is not None:
             assert val_min is None and val_max is None, "val_min and val_max should not be provided for button usage"
             assert button_mode in self.valid_button_modes, "Invalid button mode"
-            if val_default is not None:
-                assert button_mode == "toggle", "val_default is set, button_mode must be 'toggle'"
+            if val_default:
+                assert button_mode == "toggle", "if val_default is set True, button_mode must be 'toggle'"
             if button_mode == 'held_down':
                 return self.pressed_keys.get(key, False)
             elif button_mode == 'released_once':
