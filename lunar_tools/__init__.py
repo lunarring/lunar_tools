@@ -36,4 +36,4 @@ from .control_input import MetaInput
 from .fontrender import add_text_to_image
 from .fontrender import PopupInput
 from .utils import interpolate_linear
-from torch_utils import MedianBlur
+from .torch_utils import MedianBlur
