@@ -410,7 +410,7 @@ class MidiInput:
             print(f"Warning! {alpha_num} is unknown. Returning val_default")
             return val_default
         # Assert that button mode is correct if button
-        if val_default:
+        if val_default and button_mode is None:
             assert val_default >= val_min and val_default <= val_max
         # Assert correct type
         if self.id_config[alpha_num][1] == "button":
@@ -485,7 +485,9 @@ class MidiInput:
                 if val_return:
                     self.released_once_flags[alpha_num] = False # Reset the last time scanned after being processed
             elif button_mode == "toggle":
-                val_return = np.mod(self.id_nmb_button_down[alpha_num]+1, 2) == 0
+                if val_default is None:
+                    val_default = False
+                val_return = np.mod(self.id_nmb_button_down[alpha_num]+1, 2) == val_default
                 # Set LED
                 self.set_led(alpha_num, val_return)
                 
@@ -676,7 +678,10 @@ class KeyboardInput:
                     self.pressed_once_flags[key] = False
                 return pressed_once
             elif button_mode == 'toggle':
-                return np.mod(self.key_press_count.get(key, 0), 2) == 1
+                toggle_state = np.mod(self.key_press_count.get(key, 0), 2) == 1
+                if val_default:
+                    toggle_state = not toggle_state
+                return toggle_state
         else:
             raise ValueError("Invalid parameters: provide either val_min and val_max for a slider or button_mode for a button")
     
@@ -694,32 +699,33 @@ if __name__ == "__main__":
     self = MetaInput()
     while True:
         time.sleep(0.1)
-        variable1 = self.get(keyboard='a', akai_lpd8="A0", button_mode='held_down')
+        variable1 = self.get(akai_lpd8="A0", button_mode='toggle', val_default=True)
+        # variable1 = self.get(keyboard='a', button_mode='toggle', val_default=True)
         # bo = self.get(keyboard='b', akai_lpd8="B0", button_mode='held_down')
         variable2 = self.get(keyboard='b', akai_lpd8="E0", val_min=3, val_max=5)
         print(f"{variable1} {variable2}" )
 
-if __name__ == "__main__xxx":
+if __name__ == "__main__x":
     keyboard_input = KeyboardInput()
     # ... In some update loop
     while True:
         time.sleep(0.1)
         
-        # x1 = keyboard_input.get('s', button_mode='presses_once')
+        x1 = keyboard_input.get('s', button_mode='toggle', val_default=True)
         # x2 = keyboard_input.get('s', button_mode='released_once')
-        # print(f"x1 {x1} x2 {x2}")
+        print(f"x1 {x1}")
         
-        a = keyboard_input.get('a', button_mode='held_down')
-        s = keyboard_input.get('s', button_mode='pressed_once')
-        d = keyboard_input.get('d', button_mode='released_once')
-        f = keyboard_input.get('f', button_mode='toggle')
-        g = keyboard_input.get('g', val_min=3, val_max=6)
-        h = keyboard_input.get('h', val_min=3, val_max=5)
-        print(f"{a} {s} {d} {f} {g} {h}" )
+        # a = keyboard_input.get('a', button_mode='held_down')
+        # s = keyboard_input.get('s', button_mode='pressed_once')
+        # d = keyboard_input.get('d', button_mode='released_once')
+        # f = keyboard_input.get('f', button_mode='toggle')
+        # g = keyboard_input.get('g', val_min=3, val_max=6)
+        # h = keyboard_input.get('h', val_min=3, val_max=5)
+        # print(f"{a} {s} {d} {f} {g} {h}" )
         # 
         
                     
-if __name__ == "__main__":
+if __name__ == "__main__x":
     # import lunar_tools as lt
     # import time
     akai_lpd8 = MidiInput(device_name="akai_lpd8")
@@ -728,17 +734,17 @@ if __name__ == "__main__":
     # xxx
     while True:
         time.sleep(0.2)
-        # variable1 = akai_lpd8.get("A0", button_mode='toggle') # toggle switches the state with every press between on and off
-        # do_baba = akai_lpd8.get("B1", button_mode='held_down') # held_down checks if the button is pressed down at the moment
-        strange_effect = akai_lpd8.get("C0", button_mode='pressed_once') # released_once checks if the button was pressed since we checked last time
-        bbb = akai_lpd8.get("C1", button_mode='released_once') # released_once checks if the button was pressed since we checked last time
-        supermorph = akai_lpd8.get("E0", val_min=3, val_max=6, val_default=5) # e0 is a slider float between val_min and val_max
-        # print(f"variable1: {variable1}, do_baba: {do_baba}, strange_effect: {strange_effect}, supermorph: {supermorph}")
-        print(f"strange_effect: {strange_effect}, bbb: {bbb} supermorph: {supermorph}")
+        # released_once checks if the button was pressed since we checked last time
+        z = akai_lpd8.get("A0", button_mode='toggle', val_default=True) 
+        # released_once checks if the button was pressed since we checked last time
+        x = akai_lpd8.get("B0", button_mode='released_once') 
+        #  e0 is a slider float between val_min and val_max
+        slider = akai_lpd8.get("E0", val_min=3, val_max=6, val_default=5) #
+        print(f"z: {z}, x: {x} slider: {slider}")
         
     akai_lpd8.show()
                     
-if __name__ == "__main__xxx":
+if __name__ == "__main__":
     import lunar_tools as lt
     import time
     akai_midimix = MidiInput(device_name="akai_midimix")
