@@ -333,7 +333,7 @@ pip install pytest
 
 make sure you are in base folder
 ```python
-pytest lunar_tools/tests/
+python -m pytest lunar_tools/tests/
 ```
 
 ## Get requirements
