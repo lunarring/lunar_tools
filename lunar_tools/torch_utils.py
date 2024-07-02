@@ -140,7 +140,8 @@ class MedianBlur(nn.Module):
         median: torch.Tensor = torch.median(features, dim=2)[0]
 
         return median
-
+    
+    
 def resize(input_img, resizing_factor=None, size=None, resample_method='bicubic', force_device=None):
     """
     This function is used to convert a numpy image array, a PIL image, or a tensor to a tensor and resize it by a given downscaling factor or to a given size.
@@ -192,11 +193,11 @@ def resize(input_img, resizing_factor=None, size=None, resample_method='bicubic'
         raise ValueError("Either size or downscaling_factor must be provided.")
     elif size is not None:
         size = size
-
-    if len(input_tensor.shape) == 3:
-        size = (int(input_tensor.shape[1] * resizing_factor), int(input_tensor.shape[2] * resizing_factor))
-    elif len(input_tensor.shape) == 4:
-        size = (int(input_tensor.shape[2] * resizing_factor), int(input_tensor.shape[3] * resizing_factor))
+    else:
+        if len(input_tensor.shape) == 3:
+            size = (int(input_tensor.shape[1] * resizing_factor), int(input_tensor.shape[2] * resizing_factor))
+        elif len(input_tensor.shape) == 4:
+            size = (int(input_tensor.shape[2] * resizing_factor), int(input_tensor.shape[3] * resizing_factor))
     
     resized_tensor = torch.nn.functional.interpolate(input_tensor.unsqueeze(0), size=size, mode=resample_method).squeeze(0)
     
@@ -213,7 +214,6 @@ def resize(input_img, resizing_factor=None, size=None, resample_method='bicubic'
         return Image.fromarray(resized_array, 'RGB')
     else:
         return resized_tensor.to(input_dtype)
-    
     
 if __name__ == "__main__":
     torch.manual_seed(0)
