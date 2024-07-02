@@ -5,6 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from typing import List, Tuple, Optional
 import numpy as np
+from PIL import Image
 
 def get_binary_kernel2d(
     window_size: tuple[int, int] | int, *, device: Optional[torch.device] = None, dtype: torch.dtype = torch.float32
@@ -140,13 +141,84 @@ class MedianBlur(nn.Module):
 
         return median
 
+def resize(input_img, resizing_factor=None, size=None, resample_method='bicubic', force_device=None):
+    """
+    This function is used to convert a numpy image array, a PIL image, or a tensor to a tensor and resize it by a given downscaling factor or to a given size.
 
+    Args:
+        input_img (np.ndarray, PIL.Image, or torch.Tensor): The input image to be converted and resized.
+        size (tuple, optional): The desired size (height, width) for the output tensor. If provided, this overrides the downscaling_factor.
+        resizing_factor (float, optional): The factor by which to downscale the input tensor. Defaults to None. Ignored if size is provided.
+        resample_method (str, optional): The resampling method used for resizing. Defaults to 'bilinear'. Options: 'bilinear', 'nearest', 'bicubic', 'lanczos'.
+        force_device (str, optional): The device to which the tensor should be moved. If not provided, the device of the input_img is used.
+
+    Returns:
+        np.ndarray, PIL.Image, or torch.Tensor: The converted and resized image.
+    """
+    supported_resample_methods = ['bilinear', 'nearest', 'bicubic', 'lanczos']
+    
+    if resample_method not in supported_resample_methods:
+        raise ValueError(f"Unsupported resample method: {resample_method}. Choose from 'bilinear', 'nearest', 'bicubic', 'lanczos'.")
+    
+    input_type = type(input_img)
+    input_dtype = None
+    
+    if force_device is not None:
+        device = force_device
+    elif input_type == torch.Tensor:
+        device = input_img.device
+    else:
+        device = 'cpu'
+    
+    if input_type == np.ndarray:
+        input_dtype = input_img.dtype
+        if len(input_img.shape) == 3:
+            input_tensor = torch.as_tensor(input_img, dtype=torch.float, device=device).permute(2, 0, 1)
+        elif len(input_img.shape) == 2:
+            input_tensor = torch.as_tensor(input_img, dtype=torch.float, device=device).unsqueeze(0)
+        else:
+            raise ValueError("input_type np.ndarray should be 2 or 3 dimensional!")
+    elif input_type == Image.Image:
+        input_tensor = torch.as_tensor(np.array(input_img), dtype=torch.float, device=device).permute(2, 0, 1)
+    elif input_type == torch.Tensor:
+        input_dtype = input_img.dtype
+        input_tensor = input_img.clone().to(dtype=torch.float, device=device)
+    else:
+        raise TypeError("input_img should be of type np.ndarray, PIL.Image, or torch.Tensor")
+    
+    if (size is not None) and (resizing_factor is not None):
+        raise ValueError("Provide either size or downscaling_factor, not both.")
+    elif (size is None) and (resizing_factor is None):
+        raise ValueError("Either size or downscaling_factor must be provided.")
+    elif size is not None:
+        size = size
+
+    if len(input_tensor.shape) == 3:
+        size = (int(input_tensor.shape[1] * resizing_factor), int(input_tensor.shape[2] * resizing_factor))
+    elif len(input_tensor.shape) == 4:
+        size = (int(input_tensor.shape[2] * resizing_factor), int(input_tensor.shape[3] * resizing_factor))
+    
+    resized_tensor = torch.nn.functional.interpolate(input_tensor.unsqueeze(0), size=size, mode=resample_method).squeeze(0)
+    
+    if input_type == np.ndarray:
+        if len(input_img.shape) == 3:
+            resized_tensor = resized_tensor.permute(1,2,0).cpu()
+        elif len(input_img.shape) == 2:
+            resized_tensor = resized_tensor.squeeze(0).cpu()
+        resized_array = np.clip(np.round(resized_tensor.numpy()), 0, 255).astype(input_dtype)
+        return resized_array
+    elif input_type == Image.Image:
+        resized_tensor = resized_tensor.permute(1,2,0).cpu()
+        resized_array = np.clip(np.round(resized_tensor.numpy()), 0, 255).astype('uint8')
+        return Image.fromarray(resized_array, 'RGB')
+    else:
+        return resized_tensor.to(input_dtype)
     
     
 if __name__ == "__main__":
     torch.manual_seed(0)
-    tx = torch.rand(1, 1, 5, 7)
+    tx = 255*torch.rand(100, 200)
     
     blur = GaussianBlur((3, 3), 3)
     output = blur(tx)
-    
+
