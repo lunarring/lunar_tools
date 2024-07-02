@@ -173,6 +173,7 @@ def resize(input_img, resizing_factor=None, size=None, resample_method='bicubic'
     
     if input_type == np.ndarray:
         input_dtype = input_img.dtype
+        input_img = input_img.copy()
         if len(input_img.shape) == 3:
             input_tensor = torch.as_tensor(input_img, dtype=torch.float, device=device).permute(2, 0, 1)
         elif len(input_img.shape) == 2:
@@ -217,7 +218,7 @@ def resize(input_img, resizing_factor=None, size=None, resample_method='bicubic'
     
 if __name__ == "__main__":
     torch.manual_seed(0)
-    tx = 255*torch.rand(100, 200)
+    tx = 255*torch.rand(1, 3, 100, 200)
     
     blur = GaussianBlur((3, 3), 3)
     output = blur(tx)
