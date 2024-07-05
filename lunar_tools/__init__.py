@@ -39,3 +39,4 @@ from .utils import interpolate_linear
 from .torch_utils import MedianBlur
 from .torch_utils import GaussianBlur
 from .torch_utils import resize
+from .torch_utils import interpolate_spherical
