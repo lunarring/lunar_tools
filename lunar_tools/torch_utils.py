@@ -71,6 +71,46 @@ def interpolate_spherical(p0: torch.Tensor, p1: torch.Tensor, fract_mixing: floa
 
     return interp
 
+def interpolate_linear(p0: torch.Tensor, p1: torch.Tensor, fract_mixing: float) -> torch.Tensor:
+    """
+    Performs linear interpolation between two tensors.
+
+    This function performs a linear interpolation (lerp) between two tensors `p0` and `p1`.
+    The interpolation is performed in a high-dimensional space, and the result is a tensor that lies
+    on the line between `p0` and `p1`.
+
+    Args:
+        p0 (torch.Tensor): The first tensor to interpolate from.
+        p1 (torch.Tensor): The second tensor to interpolate to.
+        fract_mixing (float): The fraction for the interpolation. A value of 0 returns `p0`, a value of 1 returns `p1`.
+
+    Returns:
+        torch.Tensor: The interpolated tensor.
+
+    Note:
+        The tensors `p0` and `p1` must have the same shape, and `fract_mixing` must be a scalar.
+    """
+
+    if p0.dtype == torch.float16:
+        recast_to = 'fp16'
+    else:
+        recast_to = 'fp32'
+    fract_mixing = np.clip(fract_mixing, 0, 1)
+    p0 = p0.double()
+    p1 = p1.double()
+
+    interp = p0 * (1 - fract_mixing) + p1 * fract_mixing
+
+    if recast_to == 'fp16':
+        interp = interp.half()
+    elif recast_to == 'fp32':
+        interp = interp.float()
+
+    return interp
+
+
+
+
 class GaussianBlur(nn.Module):
     r"""Blurs an image using a Gaussian filter.
 
