@@ -41,4 +41,4 @@ from .torch_utils import GaussianBlur
 from .torch_utils import resize
 from .torch_utils import interpolate_spherical
 from .torch_utils import interpolate_linear
-from .torch_utils import HighPassFilter
+from .torch_utils import FrequencyFilter
