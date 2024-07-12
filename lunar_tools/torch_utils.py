@@ -109,8 +109,6 @@ def interpolate_linear(p0: torch.Tensor, p1: torch.Tensor, fract_mixing: float) 
     return interp
 
 
-
-
 class GaussianBlur(nn.Module):
     r"""Blurs an image using a Gaussian filter.
 
@@ -303,7 +301,86 @@ def resize(input_img, resizing_factor=None, size=None, resample_method='bicubic'
     else:
         return resized_tensor.to(input_dtype)
     
+class HighPassFilter:
+    """
+    HighPassFilter is a class that applies a high pass filter to an image.
+
+    This class creates a high pass filter of a given size and radius, and applies it to an image.
+    The high pass filter is created in the frequency domain, and is applied to the image by performing
+    a 2D Fast Fourier Transform (FFT) on the image, multiplying the result by the filter, and then
+    performing an inverse FFT to obtain the filtered image.
+
+    Attributes:
+        size (tuple): The size of the high pass filter. This should match the size of the images that
+            will be filtered.
+        radius (float): The radius of the high pass filter. This determines the cutoff frequency of the
+            filter.
+        device (str): The device on which to perform the computations. Default is 'cpu'.
+        high_pass_filter (torch.Tensor): The high pass filter created based on the size and radius.
+
+    """
+    def __init__(self, size, radius, device='cpu'):
+        self.size = size
+        self.radius = radius
+        self.device = device
+        self._init_high_pass_filter()
+
+    def _init_high_pass_filter(self):
+        """
+        Initializes the high pass filter.
+
+        This method creates a high pass filter based on the size and radius provided during the 
+        initialization of the HighPassFilter class. The filter is created in the frequency domain 
+        and is stored as a tensor attribute of the class instance.
+        """
+        rows, cols = self.size
+        crow, ccol = rows // 2, cols // 2
+        high_pass_filter = torch.ones((rows, cols), dtype=torch.float32, device=self.device)
+        y, x = torch.meshgrid(torch.arange(rows, device=self.device), torch.arange(cols, device=self.device), indexing='ij')
+        mask_area = (x - ccol)**2 + (y - crow)**2 <= self.radius**2
+        high_pass_filter[mask_area] = 0
+        self.high_pass_filter = high_pass_filter
+
+    def forward(self, image):
+        """
+        Applies the high pass filter to the input image.
+
+        This method applies the high pass filter to the input image in the frequency domain.
+        It performs a 2D Fast Fourier Transform (FFT) on the image, multiplies the result by the filter,
+        and then performs an inverse FFT to obtain the filtered image.
+
+        Args:
+            image (torch.Tensor): The input image to be filtered. The image should be a 4D tensor with
+                shape (batch_size, channels, height, width).
+
+        Returns:
+            torch.Tensor: The filtered image. The image is a 4D tensor with shape (batch_size, channels, height, width).
+        """
+        batch_size, channels, height, width = image.shape
+        filtered_images = []
+        
+        for i in range(channels):
+            fft_image = torch.fft.fft2(image[0, i, :, :])
+            fft_image_shifted = torch.fft.fftshift(fft_image)
+            filtered_fft_shifted = fft_image_shifted * self.high_pass_filter
+            filtered_fft = torch.fft.ifftshift(filtered_fft_shifted)
+            filtered_image = torch.fft.ifft2(filtered_fft)
+            filtered_images.append(torch.real(filtered_image))
+        
+        return torch.stack(filtered_images, dim=0).unsqueeze(0)
+
+
+# Example for HighPassFilter
 if __name__ == "__main__":
+    torch.manual_seed(0)
+    tx = 255*torch.rand(1, 3, 100, 200)
+    
+    high_pass_filter = HighPassFilter((100, 200), 30)
+    output = high_pass_filter.forward(tx)
+
+
+# Example for Gaussianblur
+if __name__ == "__main__X":
     torch.manual_seed(0)
     tx = 255*torch.rand(1, 3, 100, 200)
     
