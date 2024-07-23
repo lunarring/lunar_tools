@@ -149,6 +149,9 @@ def sdl_to_cv2_keycode(sdl_keycode):
         print('sdl_to_cv2_keycode -> unknown key code')
         return -1
 
+import pygame
+
+
 class Renderer:
     def __init__(self, width: int = 1920, height: int = 1080, 
                  gpu_id: int = 0,
@@ -168,7 +171,7 @@ class Renderer:
             else:
                 self.backend = 'opencv'
         else:
-            assert backend in ['gl', 'opencv']
+            assert backend in ['gl', 'opencv', 'pygame']
             self.backend = backend
         
         if self.backend == 'gl':
@@ -177,7 +180,9 @@ class Renderer:
             self.sdl_setup()
             self.gl_setup()
             self.cuda_setup()
-        
+        elif self.backend == 'pygame':
+            self.pygame_setup()
+
     def sdl_setup(self):
         if sdl2.SDL_Init(sdl2.SDL_INIT_VIDEO):
             raise SDLException(sdl2.SDL_GetError())
@@ -394,7 +399,6 @@ class Renderer:
         pressed_key_code = self.gl_step()
         return pressed_key_code
         
-        
     def cv2_render(self, image):
         if type(image) == torch.Tensor:
             image = image.cpu().numpy()
@@ -435,14 +439,69 @@ class Renderer:
         peripheralEvent.mouse_posY = -1            
             
         return peripheralEvent
+
+    def pygame_setup(self):
+        pygame.init()
+        flags = pygame.FULLSCREEN if self.do_fullscreen else 0
+        self.screen = pygame.display.set_mode((self.width, self.height), flags)
+        pygame.display.set_caption(self.window_title)
+        self.running = True
+
+    def pygame_render(self, image):
+        if type(image) == torch.Tensor:
+            image = image.cpu().numpy()
+        else:
+            if type(image) == np.ndarray:
+                pass
+            elif type(image) == Image.Image:
+                image = np.array(image)
+            else:
+                raise Exception('render function received input of unknown type')
+        
+        # clamp and set correct type
+        image = np.clip(image, 0, 255).astype(np.uint8)
+
+        # reshape if there is a mismatched between supply image size and window size
+        if image.shape[1] != self.width or image.shape[0] != self.height:
+            image = cv2.resize(image, (self.width, self.height))
+
+        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+        image = np.rot90(image)  # Pygame requires rotation to match orientation
+
+        surf = pygame.surfarray.make_surface(image)
+        self.screen.blit(surf, (0, 0))
+        pygame.display.flip()
+
+        pressed_key_code = None
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.running = False
+                pygame.quit()
+                sys.exit(0)
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    self.running = False
+                    pygame.quit()
+                    sys.exit(0)
+                pressed_key_code = event.key
+
+        peripheralEvent = PeripheralEvent()
+        peripheralEvent.pressed_key_code = pressed_key_code
+        
+        # not implemented
+        peripheralEvent.mouse_button_state = -1
+        peripheralEvent.mouse_posX = -1
+        peripheralEvent.mouse_posY = -1
             
+        return peripheralEvent
             
     def render(self, image):
         if self.backend == 'gl':
             peripheralEvent = self.gl_render(image)
-        else:
+        elif self.backend == 'opencv':
             peripheralEvent = self.cv2_render(image)
-            
+        elif self.backend == 'pygame':
+            peripheralEvent = self.pygame_render(image)
         return peripheralEvent
 
     def gl_close(self):
@@ -542,8 +601,8 @@ if __name__ == '__main__z':
 
 if __name__ == '__main__':
     
-    sz = (1080, 1920)
-    renderer = Renderer(width=sz[1], height=sz[0], backend='opencv')
+    sz = (500, 500)
+    renderer = Renderer(width=sz[1], height=sz[0], backend='pygame')
 
     while True:
         # numpy array
