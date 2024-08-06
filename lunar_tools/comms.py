@@ -18,7 +18,7 @@ from lunar_tools.fontrender import add_text_to_image
 
 
 class ZMQPairEndpoint:
-    def __init__(self, is_server, ip='localhost', port='5555', timeout=2, logger=None):
+    def __init__(self, is_server, ip='localhost', port='5555', timeout=2, jpeg_quality=99, logger=None):
         self.address = f"tcp://{ip}:{port}"
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.PAIR)
@@ -36,7 +36,7 @@ class ZMQPairEndpoint:
 
         # Default encoding properties
         self.format = '.jpg'
-        self.encode_params = [cv2.IMWRITE_JPEG_QUALITY, 95]
+        self.encode_params = [cv2.IMWRITE_JPEG_QUALITY, jpeg_quality]
 
         # Start listening thread
         self.thread = threading.Thread(target=self.listen, daemon=True)
@@ -116,6 +116,15 @@ class ZMQPairEndpoint:
     def send_img(self, img):
         _, buffer = cv2.imencode(self.format, img, self.encode_params)
         self.socket.send(b'img:' + buffer.tobytes())
+        # self.socket.send(b'img:' + buffer.tobytes(), zmq.NOBLOCK)
+        
+        # # Wait for up to 2 seconds for the message to be sent
+        # poller = zmq.Poller()
+        # poller.register(self.socket, zmq.POLLOUT)
+        # socks = dict(poller.poll(2000))  # 2000 milliseconds = 2 seconds
+        
+        # if self.socket not in socks:
+        #     print("Timeout occurred while sending image.")
 
 
 #%% 
