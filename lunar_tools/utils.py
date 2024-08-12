@@ -3,6 +3,7 @@ import platform
 import numpy as np
 from threading import Thread
 import time
+from collections import deque
 
 def get_os_type():
     os_name = platform.system()
