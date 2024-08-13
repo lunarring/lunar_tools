@@ -6,6 +6,19 @@ import time
 from collections import deque
 
 def exception_handler(func):
+    """
+    A decorator that wraps a function to provide exception handling.
+
+    This decorator catches any exceptions raised by the decorated function,
+    prints an error message with the function name and the exception details,
+    and prevents the exception from propagating further.
+
+    Args:
+        func (callable): The function to be decorated.
+
+    Returns:
+        callable: A wrapped function that includes exception handling.
+    """
     def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
