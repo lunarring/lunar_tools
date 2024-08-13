@@ -5,6 +5,14 @@ from threading import Thread
 import time
 from collections import deque
 
+def exception_handler(func):
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            print(f"Exception when running {func.__name__}: {e}")
+    return wrapper
+
 def get_os_type():
     os_name = platform.system()
     if os_name == "Darwin":
