@@ -329,6 +329,7 @@ class MovieReader():
     """
 
     def __init__(self, fp_movie):
+        self.fp_movie = fp_movie
         self.video_player_object = cv2.VideoCapture(fp_movie)
         self.nmb_frames = int(self.video_player_object.get(cv2.CAP_PROP_FRAME_COUNT))
         self.fps_movie = int(self.video_player_object.get(cv2.CAP_PROP_FPS))
