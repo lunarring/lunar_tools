@@ -29,7 +29,7 @@ class FluxImageGenerator:
         self.model = model
         self.last_result = None
 
-    def generate(self, prompt, image_size, num_inference_steps=4, seed=420):
+    def generate(self, prompt, image_size='portrait_4_3', num_inference_steps=4, seed=420):
         if image_size not in self.ALLOWED_IMAGE_SIZES:
             raise ValueError(f"Invalid image size. Allowed sizes are: {', '.join(self.ALLOWED_IMAGE_SIZES)}")
 
