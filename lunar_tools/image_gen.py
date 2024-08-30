@@ -29,7 +29,7 @@ class FluxImageGenerator:
         self.model = model
         self.last_result = None
 
-    def generate_image(self, prompt, image_size, num_inference_steps=4, seed=420):
+    def generate(self, prompt, image_size, num_inference_steps=4, seed=420):
         if image_size not in self.ALLOWED_IMAGE_SIZES:
             raise ValueError(f"Invalid image size. Allowed sizes are: {', '.join(self.ALLOWED_IMAGE_SIZES)}")
 
@@ -298,13 +298,13 @@ class GlifAPI:
 # Example usage
 if __name__ == "__main__":
 
-    generator = FluxImageGenerator()
+    flux = FluxImageGenerator()
     prompt_text = "photo of a person holding a sign with flüx written on it"
     image_size = "square_hd"
     num_inference_steps = 4
     seed = 420
 
-    image = generator.generate_image(prompt_text, image_size, num_inference_steps, seed)
+    image = flux.generate(prompt_text, image_size, num_inference_steps, seed)
 
     
     # Example usage glifapi
