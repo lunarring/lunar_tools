@@ -19,6 +19,7 @@ from .image_gen import Dalle3ImageGenerator
 from .image_gen import GlifAPI
 from .image_gen import SDXL_LCM
 from .image_gen import SDXL_TURBO
+from .image_gen import FluxImageGenerator
 from .llm import GPT4
 from .logprint import LogPrint
 from .logprint import dynamic_print
