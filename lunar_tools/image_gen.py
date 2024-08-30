@@ -12,6 +12,48 @@ import replicate
 from lunar_tools.logprint import LogPrint
 from lunar_tools.utils import read_api_key
 
+import fal_client
+from PIL import Image
+import requests
+from io import BytesIO
+
+
+class FluxImageGenerator:
+    ALLOWED_IMAGE_SIZES = [
+        "square_hd", "square", "portrait_4_3", "portrait_16_9",
+        "landscape_4_3", "landscape_16_9"
+    ]
+
+    def __init__(self, model="fal-ai/flux/schnell"):
+        self.client = fal_client
+        self.model = model
+        self.last_result = None
+
+    def generate_image(self, prompt, image_size, num_inference_steps=4, seed=420):
+        if image_size not in self.ALLOWED_IMAGE_SIZES:
+            raise ValueError(f"Invalid image size. Allowed sizes are: {', '.join(self.ALLOWED_IMAGE_SIZES)}")
+
+        handler = self.client.submit(
+            self.model,
+            arguments={
+                "prompt": prompt,
+                "image_size": image_size,
+                "num_inference_steps": num_inference_steps,
+                "seed": seed
+            },
+        )
+
+        result = handler.get()
+        self.last_result = result
+        image_url = result['images'][0]['url']
+
+        # Download the image
+        response = requests.get(image_url)
+        response.raise_for_status()
+        image = Image.open(BytesIO(response.content))
+        return image
+
+
 class Dalle3ImageGenerator:
     def __init__(self,
                  client=None,
@@ -255,12 +297,22 @@ class GlifAPI:
 
 # Example usage
 if __name__ == "__main__":
-     
-    glif = GlifAPI()
-    glif_id = "clgh1vxtu0011mo081dplq3xs"
-    inputs = {"node_6": "cute friendly oval shaped bot friend"}
-    result = glif.run_glif(glif_id, inputs)
-    print(result)
+
+    generator = FluxImageGenerator()
+    prompt_text = "photo of a person holding a sign with flüx written on it"
+    image_size = "square_hd"
+    num_inference_steps = 4
+    seed = 420
+
+    image = generator.generate_image(prompt_text, image_size, num_inference_steps, seed)
+
+    
+    # Example usage glifapi
+    # glif = GlifAPI()
+    # glif_id = "clgh1vxtu0011mo081dplq3xs"
+    # inputs = {"node_6": "cute friendly oval shaped bot friend"}
+    # result = glif.run_glif(glif_id, inputs)
+    # print(result)
 
 
     # Example usage Dalle3

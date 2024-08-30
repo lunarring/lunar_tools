@@ -1,3 +1,4 @@
+fal-client
 elevenlabs
 ffmpeg
 ffmpeg_python
