@@ -16,6 +16,7 @@ import usb.core     # pip install pyusb
 import platform
 from datetime import datetime
 from lunar_tools.midi import check_any_midi_device_connected
+from lunar_tools.midi import MidiInput
 
 import warnings
 
