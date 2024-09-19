@@ -3,7 +3,7 @@ Welcome to Lunar Tools, a comprehensive toolkit designed to fascilitate the prog
 
 # Installation
 ```bash
-pip install git+https://github.com/lunarring/lunar_tools
+python -m pip install git+https://github.com/lunarring/lunar_tools
 ```
 ## Ubuntu
 On Ubuntu, you may have to install additional dependencies for sound playback/recording.
