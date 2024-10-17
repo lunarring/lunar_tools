@@ -1,3 +1,4 @@
+cuda-python
 fal-client
 elevenlabs
 ffmpeg
