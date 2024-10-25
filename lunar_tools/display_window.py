@@ -10,19 +10,18 @@ from PIL import Image
 import cv2
 import random
 from lunar_tools.utils import get_os_type
+import pygame
 
 if get_os_type() == "Linux":
-    try:
-        from cuda import cudart as cu
-        
-        with warnings.catch_warnings():
-            warnings.filterwarnings(action="ignore", category=UserWarning)
-            import sdl2
-        
-        from sdl2 import video
-        from OpenGL import GL as gl   
-    except Exception as e:
-        print(f"Cuda import fail! {e}")
+    from cuda import cudart as cu
+    
+    with warnings.catch_warnings():
+        warnings.filterwarnings(action="ignore", category=UserWarning)
+        import sdl2
+        import sdl2.ext
+    
+    from sdl2 import video
+    from OpenGL import GL as gl   
 
 import logging
 
@@ -149,9 +148,6 @@ def sdl_to_cv2_keycode(sdl_keycode):
         print('sdl_to_cv2_keycode -> unknown key code')
         return -1
 
-import pygame
-
-
 class Renderer:
     def __init__(self, width: int = 1920, height: int = 1080, 
                  gpu_id: int = 0,
@@ -171,19 +167,56 @@ class Renderer:
             else:
                 self.backend = 'opencv'
         else:
-            assert backend in ['gl', 'opencv', 'pygame']
+            assert backend in ['gl', 'opencv', 'pygame', 'cudagl']
+		
+            if get_os_type() == "MacOS":
+              if backend != 'opencv' and backend != 'pygame':
+                backend = 'pygame'
+
             self.backend = backend
         
-        if self.backend == 'gl':
+        if self.backend == 'cudagl':
             self.cuda_is_setup = False
-            self.running = True
-            self.sdl_setup()
-            self.gl_setup()
+            self.cudasdl_setup()
+            self.cudagl_setup()
             self.cuda_setup()
+            self.running = True
+        elif self.backend == 'gl':
+            self.sdl_setup()
+            self.running = True
         elif self.backend == 'pygame':
             self.pygame_setup()
-
+            
     def sdl_setup(self):
+        # Initialize SDL2
+        sdl2.ext.init()
+        
+        # Create an SDL2 window
+        self.sdl_window = sdl2.SDL_CreateWindow(b"Image Viewer", 
+                                            sdl2.SDL_WINDOWPOS_CENTERED, 
+                                            sdl2.SDL_WINDOWPOS_CENTERED, 
+                                            self.width, self.height, 
+                                            sdl2.SDL_WINDOW_OPENGL)
+        if not self.sdl_window:
+            raise Exception("Could not create SDL window:", sdl2.SDL_GetError())
+        
+        # Create OpenGL context
+        self.context = sdl2.SDL_GL_CreateContext(self.sdl_window)
+        
+        # Enable 2D textures
+        gl.glEnable(gl.GL_TEXTURE_2D)
+        
+        # Generate a texture ID and bind it
+        self.tex = gl.glGenTextures(1)
+        gl.glBindTexture(gl.GL_TEXTURE_2D, self.tex)
+        
+        # Set texture parameters
+        gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_S, gl.GL_CLAMP_TO_EDGE)
+        gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_T, gl.GL_CLAMP_TO_EDGE)
+        gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, gl.GL_LINEAR)
+        gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
+
+    def cudasdl_setup(self):
         if sdl2.SDL_Init(sdl2.SDL_INIT_VIDEO):
             raise SDLException(sdl2.SDL_GetError())
 
@@ -212,8 +245,8 @@ class Renderer:
             video.SDL_GL_CONTEXT_PROFILE_MASK, video.SDL_GL_CONTEXT_PROFILE_CORE
         )
         self.gl_context = sdl2.SDL_GL_CreateContext(self.sdl_window)
-
-    def gl_setup(self):
+        
+    def cudagl_setup(self):
         self.shader_program = create_shader_program()
         self.vao = gl.glGenVertexArrays(1)
 
@@ -261,7 +294,7 @@ class Renderer:
 
         self.cuda_is_setup = True
 
-    def gl_draw_internal(self):
+    def cudagl_draw_internal(self):
         gl.glUseProgram(self.shader_program)
         try:
             gl.glClearColor(0, 0, 0, 1)
@@ -275,7 +308,7 @@ class Renderer:
             gl.glUseProgram(0)
         sdl2.SDL_GL_SwapWindow(self.sdl_window)
 
-    def gl_step(self):
+    def gl_get_events(self):
         event = sdl2.SDL_Event()
         
         # retrieve presses keyboard key codes
@@ -310,8 +343,9 @@ class Renderer:
                     # key released
                     elif not key_states[key_code] and key_press_tracker_array[key_code] == 1:
                         key_press_tracker_array[key_code] == 0
-                    
-            self.gl_draw_internal()
+            
+            if self.backend == 'cudagl':
+                self.cudagl_draw_internal()
             
         # convert key code to SDL2 convention
         pressed_key_code = sdl_to_cv2_keycode(pressed_key_code)
@@ -323,8 +357,64 @@ class Renderer:
         peripheralEvent.mouse_posY = mouse_posY.value
         
         return peripheralEvent
-
+    
     def gl_render(self, image):
+        
+        if type(image) == torch.Tensor:
+            image = image.cpu().numpy()
+        else:
+            if type(image) == np.ndarray:
+                pass
+            elif type(image) == Image.Image:
+                image = np.array(image)
+            else:
+                raise Exception('render function received input of unknown type')        
+                
+        # clamp and set correct type
+        image = np.clip(image, 0, 255)
+        image = image.astype(np.uint8)
+        
+        # reshape if there is a mismatched between supply image size and window size
+        if image.shape[1] != self.width or image.shape[0] != self.height:
+            image = cv2.resize(image, (self.width, self.height))
+            
+        image = np.flip(image, axis=0).copy()
+            
+        # Load image data into the texture
+        gl.glBindTexture(gl.GL_TEXTURE_2D, self.tex)
+        gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, gl.GL_RGB, self.width, self.height, 0, gl.GL_RGB, gl.GL_UNSIGNED_BYTE, image)
+        
+        events = sdl2.ext.get_events()
+
+        # Handle SDL2 events
+        # events = sdl2.ext.get_events()
+        # for event in events:
+        #     if event.type == sdl2.SDL_QUIT:
+        #         self.cleanup()
+        #         return
+
+        # Clear the screen
+        gl.glClear(gl.GL_COLOR_BUFFER_BIT)
+        
+        # Render the texture as a quad
+        gl.glBegin(gl.GL_QUADS)
+        gl.glTexCoord2f(0.0, 0.0)
+        gl.glVertex2f(-1.0, -1.0)
+        gl.glTexCoord2f(1.0, 0.0)
+        gl.glVertex2f(1.0, -1.0)
+        gl.glTexCoord2f(1.0, 1.0)
+        gl.glVertex2f(1.0, 1.0)
+        gl.glTexCoord2f(0.0, 1.0)
+        gl.glVertex2f(-1.0, 1.0)
+        gl.glEnd()
+        
+        # Swap buffers
+        sdl2.SDL_GL_SwapWindow(self.sdl_window)
+        
+        pressed_key_code = self.gl_get_events()
+        return pressed_key_code        
+
+    def cudagl_render(self, image):
         
         # first check if input data types are valid
         if type(image) == torch.Tensor:
@@ -396,7 +486,7 @@ class Renderer:
         (err,) = cu.cudaGraphicsUnmapResources(1, self.cuda_image, cu.cudaStreamLegacy)
         if err != cu.cudaError_t.cudaSuccess:
             raise CudaException("Unable to unmap graphics resource")
-        pressed_key_code = self.gl_step()
+        pressed_key_code = self.gl_get_events()
         return pressed_key_code
         
     def cv2_render(self, image):
@@ -496,7 +586,9 @@ class Renderer:
         return peripheralEvent
             
     def render(self, image):
-        if self.backend == 'gl':
+        if self.backend == 'cudagl':
+            peripheralEvent = self.cudagl_render(image)
+        elif self.backend == 'gl':
             peripheralEvent = self.gl_render(image)
         elif self.backend == 'opencv':
             peripheralEvent = self.cv2_render(image)
@@ -601,12 +693,12 @@ if __name__ == '__main__z':
 
 if __name__ == '__main__':
     
-    sz = (500, 500)
-    renderer = Renderer(width=sz[1], height=sz[0], backend='pygame')
+    sz = (512, 1024)
+    renderer = Renderer(width=sz[1], height=sz[0], backend='gl')
 
     while True:
         # numpy array
-        image = np.random.rand(sz[0]//4,sz[1]//4,4)*255
+        image = np.random.rand(sz[0]//4,sz[1]//4,3)*255
         
         # PIL array
         # image = Image.fromarray(np.uint8(np.random.rand(sz[0],sz[1],4)*255))
