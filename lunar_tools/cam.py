@@ -25,6 +25,7 @@ class WebCam():
         self.smart_init()
         
         self.threader_active = True
+        self.acquire_image = True
         self.thread = threading.Thread(target=self.threader_runfunc_cam, daemon=True)
         self.thread.start()
             
@@ -81,6 +82,17 @@ class WebCam():
         self.cam.set(cv2.CAP_PROP_FOURCC, codec)
         self.cam.set(cv2.CAP_PROP_FRAME_WIDTH,self.shape_hw[1])
         self.cam.set(cv2.CAP_PROP_FRAME_HEIGHT,self.shape_hw[0])
+        
+    def change_resolution(self, new_shape_hw):
+        self.shape_hw = new_shape_hw
+        
+        self.acquire_image = False
+        time.sleep(0.2)
+        
+        self.cam.set(cv2.CAP_PROP_FRAME_WIDTH,self.shape_hw[1])
+        self.cam.set(cv2.CAP_PROP_FRAME_HEIGHT,self.shape_hw[0])
+        
+        self.acquire_image = True
 
     def set_focus_inf(self):
         self.cam.set(cv2.CAP_PROP_AUTOFOCUS, 0)
@@ -98,16 +110,17 @@ class WebCam():
 
     def threader_runfunc_cam(self):
         while self.threader_active:
-            img = self.get_raw_image()
-            if img is None:
-                print("threader_runfunc_cam: bad img is None. trying to repair...")
-                self.cam.release()
-                cv2.VideoCapture(self.device_ptr).release()
-                self.smart_init()
-                time.sleep(1)
-            else:
-                self.img_last = self.process_raw_image(img)
-            time.sleep(self.sleep_time_thread)
+            if self.acquire_image:
+                img = self.get_raw_image()
+                if img is None:
+                    print("threader_runfunc_cam: bad img is None. trying to repair...")
+                    self.cam.release()
+                    cv2.VideoCapture(self.device_ptr).release()
+                    self.smart_init()
+                    time.sleep(1)
+                else:
+                    self.img_last = self.process_raw_image(img)
+                time.sleep(self.sleep_time_thread)
 
     def get_raw_image(self):
         _, img = self.cam.read()
@@ -129,8 +142,8 @@ class WebCam():
         
 if __name__ == "__main__":
     from PIL import Image
-    cam = WebCam(cam_id=0)
-    ir = WebCam(cam_id=2)
+    cam = WebCam(cam_id=-1)
+    # ir = WebCam(cam_id=2)
     while True:
         img = cam.get_img()
         cv2.imshow('webcam', img[:,:,::-1])
