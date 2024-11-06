@@ -191,12 +191,17 @@ class Renderer:
         # Initialize SDL2
         sdl2.ext.init()
         
+        if self.do_fullscreen:
+            flags_window = sdl2.SDL_WINDOW_OPENGL | sdl2.SDL_WINDOW_FULLSCREEN
+        else:
+            flags_window = sdl2.SDL_WINDOW_OPENGL
+        
         # Create an SDL2 window
         self.sdl_window = sdl2.SDL_CreateWindow(b"Image Viewer", 
                                             sdl2.SDL_WINDOWPOS_CENTERED, 
                                             sdl2.SDL_WINDOWPOS_CENTERED, 
                                             self.width, self.height, 
-                                            sdl2.SDL_WINDOW_OPENGL)
+                                            flags_window)
         if not self.sdl_window:
             raise Exception("Could not create SDL window:", sdl2.SDL_GetError())
         
