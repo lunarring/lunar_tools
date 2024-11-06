@@ -537,7 +537,8 @@ class Renderer:
 
     def pygame_setup(self):
         pygame.init()
-        flags = pygame.FULLSCREEN if self.do_fullscreen else 0
+        flags = (pygame.NOFRAME | pygame.RESIZABLE) if self.do_fullscreen else 0
+        # flags = pygame.FULLSCREEN if self.do_fullscreen else 0
         self.screen = pygame.display.set_mode((self.width, self.height), flags)
         pygame.display.set_caption(self.window_title)
         self.running = True
@@ -699,7 +700,7 @@ if __name__ == '__main__z':
 if __name__ == '__main__':
     
     sz = (512, 1024)
-    renderer = Renderer(width=sz[1], height=sz[0], backend='gl')
+    renderer = Renderer(width=sz[1], height=sz[0], backend='pygame', do_fullscreen=True)
 
     while True:
         # numpy array
