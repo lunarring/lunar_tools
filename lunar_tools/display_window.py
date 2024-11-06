@@ -561,8 +561,9 @@ class Renderer:
         if image.shape[1] != self.width or image.shape[0] != self.height:
             image = cv2.resize(image, (self.width, self.height))
 
-        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+        # image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
         image = np.rot90(image)  # Pygame requires rotation to match orientation
+        image = np.flip(image, axis=0)
 
         surf = pygame.surfarray.make_surface(image)
         self.screen.blit(surf, (0, 0))
@@ -705,6 +706,8 @@ if __name__ == '__main__':
     while True:
         # numpy array
         image = np.random.rand(sz[0]//4,sz[1]//4,3)*255
+        image[:50,:,:] = 0
+        image[:,:50,:] = 0
         
         # PIL array
         # image = Image.fromarray(np.uint8(np.random.rand(sz[0],sz[1],4)*255))
