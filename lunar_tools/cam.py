@@ -12,14 +12,17 @@ from lunar_tools.utils import get_os_type
 
 
 class WebCam():
-    def __init__(self, cam_id=0, shape_hw=(576,1024)):
+    def __init__(self, cam_id=0, shape_hw=(576,1024), do_digital_exposure_accumulation=False):
         """
         """
         self.do_mirror = False
         self.shift_colors = True
+        self.do_digital_exposure_accumulation = do_digital_exposure_accumulation
+        self.exposure_buf_size = 3
         self.cam_id = cam_id
         self.shape_hw = shape_hw
         self.img_last = np.zeros((shape_hw[0], shape_hw[1], 3), dtype=np.uint8)
+        self.frame_buffer = []
         self.device_ptr = 0
         self.sleep_time_thread = 0.001 
         self.smart_init()
@@ -119,7 +122,17 @@ class WebCam():
                     self.smart_init()
                     time.sleep(1)
                 else:
+                    # accumulate frames over time and average to reduce noise
+                    if self.do_digital_exposure_accumulation:
+                        self.frame_buffer.append(img)
+                        
+                        if len(self.frame_buffer) > self.exposure_buf_size:
+                            self.frame_buffer = self.frame_buffer[1:]
+                            frame_average = np.array(self.frame_buffer).astype(np.float32).mean(0)
+                            img = frame_average.astype(np.uint8)
+                    
                     self.img_last = self.process_raw_image(img)
+                    
                 time.sleep(self.sleep_time_thread)
 
     def get_raw_image(self):
@@ -142,8 +155,9 @@ class WebCam():
         
 if __name__ == "__main__":
     from PIL import Image
-    cam = WebCam(cam_id=-1)
+    cam = WebCam(cam_id=0, do_digital_exposure_accumulation=True)
     # ir = WebCam(cam_id=2)
+    
     while True:
         img = cam.get_img()
         cv2.imshow('webcam', img[:,:,::-1])
