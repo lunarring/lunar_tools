@@ -285,7 +285,8 @@ logger.print("green", "green")
 ```
 
 # Health status reporting via telegram
-First you will need to update your bashrc or bash_profile with the telegram bot env variables.
+Obtain a bot here: https://docs.tracardi.com/qa/how_can_i_get_telegram_bot/
+Next you will need to update your bashrc or bash_profile with the telegram bot env variables.
 
 
 ```bash
