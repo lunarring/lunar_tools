@@ -12,7 +12,7 @@ import random
 from lunar_tools.utils import get_os_type
 import pygame
 import threading
-
+import time
 
 if get_os_type() == "Linux":
     from cuda import cudart as cu
