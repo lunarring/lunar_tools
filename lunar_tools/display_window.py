@@ -11,6 +11,8 @@ import cv2
 import random
 from lunar_tools.utils import get_os_type
 import pygame
+import threading
+
 
 if get_os_type() == "Linux":
     from cuda import cudart as cu
@@ -153,6 +155,7 @@ class Renderer:
                  gpu_id: int = 0,
                  window_title: str = "lunar_render_window",
                  do_fullscreen: bool = False,
+                 do_window_refresh_no_freeze = True,  # TODO: setting it to True might interfere with event polling, such as grabbing inputs from keyboard/mouse; so far only implemented for "gl" backend
                  backend = None):
         
         self.window_title = window_title
@@ -160,6 +163,7 @@ class Renderer:
         self.width = width
         self.height = height
         self.do_fullscreen = do_fullscreen
+        self.do_window_refresh_no_freeze = do_window_refresh_no_freeze
         
         if backend is None:
             if get_os_type() == "Linux":
@@ -220,6 +224,12 @@ class Renderer:
         gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_T, gl.GL_CLAMP_TO_EDGE)
         gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, gl.GL_LINEAR)
         gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
+        
+        # Event polling thread
+        if self.do_window_refresh_no_freeze:
+            self.running = True
+            self.event_thread = threading.Thread(target=self.gl_poll_events_thread, daemon=True)
+            self.event_thread.start()
 
     def cudasdl_setup(self):
         if sdl2.SDL_Init(sdl2.SDL_INIT_VIDEO):
@@ -608,6 +618,16 @@ class Renderer:
         sdl2.SDL_GL_DeleteContext(self.gl_context)
         sdl2.SDL_DestroyWindow(self.sdl_window)
         sdl2.SDL_Quit()
+        
+    def gl_poll_events_thread(self):
+        # Poll SDL events in a separate thread
+        while self.running:
+            events = sdl2.ext.get_events()
+            for event in events:
+                if event.type == sdl2.SDL_QUIT:
+                    self.cleanup()
+                    exit(0)
+            time.sleep(1.0)  # Prevent busy-looping           
 
 
 class GridRenderer():
@@ -678,7 +698,7 @@ class GridRenderer():
             return m, n
         else:
             return -1, -1
-
+        
 if __name__ == '__main__z':
     import time
     nmb_rows = 2
@@ -701,8 +721,8 @@ if __name__ == '__main__z':
 if __name__ == '__main__':
     
     sz = (512, 1024)
-    renderer = Renderer(width=sz[1], height=sz[0], backend='pygame', do_fullscreen=True)
-
+    renderer = Renderer(width=sz[1], height=sz[0], backend='gl', do_fullscreen=False)
+    
     while True:
         # numpy array
         image = np.random.rand(sz[0]//4,sz[1]//4,3)*255
@@ -718,7 +738,6 @@ if __name__ == '__main__':
         # image = torch.rand((sz[0],sz[1],3), device='cuda:0')*255
         # image = torch.rand((sz[0],sz[1],4), device='cuda:0')*255
         renderer.render(image)
-
 
 
     
