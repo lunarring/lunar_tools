@@ -62,6 +62,9 @@ class WebCam():
     def init_mac(self):
         self.cam = cv2.VideoCapture(self.cam_id, cv2.CAP_AVFOUNDATION)
         
+    def init_windows(self):
+        self.cam = cv2.VideoCapture(self.cam_id)
+        
     def release(self):
         self.threader_active = False
         if hasattr(self, 'thread'):
@@ -75,6 +78,8 @@ class WebCam():
             self.init_linux()
         elif get_os_type() == "MacOS":
             self.init_mac()
+        elif get_os_type() == "Windows":
+            self.init_windows()            
         else:
             raise NotImplementedError("Only Linux and Mac supported.")
         self.set_cap_props()
