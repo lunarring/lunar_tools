@@ -16,6 +16,7 @@ class TelegramBot:
         self.base_url = f"https://api.telegram.org/bot{self.token}"
         self.timeout = 5
         
+        
     def send_message(self, message):
         payload = {
             'chat_id': self.chat_id,
@@ -58,15 +59,17 @@ class TelegramBot:
 
 
 class HealthReporter:
-    def __init__(self, exhibit_name, alive_status_enable_after=60, token=None, chat_id=None):
-        self.telegram_bot = TelegramBot(token, chat_id)
-        self.register_exhibit(exhibit_name)
-        self.maximum_time_without_alive = 10 # seconds
-        self.has_been_reported_not_alive = False
-        self.last_time_alive = time.time()
-        self.start_health_check_thread()
-        self.time_started = time.time()
-        self.alive_status_enable_after = alive_status_enable_after # to accomodate longer startup times
+    def __init__(self, exhibit_name, alive_status_enable_after=60, token=None, chat_id=None, deactivated=False):
+        self.disable = deactivated
+        if not self.disable:
+            self.telegram_bot = TelegramBot(token, chat_id)
+            self.register_exhibit(exhibit_name)
+            self.maximum_time_without_alive = 10 # seconds
+            self.has_been_reported_not_alive = False
+            self.last_time_alive = time.time()
+            self.start_health_check_thread()
+            self.time_started = time.time()
+            self.alive_status_enable_after = alive_status_enable_after # to accomodate longer startup times
 
     def register_exhibit(self, exhibit_name):
         assert exhibit_name is not None
@@ -74,7 +77,8 @@ class HealthReporter:
         self.send_message(f"STARTED! at {self.get_current_time()}")
     
     def send_message(self, message):
-        self.telegram_bot.send_message(f"{self.exhibit_name}: {message}")
+        if not self.disable:
+            self.telegram_bot.send_message(f"{self.exhibit_name}: {message}")
 
     def get_current_time(self):
         return datetime.now().strftime("%H:%M")
@@ -115,7 +119,7 @@ if __name__ == "__main__":
     # DO NOT FORGET TO update bashrc/profile with
     # export TELEGRAM_BOT_TOKEN='7191618275:AAGnTVI9eAKYpgl82sM8mWz9fFiIaoQZFc8'
     # export TELEGRAM_CHAT_ID='-4106034916'
-    health_reporter = HealthReporter("TESTINSTALL")
+    health_reporter = HealthReporter("TESTINSTALL", deactivated=True)
     
     # in while loop, always report that exhibit is alive. This happens in a thread already.
     for i in range(100): #while lopp
