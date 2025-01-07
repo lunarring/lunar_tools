@@ -141,13 +141,16 @@ async def send_audio_worker_sounddevice(
         stream.stop()
         stream.close()
 
-
 class RealTimeVoice:
     def __init__(
         self,
         instructions: str, 
         on_user_message: Optional[Callable[[str], None]] = None,
-        model="gpt-4o-mini-realtime-preview-2024-12-17",
+        model="gpt-4o-mini-realtime-preview-2024-12-17", 
+        temperature=0.6,
+        max_response_output_tokens="inf",
+        trigger_message=None,
+        voice="alloy",
     ):
         """
         Initialize the RealTimeVoice manager.
@@ -158,15 +161,18 @@ class RealTimeVoice:
         """
         self.on_user_message = on_user_message
         self.model = model
+        self.temperature = temperature
+        self.max_response_output_tokens = max_response_output_tokens
 
         # Spawn our own client and audio player here.
         self.client = AsyncOpenAI()
         self.audio_player = AudioPlayerAsync()
+        self.trigger_message = trigger_message
 
         self.REALTIME_API_CONFIG = dict(
             modalities=["text", "audio"],
             instructions=instructions,
-            voice="alloy",
+            voice=voice,
             input_audio_format="pcm16",
             output_audio_format="pcm16",
             input_audio_transcription=dict(model="whisper-1"),
@@ -176,10 +182,10 @@ class RealTimeVoice:
                 prefix_padding_ms=100,
                 silence_duration_ms=1000,
             ),
-            tools=None,
+            tools=[],
             tool_choice="auto",
-            temperature=1.2,
-            max_response_output_tokens="inf",
+            temperature=self.temperature,
+            max_response_output_tokens=self.max_response_output_tokens,
         )
 
     async def _send_mic_audio(
@@ -248,27 +254,29 @@ class RealTimeVoice:
             acc_items: Dict[str, str] = {}
 
             # Send an initial user message to get the conversation going
-            trigger = {
-                "type": "conversation.item.create",
-                "item": {
-                    "type": "message",
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "input_text",
-                            "text": "Ask me what I want to draw!",
-                        }
-                    ]
+            if self.trigger_message is not None:
+                print("Sending initial assistant message (trigger_message) to start the conversation...")
+                trigger = {
+                    "type": "conversation.item.create",
+                    "item": {
+                        "type": "message",
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "input_text",
+                                "text": self.trigger_message,
+                            }
+                        ]
+                    }
                 }
-            }
-            await conn.send(trigger)
-            trigger = {
-                "type": "response.create",
-                "response": {
-                    "modalities": ["audio", "text"]
+                await conn.send(trigger)
+                trigger = {
+                    "type": "response.create",
+                    "response": {
+                        "modalities": ["audio", "text"]
+                    }
                 }
-            }
-            await conn.send(trigger)
+                await conn.send(trigger)
 
             async for event in conn:
                 if event.type == "session.created":
@@ -298,33 +306,33 @@ class RealTimeVoice:
                             await self.on_user_message(user_message)
                         asyncio.create_task(do_callback())
 
-                # Check if the model decided to call a function
-                elif event.type == "response.done":
-                    # Go through output items; if any are function calls, we handle them
-                    if event.response and event.response.output:
-                        for item in event.response.output:
-                            if item.type == "function_call":
-                                # Parse arguments
-                                func_name = item.name
-                                call_id = item.call_id
-                                args = json.loads(item.arguments)
-                                # If it's our known function, handle it
-                                if func_name == "redraw_image":
-                                    prompt = args["prompt"]
-                                    # Simulate the "redraw" with flux/renderer
-                                    # Provide the result back to the model:
-                                    # conversation.item.create with type=function_call_output
-                                    redraw_output = {
-                                        "type": "conversation.item.create",
-                                        "item": {
-                                            "type": "function_call_output",
-                                            "call_id": call_id,
-                                            "output": json.dumps({"result": f"Redrew with prompt: {prompt}"})
-                                        }
-                                    }
-                                    await conn.send(redraw_output)
-                                    # Now ask model for a new response with the function result
-                                    await conn.send({"type": "response.create", "response": {}})
+                # # Check if the model decided to call a function
+                # elif event.type == "response.done":
+                #     # Go through output items; if any are function calls, we handle them
+                #     if event.response and event.response.output:
+                #         for item in event.response.output:
+                #             if item.type == "function_call":
+                #                 # Parse arguments
+                #                 func_name = item.name
+                #                 call_id = item.call_id
+                #                 args = json.loads(item.arguments)
+                #                 # If it's our known function, handle it
+                #                 if func_name == "redraw_image":
+                #                     prompt = args["prompt"]
+                #                     # Simulate the "redraw" with flux/renderer
+                #                     # Provide the result back to the model:
+                #                     # conversation.item.create with type=function_call_output
+                #                     redraw_output = {
+                #                         "type": "conversation.item.create",
+                #                         "item": {
+                #                             "type": "function_call_output",
+                #                             "call_id": call_id,
+                #                             "output": json.dumps({"result": f"Redrew with prompt: {prompt}"})
+                #                         }
+                #                     }
+                #                     await conn.send(redraw_output)
+                #                     # Now ask model for a new response with the function result
+                #                     await conn.send({"type": "response.create", "response": {}})
 
                 # else:
                 #   print(f"other event: {event}")
@@ -346,12 +354,13 @@ class RealTimeVoice:
 
 if __name__ == "__main__":
 
-    instructions = ("Respond in a sassy and short way.")
+    instructions = "Respond in a sassy and short way."
+    trigger_message = "Ask me what is my favorite thing in life!"
 
     # Optional: Set up the callback to handle user messages.
     async def on_user_message(transcript: str):
         print(f"on_user_message called, transcript: {transcript}")
 
-    rtv = RealTimeVoice(instructions, on_user_message=on_user_message)
+    rtv = RealTimeVoice(instructions, on_user_message=on_user_message, trigger_message=trigger_message)
     rtv.start()
     print("Realtime voice session finished.")

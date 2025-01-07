@@ -3,6 +3,7 @@ from .audio import SoundPlayer
 from .audio import Speech2Text
 from .audio import Text2SpeechElevenlabs
 from .audio import Text2SpeechOpenAI
+from .realtime_voice import RealTimeVoice
 from .cam import WebCam
 from .comms import OSCReceiver
 from .comms import OSCSender
