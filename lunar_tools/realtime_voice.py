@@ -146,27 +146,34 @@ class RealTimeVoice:
         self,
         instructions: str, 
         on_user_message: Optional[Callable[[str], None]] = None,
+        on_ai_message: Optional[Callable[[str], None]] = None,
         model="gpt-4o-mini-realtime-preview-2024-12-17", 
         temperature=0.6,
         max_response_output_tokens="inf",
         trigger_message=None,
         voice="alloy",
+        mute_mic_while_ai_speaking=True,
     ):
         """
         Initialize the RealTimeVoice manager.
         instructions: The instructions for the model.
         on_user_message: An optional async callback function that will be invoked with the text
             of the user's completed transcription.
+        on_ai_message: An optional async callback function that will be invoked with the text
+            of the AI's response.
         model: The model to be used. Default is "gpt-4o-mini-realtime-preview-2024-12-17".
         temperature: The temperature for the model's output. Default is 0.6.
         max_response_output_tokens: The maximum number of output tokens for the model's response. Default is "inf".
         trigger_message: The trigger message for the model.
         voice: The voice for the model. Default is "alloy". Supported voices are alloy, ash, coral, echo, fable, onyx, nova, sage and shimmer.
+        mute_mic_while_ai_speaking: A boolean to control whether to mute the microphone while the AI is speaking. Default is True.
         """
         self.on_user_message = on_user_message
+        self.on_ai_message = on_ai_message
         self.model = model
         self.temperature = temperature
         self.max_response_output_tokens = max_response_output_tokens
+        self.mute_mic_while_ai_speaking = mute_mic_while_ai_speaking
 
         # Spawn our own client and audio player here.
         self.client = AsyncOpenAI()
@@ -216,7 +223,7 @@ class RealTimeVoice:
                 # Read a small chunk from the mic.
                 data, _ = stream.read(read_size)
 
-                if self.audio_player.is_currently_speaking:
+                if self.mute_mic_while_ai_speaking and self.audio_player.is_currently_speaking:
                     data = np.zeros_like(data)
 
                 await connection.input_audio_buffer.append(
@@ -338,6 +345,18 @@ class RealTimeVoice:
                 #                     # Now ask model for a new response with the function result
                 #                     await conn.send({"type": "response.create", "response": {}})
 
+                elif event.type == "response.done":
+                    if event.response and event.response.output:
+                        for item in event.response.output:
+                            if item.type == "message":
+                                for content in item.content:
+                                    if content.type == "audio":
+                                        ai_message = content.transcript
+                                        if self.on_ai_message is not None:
+                                            async def do_callback():
+                                                await self.on_ai_message(ai_message)
+                                            asyncio.create_task(do_callback())
+
                 # else:
                 #   print(f"other event: {event}")
 
@@ -364,7 +383,11 @@ if __name__ == "__main__":
     # Optional: Set up the callback to handle user messages.
     async def on_user_message(transcript: str):
         print(f"on_user_message called, transcript: {transcript}")
+        
+    # Optional: Set up the callback to handle user messages.
+    async def on_ai_message(transcript: str):
+        print(f"on_ai_message called, transcript: {transcript}")
 
-    rtv = RealTimeVoice(instructions, on_user_message=on_user_message, trigger_message=trigger_message)
+    rtv = RealTimeVoice(instructions, on_user_message=on_user_message, on_ai_message=on_ai_message, trigger_message=trigger_message)
     rtv.start()
     print("Realtime voice session finished.")
