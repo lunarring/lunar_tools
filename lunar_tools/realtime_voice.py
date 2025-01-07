@@ -154,10 +154,14 @@ class RealTimeVoice:
     ):
         """
         Initialize the RealTimeVoice manager.
-        
-        :param on_user_message:
-            An optional async callback function that will be invoked with the text
+        instructions: The instructions for the model.
+        on_user_message: An optional async callback function that will be invoked with the text
             of the user's completed transcription.
+        model: The model to be used. Default is "gpt-4o-mini-realtime-preview-2024-12-17".
+        temperature: The temperature for the model's output. Default is 0.6.
+        max_response_output_tokens: The maximum number of output tokens for the model's response. Default is "inf".
+        trigger_message: The trigger message for the model.
+        voice: The voice for the model. Default is "alloy". Supported voices are alloy, ash, coral, echo, fable, onyx, nova, sage and shimmer.
         """
         self.on_user_message = on_user_message
         self.model = model
