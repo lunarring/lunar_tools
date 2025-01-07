@@ -103,39 +103,47 @@ VSYNC on your system
 On Ubuntu do: Run nvidia-settings 2. Screen 0 > OpenGl > Sync to VBLank ->
 off
 
-### Real-time display example with remote streaming
-Remote streaming allows to generate images on one PC, typically with a beefy GPU, and to show them on another one, which may not have a GPU. The streaming is handled via ZMQ and automatically compresses the images using jpeg compression.
-
-Sender code example: generates an image and sends it to receiver. This is your backend server with GPU and we are emulating the image creation process by generating random arrays.
-```python
-import lunar_tools as lt
-import numpy as np
-sz = (800, 800)
-ip = '127.0.0.1'
-
-server = lt.ZMQPairEndpoint(is_server=True, ip='127.0.0.1', port='5556')
-
-while True:
-    test_image = np.random.randint(0, 256, (sz[0], sz[1], 3), dtype=np.uint8)
-    img_reply = server.send_img(test_image)
-```
-
-
-Reveiver code example: receives the image and renders it, this would be the frontend client e.g. a macbook.
-```python
-import lunar_tools as lt
-sz = (800, 800)
-ip = '127.0.0.1'
-
-client = lt.ZMQPairEndpoint(is_server=False, ip='127.0.0.1', port='5556')
-renderer = lt.Renderer(width=sz[1], height=sz[0])
-while True:
-    image = client.get_img()
-    if image is not None:
-        renderer.render(image)
-```
-
 # Language
+
+## RealtimeVoice OpenAI
+
+### Simple Example
+```python
+import lunar_tools as lt
+
+instructions = "Respond in a sassy and short way."
+rtv = lt.RealTimeVoice(instructions)
+rtv.start()
+```
+
+### Advanced Example
+```python
+import lunar_tools as lt
+
+instructions = "Respond in a sassy and short way."
+trigger_message = "Ask me what is my favorite thing in life!"
+mute_mic_while_ai_speaking = True
+temperature = 1.2  # Maximum insanity
+
+# Optional: Set up the callback to handle user messages.
+async def on_user_message(transcript: str):
+    print(f"on_user_message called, transcript: {transcript}")
+
+# Optional: Set up the callback to handle AI messages.
+async def on_ai_message(transcript: str):
+    print(f"on_ai_message called, transcript: {transcript}")
+
+rtv = lt.RealTimeVoice(
+    instructions,
+    on_user_message=on_user_message,
+    on_ai_message=on_ai_message,
+    trigger_message=trigger_message,
+    mute_mic_while_ai_speaking=mute_mic_while_ai_speaking,
+    temperature=temperature
+)
+rtv.start()
+```
+
 
 ## GPT4
 ```python
@@ -257,6 +265,39 @@ client_received_image = client.get_img()
 if client_received_image is not None:
     print("Client received image from Server")
 ```
+
+### Real-time display example with remote streaming
+Remote streaming allows to generate images on one PC, typically with a beefy GPU, and to show them on another one, which may not have a GPU. The streaming is handled via ZMQ and automatically compresses the images using jpeg compression.
+
+Sender code example: generates an image and sends it to receiver. This is your backend server with GPU and we are emulating the image creation process by generating random arrays.
+```python
+import lunar_tools as lt
+import numpy as np
+sz = (800, 800)
+ip = '127.0.0.1'
+
+server = lt.ZMQPairEndpoint(is_server=True, ip='127.0.0.1', port='5556')
+
+while True:
+    test_image = np.random.randint(0, 256, (sz[0], sz[1], 3), dtype=np.uint8)
+    img_reply = server.send_img(test_image)
+```
+
+
+Reveiver code example: receives the image and renders it, this would be the frontend client e.g. a macbook.
+```python
+import lunar_tools as lt
+sz = (800, 800)
+ip = '127.0.0.1'
+
+client = lt.ZMQPairEndpoint(is_server=False, ip='127.0.0.1', port='5556')
+renderer = lt.Renderer(width=sz[1], height=sz[0])
+while True:
+    image = client.get_img()
+    if image is not None:
+        renderer.render(image)
+```
+
 
 ## OSC
 ```python
