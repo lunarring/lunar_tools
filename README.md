@@ -122,7 +122,7 @@ import lunar_tools as lt
 
 instructions = "Respond in a sassy and short way."
 trigger_message = "Ask me what is my favorite thing in life!"
-mute_mic_while_ai_speaking = True
+mute_mic_while_ai_speaking = False # Default is True, as otherwise the AI will interrupt itself if you are using speakers...
 temperature = 1.2  # Maximum insanity
 
 # Optional: Set up the callback to handle user messages.

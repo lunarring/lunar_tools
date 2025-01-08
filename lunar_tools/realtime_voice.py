@@ -1,7 +1,7 @@
 import asyncio
 import base64
 import json
-from typing import Any, Dict, Optional, Callable, Awaitable
+from typing import Any, Dict, Optional, Callable, Awaitable, List
 import sounddevice as sd
 import numpy as np
 import threading
@@ -16,6 +16,15 @@ CHUNK_LENGTH_S = 0.05  # 50ms
 SAMPLE_RATE = 24000
 FORMAT = np.int16
 CHANNELS = 1
+
+from dataclasses import dataclass
+from datetime import datetime
+
+@dataclass
+class TranscriptEntry:
+    role: str  # 'user' or 'assistant'
+    message: str
+    timestamp: datetime = datetime.now()
 
 class AudioPlayerAsync:
     def __init__(self):
@@ -175,6 +184,9 @@ class RealTimeVoice:
         self.max_response_output_tokens = max_response_output_tokens
         self.mute_mic_while_ai_speaking = mute_mic_while_ai_speaking
 
+        # Initialize the transcripts list
+        self.transcripts: List[TranscriptEntry] = []
+
         # Spawn our own client and audio player here.
         self.client = AsyncOpenAI()
         self.audio_player = AudioPlayerAsync()
@@ -253,7 +265,7 @@ class RealTimeVoice:
         print("Connecting to the Realtime API...")
 
         async with self.client.beta.realtime.connect(model=self.model) as conn:
-            print("Connection established. Waiting for events...")
+            print("Real-time session established. Waiting for events...")
 
             # Override session parameters with our function definitions etc.
             await conn.session.update(session=self.REALTIME_API_CONFIG)
@@ -312,6 +324,10 @@ class RealTimeVoice:
 
                 elif event.type == "conversation.item.input_audio_transcription.completed":
                     user_message = event.transcript
+                                    # Append to transcripts
+                    self.transcripts.append(
+                        TranscriptEntry( role="user", message=user_message)
+                    )
                     if self.on_user_message is not None:
                         async def do_callback():
                             await self.on_user_message(user_message)
@@ -352,6 +368,9 @@ class RealTimeVoice:
                                 for content in item.content:
                                     if content.type == "audio":
                                         ai_message = content.transcript
+                                        self.transcripts.append(
+                                            TranscriptEntry( role="ai", message=ai_message)
+                                        )
                                         if self.on_ai_message is not None:
                                             async def do_callback():
                                                 await self.on_ai_message(ai_message)
@@ -377,8 +396,11 @@ class RealTimeVoice:
 
 if __name__ == "__main__":
 
-    instructions = "Respond in a sassy and short way."
-    trigger_message = "Ask me what is my favorite thing in life!"
+    instructions = "Respond in a sassy and short way, and be bored and annoyed with me all the time!"
+    trigger_message = "Ask me something totally random and weird!"
+    mute_mic_while_ai_speaking = True
+    temperature = 1.2 
+    voice = "echo" #alloy, ash, coral, echo, fable, onyx, nova, sage and shimmer.
 
     # Optional: Set up the callback to handle user messages.
     async def on_user_message(transcript: str):
@@ -388,6 +410,5 @@ if __name__ == "__main__":
     async def on_ai_message(transcript: str):
         print(f"on_ai_message called, transcript: {transcript}")
 
-    rtv = RealTimeVoice(instructions, on_user_message=on_user_message, on_ai_message=on_ai_message, trigger_message=trigger_message)
+    rtv = RealTimeVoice(instructions, on_user_message=on_user_message, on_ai_message=on_ai_message, trigger_message=trigger_message, mute_mic_while_ai_speaking=mute_mic_while_ai_speaking, temperature=temperature, voice=voice)
     rtv.start()
-    print("Realtime voice session finished.")
