@@ -129,20 +129,26 @@ mute_mic_while_ai_speaking = True # that's the default already, just FYI
 
 # Optional: callback for when the whisper transcription is done
 async def on_user_message(transcript: str):
-    print(f"(on_user_message) User said: {transcript}")
+  print(f"(on_user_message) User said: {transcript}")
 
-# Optional: another callback for when the transcript of the voice response is there
+# Optional: callback for when the transcript of the voice response is there
 async def on_ai_message(transcript: str):
-    print(f"(on_ai_message) AI replied: {transcript}")
+  print(f"(on_ai_message) AI replied: {transcript}")
+
+# Optional: callback for when the audio has been completely played
+async def on_audio_complete():
+    print("(on_audio_complete) AI audio has been completely played.")
 
 rtv = RealTimeVoice(
     instructions=instructions,
     on_user_message=on_user_message,
     on_ai_message=on_ai_message,
+    on_audio_complete=on_audio_complete,
     model="gpt-4o-mini-realtime-preview-2024-12-17",
     temperature=temperature,
     voice=voice,
     mute_mic_while_ai_speaking=mute_mic_while_ai_speaking,
+    max_response_output_tokens="inf",
 )
 
 rtv.start()
