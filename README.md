@@ -109,39 +109,70 @@ off
 
 ### Simple Example
 ```python
-import lunar_tools as lt
-
-instructions = "Respond in a sassy and short way."
-rtv = lt.RealTimeVoice(instructions)
+instructions = "Respond briefly and with a sarcastic attitude."
+rtv = RealTimeVoice(instructions=instructions)
 rtv.start()
+try:
+    while True:
+        time.sleep(0.1)
+except KeyboardInterrupt:
+    rtv.stop()
+    print("\nExiting.")
 ```
 
 ### Advanced Example
 ```python
-import lunar_tools as lt
+instructions = "Respond briefly and with a sarcastic attitude."
+temperature = 0.6
+voice = "echo"
+mute_mic_while_ai_speaking = True # that's the default already, just FYI
 
-instructions = "Respond in a sassy and short way."
-trigger_message = "Ask me what is my favorite thing in life!"
-mute_mic_while_ai_speaking = False # Default is True, as otherwise the AI will interrupt itself if you are using speakers...
-temperature = 1.2  # Maximum insanity
-
-# Optional: Set up the callback to handle user messages.
+# Optional: callback for when the whisper transcription is done
 async def on_user_message(transcript: str):
-    print(f"on_user_message called, transcript: {transcript}")
+    print(f"(on_user_message) User said: {transcript}")
 
-# Optional: Set up the callback to handle AI messages.
+# Optional: another callback for when the transcript of the voice response is there
 async def on_ai_message(transcript: str):
-    print(f"on_ai_message called, transcript: {transcript}")
+    print(f"(on_ai_message) AI replied: {transcript}")
 
-rtv = lt.RealTimeVoice(
-    instructions,
+rtv = RealTimeVoice(
+    instructions=instructions,
     on_user_message=on_user_message,
     on_ai_message=on_ai_message,
-    trigger_message=trigger_message,
+    model="gpt-4o-mini-realtime-preview-2024-12-17",
+    temperature=temperature,
+    voice=voice,
     mute_mic_while_ai_speaking=mute_mic_while_ai_speaking,
-    temperature=temperature
 )
+
 rtv.start()
+
+# Let's inject an initial message so we have a conversation started. We can do this at any point!
+rtv.inject_message("Hello AI, what's up?")
+
+try:
+    while True:
+        cmd = input("Commands: (p) pause, (r) resume, (s) stop, (i) inject <msg>, (u) update_instructions <text>, (t) print_transcript\n> ").strip()
+        if cmd.lower() == "p":
+            rtv.pause()
+        elif cmd.lower() == "r":
+            rtv.resume()
+        elif cmd.lower() == "s":
+            rtv.stop()
+            break
+        elif cmd.lower().startswith("i "):
+            message = cmd[len("i "):].strip()
+            rtv.inject_message(message)
+        elif cmd.lower().startswith("u "):
+            new_instructions = cmd[len("u "):].strip()
+            rtv.update_instructions(new_instructions)
+        elif cmd.lower() == "t":
+            print("\n".join([f"{entry.timestamp} {entry.role}: {entry.message}" for entry in rtv.transcripts]))
+        else:
+            print("Unknown command.")
+except KeyboardInterrupt:
+    rtv.stop()
+    print("\nExiting.")
 ```
 
 
