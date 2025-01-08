@@ -13,6 +13,9 @@ import time
 from dataclasses import dataclass
 from datetime import datetime
 
+# --------------------------
+# Audio Configuration
+# --------------------------
 CHUNK_LENGTH_S = 0.05  # 50ms
 SAMPLE_RATE = 24000
 FORMAT = np.int16
@@ -37,6 +40,8 @@ class AudioPlayerAsync:
         )
         self.playing = False
         self._frame_count = 0
+
+        # For tracking if AI is currently speaking
         self.is_currently_speaking = False
         self._last_nonzero_timestamp = 0.0
         self.timeout_ai_talking = 0.6
@@ -46,18 +51,19 @@ class AudioPlayerAsync:
             data = np.empty(0, dtype=FORMAT)
             while len(data) < frames and len(self.queue) > 0:
                 item = self.queue.pop(0)
-                needed = frames - len(data)
-                data = np.concatenate((data, item[:needed]))
-                if len(item) > needed:
-                    self.queue.insert(0, item[needed:])
+                frames_needed = frames - len(data)
+                data = np.concatenate((data, item[:frames_needed]))
+                if len(item) > frames_needed:
+                    self.queue.insert(0, item[frames_needed:])
 
             self._frame_count += len(data)
             if len(data) < frames:
                 data = np.concatenate((data, np.zeros(frames - len(data), dtype=FORMAT)))
 
-        # Track speaking state
+        # Update speaking state
         if np.any(data != 0):
             self._last_nonzero_timestamp = time.time()
+
         if time.time() - self._last_nonzero_timestamp < self.timeout_ai_talking:
             self.is_currently_speaking = True
         else:
@@ -69,12 +75,15 @@ class AudioPlayerAsync:
         if not self.playing:
             self.playing = True
             self.stream.start()
+            print("AudioPlayerAsync: Stream started.")
 
     def stop(self):
-        self.playing = False
-        self.stream.stop()
-        with self.lock:
-            self.queue = []
+        if self.playing:
+            self.playing = False
+            self.stream.stop()
+            with self.lock:
+                self.queue = []
+            print("AudioPlayerAsync: Stream stopped.")
 
     def add_data(self, data: bytes):
         with self.lock:
@@ -94,6 +103,9 @@ class RealTimeVoice:
         voice="alloy",
         mute_mic_while_ai_speaking=True,
     ):
+        """
+        Initialize the RealTimeVoice manager.
+        """
         self.instructions = instructions
         self.on_user_message = on_user_message
         self.on_ai_message = on_ai_message
@@ -102,7 +114,7 @@ class RealTimeVoice:
         self.max_response_output_tokens = max_response_output_tokens
         self.mute_mic_while_ai_speaking = mute_mic_while_ai_speaking
 
-        # Transcripts
+        # List to hold transcripts
         self.transcripts: List[TranscriptEntry] = []
 
         # OpenAI client and audio player
@@ -145,6 +157,9 @@ class RealTimeVoice:
         self._connection_ready = threading.Event()
 
     async def _send_mic_audio(self, connection: AsyncRealtimeConnection) -> None:
+        """
+        Sends microphone audio to the model in real time.
+        """
         read_size = int(SAMPLE_RATE * 0.02)
         stream = sd.InputStream(channels=CHANNELS, samplerate=SAMPLE_RATE, dtype="int16")
         stream.start()
@@ -160,6 +175,7 @@ class RealTimeVoice:
                     await asyncio.sleep(0.01)
                     continue
 
+                # Read a small chunk from the mic
                 data, _ = stream.read(read_size)
 
                 # Mute mic while AI is speaking, if requested
@@ -171,7 +187,7 @@ class RealTimeVoice:
                 )
                 await asyncio.sleep(0)
         except (KeyboardInterrupt, asyncio.CancelledError):
-            print("Stopping microphone stream.")
+            print("Microphone stream interrupted.")
         finally:
             stream.stop()
             stream.close()
@@ -179,119 +195,181 @@ class RealTimeVoice:
                 print("Committing final audio buffer and requesting response.")
                 await connection.input_audio_buffer.commit()
                 await connection.response.create()
-                print("Done.")
+                print("Microphone stream stopped.")
 
     async def _main_loop(self):
+        """
+        Main async logic for real-time voice interaction.
+        """
         print("Connecting to the Realtime API...")
-        async with self.client.beta.realtime.connect(model=self.model) as conn:
-            self.conn = conn
-            self._connection_ready.set()
-            print("Real-time session established.")
+        try:
+            async with self.client.beta.realtime.connect(model=self.model) as conn:
+                self.conn = conn
+                self._connection_ready.set()
+                print("Real-time session established.")
 
-            # Update session parameters
-            await conn.session.update(session=self.REALTIME_API_CONFIG)
+                # Update session parameters
+                await conn.session.update(session=self.REALTIME_API_CONFIG)
+                print("Session parameters updated.")
 
-            # Start sending mic audio
-            mic_task = asyncio.create_task(self._send_mic_audio(conn))
-            acc_items: Dict[str, str] = {}
+                # Start sending mic audio
+                mic_task = asyncio.create_task(self._send_mic_audio(conn))
+                acc_items: Dict[str, str] = {}
 
-            try:
-                async for event in conn:
-                    if self._stop_event.is_set():
-                        break
-                    if not self._pause_event.is_set():
-                        continue
+                try:
+                    async for event in conn:
+                        if self._stop_event.is_set():
+                            print("Stop event detected. Exiting event loop.")
+                            break
+                        if not self._pause_event.is_set():
+                            continue
 
-                    if event.type == "session.created":
-                        print(f"Session created with ID: {event.session.id}")
+                        if event.type == "session.created":
+                            print(f"Session created with ID: {event.session.id}")
 
-                    elif event.type == "session.updated":
-                        print("Session updated.")
+                        elif event.type == "session.updated":
+                            print("Session updated.")
 
-                    elif event.type == "response.audio.delta":
-                        chunk_bytes = base64.b64decode(event.delta)
-                        self.audio_player.add_data(chunk_bytes)
+                        elif event.type == "response.audio.delta":
+                            chunk_bytes = base64.b64decode(event.delta)
+                            self.audio_player.add_data(chunk_bytes)
 
-                    elif event.type == "response.audio_transcript.delta":
-                        item_id = event.item_id
-                        if item_id not in acc_items:
-                            acc_items[item_id] = event.delta
-                        else:
-                            acc_items[item_id] += event.delta
+                        elif event.type == "response.audio_transcript.delta":
+                            item_id = event.item_id
+                            if item_id not in acc_items:
+                                acc_items[item_id] = event.delta
+                            else:
+                                acc_items[item_id] += event.delta
 
-                    elif event.type == "conversation.item.input_audio_transcription.completed":
-                        user_message = event.transcript
-                        self.transcripts.append(TranscriptEntry(role="user", message=user_message))
-                        if self.on_user_message:
-                            asyncio.create_task(self.on_user_message(user_message))
+                        elif event.type == "conversation.item.input_audio_transcription.completed":
+                            user_message = event.transcript
+                            self.transcripts.append(TranscriptEntry(role="user", message=user_message))
+                            if self.on_user_message:
+                                asyncio.create_task(self.on_user_message(user_message))
 
-                    elif event.type == "response.done":
-                        if event.response and event.response.output:
-                            for item in event.response.output:
-                                if item.type == "message":
-                                    for content in item.content:
-                                        if content.type == "audio":
-                                            ai_message = content.transcript
-                                            self.transcripts.append(
-                                                TranscriptEntry(role="ai", message=ai_message)
-                                            )
-                                            if self.on_ai_message:
-                                                asyncio.create_task(self.on_ai_message(ai_message))
+                        elif event.type == "response.done":
+                            if event.response and event.response.output:
+                                for item in event.response.output:
+                                    if item.type == "message":
+                                        for content in item.content:
+                                            if content.type == "audio":
+                                                ai_message = content.transcript
+                                                self.transcripts.append(
+                                                    TranscriptEntry(role="ai", message=ai_message)
+                                                )
+                                                if self.on_ai_message:
+                                                    asyncio.create_task(self.on_ai_message(ai_message))
+                        # You can handle other event types here if needed
 
-            except asyncio.CancelledError:
-                print("Main loop cancelled.")
-            finally:
-                mic_task.cancel()
-                await mic_task
-                print("Connection closed. Exiting.")
+                except asyncio.CancelledError:
+                    print("Main loop cancelled.")
+                finally:
+                    mic_task.cancel()
+                    try:
+                        await mic_task
+                    except asyncio.CancelledError:
+                        pass
+                    print("Main loop has been cancelled.")
+        except Exception as e:
+            print(f"An error occurred in the main loop: {e}")
+        finally:
+            print("Connection closed. Exiting.")
 
     def _run_loop(self):
+        """
+        Runs the asyncio event loop in a separate thread.
+        """
         self._loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self._loop)
-        self._loop.run_until_complete(self._main_loop())
-        self._loop.close()
+        try:
+            self._loop.run_until_complete(self._main_loop())
+        except Exception as e:
+            print(f"Exception in run loop: {e}")
+        finally:
+            self._loop.close()
+            print("Asyncio event loop closed.")
 
     def start(self):
+        """
+        Starts the RealTimeVoice in a separate thread.
+        """
         if self._thread and self._thread.is_alive():
             print("RealTimeVoice is already running.")
             return
+
         print("Starting RealTimeVoice...")
         self._thread = threading.Thread(target=self._run_loop, daemon=True)
         self._thread.start()
+        print("RealTimeVoice started.")
 
     def stop(self):
+        """
+        Stops the RealTimeVoice gracefully.
+        """
         print("Stopping RealTimeVoice...")
         self._stop_event.set()
+
+        if self.conn:
+            print("Closing the connection...")
+            future = asyncio.run_coroutine_threadsafe(self.conn.close(), self._loop)
+            try:
+                future.result(timeout=5)
+                print("Connection closed successfully.")
+            except Exception as e:
+                print(f"Error closing connection: {e}")
+
         if self._thread and self._thread.is_alive():
-            self._thread.join()
+            print("Waiting for the thread to finish...")
+            self._thread.join(timeout=10)
+            if self._thread.is_alive():
+                print("Thread did not finish in time.")
+            else:
+                print("Thread has been joined successfully.")
+
         self.audio_player.stop()
         print("RealTimeVoice stopped.")
 
     def pause(self):
+        """
+        Temporarily pause sending audio (and processing new events).
+        """
         print("Pausing RealTimeVoice...")
         self._pause_event.clear()
 
     def resume(self):
+        """
+        Resumes sending audio after a pause.
+        """
         print("Resuming RealTimeVoice...")
         self._pause_event.set()
 
     def inject_message(self, message: str):
+        """
+        Injects a user message dynamically into the conversation.
+        """
         async def _inject():
             if not self.conn:
                 print("No connection available for injecting message.")
                 return
-            trigger = {
-                "type": "conversation.item.create",
-                "item": {
-                    "type": "message",
-                    "role": "user",
-                    "content": [{"type": "input_text", "text": message}],
-                },
-            }
-            await self.conn.send(trigger)
-            await self.conn.send({"type": "response.create", "response": {"modalities": ["audio", "text"]}})
-            print(f"Injected message: {message}")
+            try:
+                # Create and send the user message
+                trigger = {
+                    "type": "conversation.item.create",
+                    "item": {
+                        "type": "message",
+                        "role": "user",
+                        "content": [{"type": "input_text", "text": message}],
+                    },
+                }
+                await self.conn.send(trigger)
 
+                # Request model response
+                await self.conn.send({"type": "response.create", "response": {"modalities": ["audio", "text"]}})
+                print(f"Injected message: {message}")
+            except Exception as e:
+                print(f"Error injecting message: {e}")
+
+        # Wait until the connection is ready
         if not self._connection_ready.is_set():
             print("Waiting for connection to be ready to inject message...")
             self._connection_ready.wait()
@@ -300,7 +378,12 @@ class RealTimeVoice:
             print("Event loop not running. Cannot inject message.")
             return
 
-        asyncio.run_coroutine_threadsafe(_inject(), self._loop)
+        # Schedule the coroutine on our loop
+        future = asyncio.run_coroutine_threadsafe(_inject(), self._loop)
+        try:
+            future.result(timeout=5)
+        except Exception as e:
+            print(f"Error scheduling inject_message coroutine: {e}")
 
     def update_instructions(self, new_instructions: str):
         """
@@ -311,12 +394,16 @@ class RealTimeVoice:
             if not self.conn:
                 print("No connection available for updating instructions.")
                 return
-            self.instructions = new_instructions
-            updated_config = dict(self.REALTIME_API_CONFIG)
-            updated_config["instructions"] = self.instructions
-            await self.conn.session.update(session=updated_config)
-            print(f"Session instructions updated to: {new_instructions}")
+            try:
+                self.instructions = new_instructions
+                updated_config = dict(self.REALTIME_API_CONFIG)
+                updated_config["instructions"] = self.instructions
+                await self.conn.session.update(session=updated_config)
+                print(f"Session instructions updated to: {new_instructions}")
+            except Exception as e:
+                print(f"Error updating instructions: {e}")
 
+        # Wait until the connection is ready
         if not self._connection_ready.is_set():
             print("Waiting for connection to be ready to update instructions...")
             self._connection_ready.wait()
@@ -325,12 +412,20 @@ class RealTimeVoice:
             print("Event loop not running. Cannot update instructions.")
             return
 
-        asyncio.run_coroutine_threadsafe(_update(), self._loop)
+        # Schedule the coroutine on our loop
+        future = asyncio.run_coroutine_threadsafe(_update(), self._loop)
+        try:
+            future.result(timeout=5)
+        except Exception as e:
+            print(f"Error scheduling update_instructions coroutine: {e}")
+
 
 # --------------------------
 # Example Usage
 # --------------------------
+
 if __name__ == "__main__":
+
     instructions = "Respond briefly and with a sarcastic attitude."
     temperature = 0.6
     voice = "echo"
@@ -355,7 +450,7 @@ if __name__ == "__main__":
 
     rtv.start()
 
-    # Let's inject an initial message so we have a conversation started
+    # Let's inject an initial message so we have a conversation started. We can do this at any point!
     rtv.inject_message("Hello AI, what's up?")
 
     try:
