@@ -131,18 +131,24 @@ mute_mic_while_ai_speaking = True # that's the default already, just FYI
 async def on_user_transcript(transcript: str):
     print(f"(on_user_transcript) User said: {transcript}")
 
-# Optional: another callback for when the transcript of the voice response is there
+# Optional: callback for when the transcript of the voice response is there
 async def on_ai_transcript(transcript: str):
     print(f"(on_ai_transcript) AI replied: {transcript}")
+
+# Optional: callback for when the audio has been completely played
+async def on_audio_complete():
+    print("(on_audio_complete) AI audio has been completely played.")
 
 rtv = RealTimeVoice(
     instructions=instructions,
     on_user_transcript=on_user_transcript,
     on_ai_transcript=on_ai_transcript,
+    on_audio_complete=on_audio_complete,
     model="gpt-4o-mini-realtime-preview-2024-12-17",
     temperature=temperature,
     voice=voice,
     mute_mic_while_ai_speaking=mute_mic_while_ai_speaking,
+    max_response_output_tokens="inf",
 )
 
 rtv.start()
