@@ -28,7 +28,7 @@ class TranscriptEntry:
     timestamp: datetime = datetime.now()
 
 class AudioPlayerAsync:
-    def __init__(self, on_playback_complete: Optional[Callable[[], None]] = None):
+    def __init__(self, on_playback_complete: Optional[Callable[[], None]] = None, verbose: bool = False):
         self.queue = []
         self.lock = threading.Lock()
         self.stream = sd.OutputStream(
@@ -49,6 +49,8 @@ class AudioPlayerAsync:
         # Playback-complete callback
         self.on_playback_complete = on_playback_complete
         self._playback_complete_triggered = False
+
+        self.verbose = verbose
 
     def callback(self, outdata, frames, time_info, status):
         with self.lock:
@@ -129,6 +131,7 @@ class RealTimeVoice:
         max_response_output_tokens="inf",
         voice="alloy",
         mute_mic_while_ai_speaking=True,
+        verbose: bool = False,
     ):
         self.instructions = instructions
         self.on_user_transcript = on_user_transcript
@@ -139,6 +142,7 @@ class RealTimeVoice:
         self.temperature = temperature
         self.max_response_output_tokens = max_response_output_tokens
         self.mute_mic_while_ai_speaking = mute_mic_while_ai_speaking
+        self.verbose = verbose
 
         # Keep track of transcripts
         self.transcripts: List[TranscriptEntry] = []
@@ -146,7 +150,8 @@ class RealTimeVoice:
         # Audio player with custom callback
         self.client = AsyncOpenAI()
         self.audio_player = AudioPlayerAsync(
-            on_playback_complete=self._handle_playback_complete
+            on_playback_complete=self._handle_playback_complete,
+            verbose=self.verbose
         )
 
         self.REALTIME_API_CONFIG = {
@@ -159,7 +164,7 @@ class RealTimeVoice:
             "turn_detection": {
                 "type": "server_vad",
                 "threshold": 0.5,
-                "prefix_padding_ms": 100,
+                "prefix_padding_ms": 500,
                 "silence_duration_ms": 1000,
             },
             "tools": [],
@@ -225,11 +230,13 @@ class RealTimeVoice:
             async with self.client.beta.realtime.connect(model=self.model) as conn:
                 self.conn = conn
                 self._connection_ready.set()
-                print("Real-time session established.")
+                if self.verbose:
+                    print("Real-time session established.")
 
                 # Update session
                 await conn.session.update(session=self.REALTIME_API_CONFIG)
-                print("Session parameters updated.")
+                if self.verbose:
+                    print("Session parameters updated.")
 
                 mic_task = asyncio.create_task(self._send_mic_audio(conn))
                 acc_items: Dict[str, str] = {}
@@ -237,16 +244,19 @@ class RealTimeVoice:
                 try:
                     async for event in conn:
                         if self._stop_event.is_set():
-                            print("Stop event detected. Exiting event loop.")
+                            if self.verbose:
+                                print("Stop event detected. Exiting event loop.")
                             break
                         if not self._pause_event.is_set():
                             continue
 
                         if event.type == "session.created":
-                            print(f"Session created with ID: {event.session.id}")
+                            if self.verbose:
+                                print(f"Session created with ID: {event.session.id}")
 
                         elif event.type == "session.updated":
-                            print("Session updated.")
+                            if self.verbose:
+                                print("Session updated.")
 
                         elif event.type == "response.audio.delta":
                             chunk_bytes = base64.b64decode(event.delta)
@@ -283,18 +293,16 @@ class RealTimeVoice:
                                                 # Mark that we expect an audio-complete event
                                                 with self._audio_complete_lock:
                                                     self._audio_complete_pending = True
-
+                        else:
+                            if self.verbose:
+                                print(f"Unhandled event type: {event.type}")  # Print unhandled events
                 except asyncio.CancelledError:
-                    print("Main loop cancelled.")
-                finally:
-                    mic_task.cancel()
-                    try:
-                        await mic_task
-                    except asyncio.CancelledError:
-                        pass
+                    if self.verbose:
+                        print("Main loop cancelled.")
                     print("Main loop has been cancelled.")
         except Exception as e:
-            print(f"An error occurred in the main loop: {e}")
+            if self.verbose:
+                print(f"An error occurred in the main loop: {e}")
         finally:
             print("Connection closed. Exiting.")
 
@@ -311,12 +319,15 @@ class RealTimeVoice:
 
     def start(self):
         if self._thread and self._thread.is_alive():
-            print("RealTimeVoice is already running.")
+            if self.verbose:
+                print("RealTimeVoice is already running.")
             return
-        print("Starting RealTimeVoice...")
+        if self.verbose:
+            print("Starting RealTimeVoice...")
         self._thread = threading.Thread(target=self._run_loop, daemon=True)
         self._thread.start()
-        print("RealTimeVoice started.")
+        if self.verbose:
+            print("RealTimeVoice started.")
 
     def stop(self):
         print("Stopping RealTimeVoice...")
@@ -420,6 +431,8 @@ class RealTimeVoice:
         """
         with self._audio_complete_lock:
             if self._audio_complete_pending and self.on_audio_complete:
+                if self.verbose:
+                    print("Playback complete and audio complete callback triggered.")
                 self._audio_complete_pending = False  # consume the flag
                 if self._loop and self._loop.is_running():
                     async def _callback():
@@ -434,9 +447,10 @@ class RealTimeVoice:
 # --------------------------
 if __name__ == "__main__":
     instructions = "Respond briefly and with a sarcastic attitude."
-    temperature = 1.2
+    temperature = 0.9
     voice = "echo"
     mute_mic_while_ai_speaking = True
+    verbose = False  # Enable verbose prints
 
     # Optional: callback for when the whisper transcription is done
     async def on_user_transcript(transcript: str):
@@ -460,6 +474,7 @@ if __name__ == "__main__":
         voice=voice,
         mute_mic_while_ai_speaking=mute_mic_while_ai_speaking,
         max_response_output_tokens="inf",
+        verbose=verbose,  # Pass verbose flag
     )
 
     rtv.start()
