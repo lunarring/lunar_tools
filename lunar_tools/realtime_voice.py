@@ -121,8 +121,8 @@ class RealTimeVoice:
     def __init__(
         self,
         instructions: str,
-        on_user_message: Optional[Callable[[str], Awaitable[None]]] = None,
-        on_ai_message: Optional[Callable[[str], Awaitable[None]]] = None,
+        on_user_transcript: Optional[Callable[[str], Awaitable[None]]] = None,
+        on_ai_transcript: Optional[Callable[[str], Awaitable[None]]] = None,
         on_audio_complete: Optional[Callable[[], Awaitable[None]]] = None,
         model="gpt-4o-mini-realtime-preview-2024-12-17",
         temperature=0.6,
@@ -131,8 +131,8 @@ class RealTimeVoice:
         mute_mic_while_ai_speaking=True,
     ):
         self.instructions = instructions
-        self.on_user_message = on_user_message
-        self.on_ai_message = on_ai_message
+        self.on_user_transcript = on_user_transcript
+        self.on_ai_transcript = on_ai_transcript
         self.on_audio_complete = on_audio_complete
 
         self.model = model
@@ -262,8 +262,8 @@ class RealTimeVoice:
                         elif event.type == "conversation.item.input_audio_transcription.completed":
                             user_message = event.transcript
                             self.transcripts.append(TranscriptEntry(role="user", message=user_message))
-                            if self.on_user_message:
-                                asyncio.create_task(self.on_user_message(user_message))
+                            if self.on_user_transcript:
+                                asyncio.create_task(self.on_user_transcript(user_message))
 
                         elif event.type == "response.done":
                             # The model finished an output turn
@@ -278,8 +278,8 @@ class RealTimeVoice:
                                                 self.transcripts.append(
                                                     TranscriptEntry(role="ai", message=ai_message)
                                                 )
-                                                if self.on_ai_message:
-                                                    asyncio.create_task(self.on_ai_message(ai_message))
+                                                if self.on_ai_transcript:
+                                                    asyncio.create_task(self.on_ai_transcript(ai_message))
                                                 # Mark that we expect an audio-complete event
                                                 with self._audio_complete_lock:
                                                     self._audio_complete_pending = True
@@ -439,12 +439,12 @@ if __name__ == "__main__":
     mute_mic_while_ai_speaking = True
 
     # Optional: callback for when the whisper transcription is done
-    async def on_user_message(transcript: str):
-        print(f"(on_user_message) User said: {transcript}")
+    async def on_user_transcript(transcript: str):
+        print(f"(on_user_transcript) User said: {transcript}")
 
     # Optional: callback for when the transcript of the voice response is there
-    async def on_ai_message(transcript: str):
-        print(f"(on_ai_message) AI replied: {transcript}")
+    async def on_ai_transcript(transcript: str):
+        print(f"(on_ai_transcript) AI replied: {transcript}")
 
     # Optional: callback for when the audio has been completely played
     async def on_audio_complete():
@@ -452,8 +452,8 @@ if __name__ == "__main__":
 
     rtv = RealTimeVoice(
         instructions=instructions,
-        on_user_message=on_user_message,
-        on_ai_message=on_ai_message,
+        on_user_transcript=on_user_transcript,
+        on_ai_transcript=on_ai_transcript,
         on_audio_complete=on_audio_complete,
         model="gpt-4o-mini-realtime-preview-2024-12-17",
         temperature=temperature,
