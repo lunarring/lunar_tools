@@ -127,7 +127,7 @@ def test_add_sound():
     
     fp_final = "/tmp/movie_with_sound.mp4"
     
-    add_sound(fp_final, "/tmp/my_ordered_movie.mp4", 'lunar_tools/tests/myvoice.mp3')
+    add_sound(fp_final, "/tmp/my_ordered_movie.mp4", 'tests/myvoice.mp3')
     
     assert os.path.exists(fp_final) and os.path.getsize(fp_final) > 0
 

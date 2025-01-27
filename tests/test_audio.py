@@ -42,7 +42,7 @@ class TestSpeech2Text(unittest.TestCase):
 
     def test_translate_myvoice(self):
         # Test to ensure that translating 'myvoice.mp3' returns 'I am a butterfly'
-        audio_file = 'lunar_tools/tests/myvoice.mp3'
+        audio_file = 'tests/myvoice.mp3'
         expected_transcript = 'I am a butterfly'
         result = self.speech_detector.translate(audio_file)
 
