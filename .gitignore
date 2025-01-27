@@ -1,6 +1,7 @@
 # Byte-compiled / optimized / DLL files
 *.py~
 __pycache__/
+.tdac*
 *.py[cod]
 *$py.class
 specific_filename.txt
