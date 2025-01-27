@@ -2,6 +2,7 @@
 *.py~
 __pycache__/
 .tdac*
+.aider*
 *.py[cod]
 *$py.class
 specific_filename.txt
