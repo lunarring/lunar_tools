@@ -72,20 +72,8 @@ def save_api_key_to_lunar_config(key_name, key_value):
     print(f"saved API KEY '{key_name}={key_value} in {get_config_path()}")
 
 def read_api_key(key_name):
-    # First, try to get the API key from the environment variables
-    api_key = os.getenv(key_name)
-
-    if not api_key:
-        # If not found, try to get the key from lunar config
-        api_key = read_api_key_from_lunar_config(key_name)
-
-    if not api_key:
-        # If still not found, prompt the user to input the key
-        print(f"API key for {key_name} not found. Please paste your API key:")
-        api_key = input().strip()
-        save_api_key_to_lunar_config(key_name, api_key)
-
-    return api_key
+    """Retrieve API key directly from environment variables"""
+    return os.getenv(key_name)
 
 
 def delete_api_key_from_lunar_config(key_name):

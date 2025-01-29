@@ -1,20 +1,25 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import sys
-sys.path.append("../lunar_tools/")
+import os
 import unittest
-from utils import read_api_key_from_lunar_config, get_os_type, save_api_key_to_lunar_config
-import random
-import string
+sys.path.append("../lunar_tools/")
+from utils import read_api_key, get_os_type
 
-# Unit tests
-class TestConfigUtils(unittest.TestCase):
+class TestEnvVarAPIKeys(unittest.TestCase):
+    def setUp(self):
+        os.environ["TEST_API_KEY"] = "12345"
+        
+    def tearDown(self):
+        if "TEST_API_KEY" in os.environ:
+            del os.environ["TEST_API_KEY"]
+            
     def test_get_os_type(self):
         os_type = get_os_type()
         self.assertIn(os_type, ["MacOS", "Linux", "Windows"])
 
-    def test_save_and_read_api_key(self):
-        random_key = ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
-        save_api_key_to_lunar_config("TEST", random_key)
-        read_key = read_api_key_from_lunar_config("TEST")
-        self.assertEqual(random_key, read_key)
+    def test_read_existing_key(self):
+        self.assertEqual(read_api_key("TEST_API_KEY"), "12345")
+        
+    def test_read_missing_key(self):
+        self.assertIsNone(read_api_key("NON_EXISTENT_KEY"))
