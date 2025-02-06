@@ -22,14 +22,19 @@ def get_midi_device_vendor_product_ids(system_device_name):
     vendor_product_ids = {}
 
     try:
-        if platform.system() == 'Linux':
+        os_system = platform.system()
+        if os_system == 'Linux':
             # Run the lsusb command for Linux
             usb_output = subprocess.check_output(['lsusb'], text=True)
-            regex = f'ID (\w+:\w+).+{system_device_name}'
-        elif platform.system() == 'Darwin':
+            regex = f'ID (\\w+:\\w+).+{system_device_name}'
+        elif os_system == 'Darwin':
             # Run the system_profiler command for macOS
             usb_output = subprocess.check_output(['system_profiler', 'SPUSBDataType'], text=True)
-            regex = f'{system_device_name}.*?\n.*?Product ID: (0x\w+)\n.*?Vendor ID: (0x\w+)'
+            regex = f'{system_device_name}.*?\\n.*?Product ID: (0x\\w+)\\n.*?Vendor ID: (0x\\w+)'
+        elif os_system == 'Windows':
+            # Use WMIC command to retrieve USB device details on Windows
+            usb_output = subprocess.check_output(['wmic', 'path', 'Win32_USBHub', 'get', 'DeviceID'], text=True, stderr=subprocess.DEVNULL)
+            regex = f'{system_device_name}.*?VID_([0-9A-Fa-f]{{4}})&PID_([0-9A-Fa-f]{{4}})'
         else:
             print("Unsupported operating system.")
             return vendor_product_ids
@@ -38,12 +43,15 @@ def get_midi_device_vendor_product_ids(system_device_name):
         matches = re.findall(regex, usb_output, re.IGNORECASE | re.DOTALL)
 
         for match in matches:
-            if platform.system() == 'Linux':
+            if os_system == 'Linux':
                 # Split the match into vendor and product IDs for Linux
                 vendor_id, product_id = match.split(':')
-            elif platform.system() == 'Darwin':
+            elif os_system == 'Darwin':
                 # Assign vendor and product IDs for macOS
                 product_id, vendor_id = match
+            elif os_system == 'Windows':
+                # On Windows, match returns VID and PID groups
+                vendor_id, product_id = match
 
             # Convert hexadecimal to integer and add to the dictionary
             vendor_product_ids = {'vendor_id': int(vendor_id, 16), 'product_id': int(product_id, 16)}
@@ -98,8 +106,10 @@ class MidiInput:
             self.os_name = 'linux'
         elif platform.system() == 'Darwin':
             self.os_name = 'macos'
+        elif platform.system() == 'Windows':
+            self.os_name = 'windows'
         else:
-            raise NotImplementedError("Only Linux and MacOS supported at the moment.")            
+            raise NotImplementedError("Only Linux, MacOS and Windows supported at the moment.")            
         
         self.do_auto_reconnect = do_auto_reconnect
         self.simulate_device = False
@@ -245,7 +255,7 @@ class MidiInput:
         
         # Gather all inputs that arrived in the meantime
         while True:
-            if self.os_name == 'linux' and self.do_auto_reconnect:
+            if self.os_name in ['linux', 'windows'] and self.do_auto_reconnect:
                 time.sleep(1e-3)
                 is_midi_device_connected = check_midi_device_connected_pyusb(self.device_hardware_code)
                 print(f'{is_midi_device_connected}')
@@ -352,7 +362,7 @@ class MidiInput:
             self.autoshow_names = False
         # Scan new inputs
         try:
-            # so far only linux supported for auto device reconnect/disconnect handling
+            # Auto device reconnect/disconnect handling for Linux and Windows
             self.scan_inputs()
         except Exception as e:
             print(f"scan_inputs raised: {e}")
@@ -458,7 +468,7 @@ class MidiInput:
 
        
                     
-if __name__ == "__main__":
+if __name__ == "__main__x":
     import time
     akai_lpd8 = MidiInput(device_name="akai_lpd8")
     
@@ -474,7 +484,7 @@ if __name__ == "__main__":
         
     akai_lpd8.show()
                     
-if __name__ == "__main__x":
+if __name__ == "__main__":
     import lunar_tools as lt
     import time
     akai_midimix = MidiInput(device_name="akai_midimix")
@@ -486,5 +496,3 @@ if __name__ == "__main__x":
         ba = akai_midimix.get("A3", button_mode="toggle")
         print(ba)
 
-        
-    
