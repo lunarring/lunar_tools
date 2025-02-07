@@ -125,7 +125,7 @@ class RealTimeVoice:
         instructions: str,
         on_user_transcript: Optional[Callable[[str], Awaitable[None]]] = None,
         on_ai_transcript: Optional[Callable[[str], Awaitable[None]]] = None,
-        on_audio_complete: Optional[Callable[[], Awaitable[None]]] = None,
+        on_ai_audio_complete: Optional[Callable[[], Awaitable[None]]] = None,
         model="gpt-4o-mini-realtime-preview-2024-12-17",
         temperature=0.6,
         max_response_output_tokens="inf",
@@ -136,7 +136,7 @@ class RealTimeVoice:
         self.instructions = instructions
         self.on_user_transcript = on_user_transcript
         self.on_ai_transcript = on_ai_transcript
-        self.on_audio_complete = on_audio_complete
+        self.on_ai_audio_complete = on_ai_audio_complete
 
         self.model = model
         self.temperature = temperature
@@ -150,7 +150,7 @@ class RealTimeVoice:
         # Audio player with custom callback
         self.client = AsyncOpenAI()
         self.audio_player = AudioPlayerAsync(
-            on_playback_complete=self._handle_playback_complete,
+            on_playback_complete=self.onAIAudioComplete,
             verbose=self.verbose
         )
 
@@ -423,24 +423,24 @@ class RealTimeVoice:
         except Exception as e:
             print(f"Error scheduling update_instructions coroutine: {e}")
 
-    def _handle_playback_complete(self):
+    def onAIAudioComplete(self):
         """
         Called by AudioPlayerAsync once the queue is empty.
-        We'll fire our on_audio_complete callback only if we know
+        We'll fire our on_ai_audio_complete callback only if we know
         the AI actually produced audio (i.e., _audio_complete_pending).
         """
         with self._audio_complete_lock:
-            if self._audio_complete_pending and self.on_audio_complete:
+            if self._audio_complete_pending and self.on_ai_audio_complete:
                 if self.verbose:
-                    print("Playback complete and audio complete callback triggered.")
+                    print("Playback complete and AI audio complete callback triggered.")
                 self._audio_complete_pending = False  # consume the flag
                 if self._loop and self._loop.is_running():
                     async def _callback():
-                        await self.on_audio_complete()
+                        await self.on_ai_audio_complete()
 
                     asyncio.run_coroutine_threadsafe(_callback(), self._loop)
                 else:
-                    print("Event loop not running. Cannot execute on_audio_complete callback.")
+                    print("Event loop not running. Cannot execute on_ai_audio_complete callback.")
 
 # --------------------------
 # Example Usage
