@@ -16,6 +16,7 @@ from .display_window import Renderer
 from .fontrender import PopupInput
 from .fontrender import add_text_to_image
 from .health_reporting import HealthReporter
+from .fps_tracker import FPSTracker
 from .image_gen import Dalle3ImageGenerator
 from .image_gen import GlifAPI
 from .image_gen import SDXL_LCM

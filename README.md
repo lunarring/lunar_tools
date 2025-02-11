@@ -103,6 +103,26 @@ VSYNC on your system
 On Ubuntu do: Run nvidia-settings 2. Screen 0 > OpenGl > Sync to VBLank ->
 off
 
+## FPS Tracker
+Track frame rates and segment timings with color-coded console output.
+
+```python
+import lunar_tools as lt
+
+fps = lt.FPSTracker()
+while True:
+    fps.start_segment("process")
+    # Your processing code here
+    
+    fps.start_segment("render")
+    # Your rendering code here
+    
+    if fps.update():
+        fps.print_fps()  # Output: FPS: 60.0 | process: 8.3ms | render: 5.2ms
+```
+
+
+
 # Language
 
 ## RealtimeVoice OpenAI
@@ -403,6 +423,4 @@ python -m pytest lunar_tools/tests/
 ```python
 pipreqs . --force
 ```
-
-
 
