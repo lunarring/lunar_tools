@@ -117,8 +117,7 @@ while True:
     fps.start_segment("render")
     # Your rendering code here
     
-    if fps.update():
-        fps.print_fps()  # Output: FPS: 60.0 | process: 8.3ms | render: 5.2ms
+    fps.print_fps()  # Output: FPS: 60.0 | process: 8.3ms | render: 5.2ms
 ```
 
 

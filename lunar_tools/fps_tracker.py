@@ -83,6 +83,7 @@ class FPSTracker:
         return base_str + " \033[0m"
     
     def print_fps(self):
+        self.update()
         """Print the current FPS and segment timings to console with color coding."""
         print(self.get_colored_fps_string(), end='')  # No \r needed as it's in the string
         if self._should_clear_segments:
