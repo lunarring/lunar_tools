@@ -1,10 +1,6 @@
-import asyncio
-import threading
 import time
-
 from lunar_tools.realtime_voice import RealTimeVoice
 
-# Global flag to demonstrate that the dummy callback was invoked.
 _audio_complete_flag = {"called": False}
 
 async def dummy_audio_complete_callback():
@@ -12,50 +8,55 @@ async def dummy_audio_complete_callback():
     _audio_complete_flag["called"] = True
 
 def run_realtime_voice_example():
-    instructions = "Provide a brief response with sarcasm."
+    instructions = ("Interactive RealTimeVoice example. Commands:\n"
+                    "s: Start, p: Pause, r: Resume, m: Mute/Unmute, i: Inject message, "
+                    "u: Update instructions, q: Quit")
     rtv = RealTimeVoice(
         instructions=instructions,
         on_ai_audio_complete=dummy_audio_complete_callback,
         verbose=True
     )
-
-    # Start the realtime voice session.
-    rtv.start()
-    time.sleep(1)  # Allow background thread to initialize.
-
-    # Demonstrate basic operations.
-    print("Pausing RealTimeVoice...")
-    rtv.pause()
-    time.sleep(0.5)
     
-    print("Resuming RealTimeVoice...")
-    rtv.resume()
-    time.sleep(0.5)
-
-    print("Muting microphone...")
-    rtv.mute_mic()
-    time.sleep(0.5)
-
-    print("Unmuting microphone...")
-    rtv.unmute_mic()
-    time.sleep(0.5)
-
-    print("Injecting message...")
-    rtv.inject_message("Hello, AI!")
-    time.sleep(0.5)
-
-    # Manually simulate an audio complete event.
-    with rtv._audio_complete_lock:
-        rtv._audio_complete_pending = True
-    print("Simulating audio complete event.")
-    rtv.onAIAudioComplete()
-    time.sleep(1)
-
-    # Stop the realtime voice session.
-    print("Stopping RealTimeVoice session...")
-    rtv.stop()
-
-    print("RealtimeVoice example completed.")
+    print(instructions)
+    muted = False
+    
+    while True:
+        cmd = input("Enter command (s=Start, p=Pause, r=Resume, m=Mute/Unmute, i=Inject, u=Update instructions, q=Quit): ").strip().lower()
+        if cmd == 's':
+            print("Starting RealTimeVoice session...")
+            rtv.start()
+            time.sleep(1)
+        elif cmd == 'p':
+            print("Pausing RealTimeVoice session...")
+            rtv.pause()
+        elif cmd == 'r':
+            print("Resuming RealTimeVoice session...")
+            rtv.resume()
+        elif cmd == 'm':
+            if not muted:
+                print("Muting microphone...")
+                rtv.mute_mic()
+                muted = True
+            else:
+                print("Unmuting microphone...")
+                rtv.unmute_mic()
+                muted = False
+        elif cmd == 'i':
+            test_message = input("Enter message to inject: ")
+            print(f"Injecting message: {test_message}")
+            rtv.inject_message(test_message)
+        elif cmd == 'u':
+            new_instructions = input("Enter new instructions: ")
+            print(f"Updating instructions to: {new_instructions}")
+            rtv.update_instructions(new_instructions)
+        elif cmd == 'q':
+            print("Stopping RealTimeVoice session and exiting...")
+            rtv.stop()
+            break
+        else:
+            print("Unknown command. Please try again.")
+    
+    print("RealtimeVoice interactive example completed.")
 
 if __name__ == "__main__":
     run_realtime_voice_example()
