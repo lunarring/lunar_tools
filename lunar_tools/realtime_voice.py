@@ -143,6 +143,7 @@ class RealTimeVoice:
         self.max_response_output_tokens = max_response_output_tokens
         self.mute_mic_while_ai_speaking = mute_mic_while_ai_speaking
         self.verbose = verbose
+        self._mic_muted = False
 
         # Keep track of transcripts
         self.transcripts: List[TranscriptEntry] = []
@@ -205,8 +206,8 @@ class RealTimeVoice:
 
                 data, _ = stream.read(read_size)
 
-                # Mute if AI is speaking
-                if self.mute_mic_while_ai_speaking and self.audio_player.is_currently_speaking:
+                # Mute if AI is speaking or mic is muted
+                if self._mic_muted or (self.mute_mic_while_ai_speaking and self.audio_player.is_currently_speaking):
                     data = np.zeros_like(data)
 
                 await connection.input_audio_buffer.append(
@@ -360,6 +361,16 @@ class RealTimeVoice:
     def resume(self):
         print("Resuming RealTimeVoice...")
         self._pause_event.set()
+
+    def mute_mic(self):
+        self._mic_muted = True
+        if self.verbose:
+            print("Microphone muted.")
+
+    def unmute_mic(self):
+        self._mic_muted = False
+        if self.verbose:
+            print("Microphone unmuted.")
 
     def inject_message(self, message: str):
         async def _inject():
