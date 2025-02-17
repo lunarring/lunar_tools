@@ -7,7 +7,59 @@ import string
 sys.path.append(os.path.abspath('.'))
 sys.path.append(os.path.abspath('lunar_tools'))
 from audio import AudioRecorder, Speech2Text, Text2SpeechOpenAI
-from lunar_tools.dummy_audio import DummyAudioRecorder
+import os
+
+class DummyAudioRecorder:
+    """
+    A dummy audio recorder that mimics the interface of AudioRecorder.
+    Instead of recording from a microphone, it immediately writes dummy audio data to a file.
+    """
+    def __init__(self, *args, **kwargs):
+        self.is_recording = False
+        self.output_filename = None
+
+    def start_recording(self, output_filename=None, max_time=None):
+        self.is_recording = True
+        if output_filename is None:
+            output_filename = "dummy_output.mp3"
+        self.output_filename = output_filename
+
+    def stop_recording(self):
+        if self.is_recording:
+            self.is_recording = False
+            # Immediately write dummy data to simulate a recording.
+            with open(self.output_filename, "wb") as f:
+                f.write(b"DUMMY_AUDIO")
+
+
+class TestDummyAudioRecorder(unittest.TestCase):
+    def setUp(self):
+        # Monkey-patch AudioRecorder with DummyAudioRecorder
+        self.original_AudioRecorder = audio_module.AudioRecorder
+        audio_module.AudioRecorder = DummyAudioRecorder
+
+    def tearDown(self):
+        # Revert the monkey-patch
+        audio_module.AudioRecorder = self.original_AudioRecorder
+        # Cleanup the dummy file if exists
+        dummy_file = "dummy_test.mp3"
+        if os.path.exists(dummy_file):
+            os.remove(dummy_file)
+
+    def test_dummy_audio_recording_creates_file(self):
+        from lunar_tools.audio import AudioRecorder  # this will be our DummyAudioRecorder now
+        recorder = AudioRecorder()
+        dummy_file = "dummy_test.mp3"
+        recorder.start_recording(output_filename=dummy_file)
+        recorder.stop_recording()
+
+        # Check that file exists
+        self.assertTrue(os.path.exists(dummy_file), "Dummy audio file was not created.")
+
+        # Check the file contains the expected dummy data
+        with open(dummy_file, "rb") as f:
+            content = f.read()
+        self.assertEqual(content, b"DUMMY_AUDIO", "Dummy audio file content is not as expected.")
 
 class TestAudioRecorder(unittest.TestCase):
     """
