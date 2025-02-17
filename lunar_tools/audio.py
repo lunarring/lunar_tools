@@ -115,6 +115,7 @@ class Speech2Text:
         Raises:
             ValueError: If no OpenAI API key is found in the environment variables.
         """
+        self.transcript = None
         if client is None:
             api_key = read_api_key("OPENAI_API_KEY")
             if not api_key:
@@ -208,6 +209,21 @@ Raises:
                     file=audio_file
                 )
                 return transcript.text
+            
+    def handle_unmute_button(self, mic_button_state: bool):
+        if mic_button_state:
+            if not self.audio_recorder.is_recording:
+                self.start_recording()
+        else:
+            if self.audio_recorder.is_recording:
+                try:
+                    transcript = self.stop_recording()
+                    transcript = transcript.strip().lower()
+                    self.transcript = transcript
+                    return True
+                except Exception as e:
+                    print(f"Error stopping recording: {e}")
+        return False
 
 
 class Text2SpeechOpenAI:
