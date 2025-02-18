@@ -270,6 +270,10 @@ def resize(input_img, resizing_factor=None, size=None, resample_method='bicubic'
     elif input_type == torch.Tensor:
         input_dtype = input_img.dtype
         input_tensor = input_img.clone().to(dtype=torch.float, device=device)
+        is_channels_last = False
+        if input_tensor.dim() == 3 and input_tensor.shape[2] == 3:
+            is_channels_last = True
+            input_tensor = input_tensor.permute(2, 0, 1)
     else:
         raise TypeError("input_img should be of type np.ndarray, PIL.Image, or torch.Tensor")
     
@@ -302,6 +306,8 @@ def resize(input_img, resizing_factor=None, size=None, resample_method='bicubic'
         resized_array = np.clip(np.round(resized_tensor.numpy()), 0, 255).astype('uint8')
         return Image.fromarray(resized_array, 'RGB')
     else:
+        if 'is_channels_last' in locals() and is_channels_last:
+            resized_tensor = resized_tensor.permute(1,2,0)
         return resized_tensor.to(input_dtype)
     
 class FrequencyFilter:
