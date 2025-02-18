@@ -1,7 +1,7 @@
 # Byte-compiled / optimized / DLL files
 *.py~
 __pycache__/
-.tac*
+.tac_*
 .aider*
 *.py[cod]
 *$py.class
