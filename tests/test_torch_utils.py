@@ -13,3 +13,9 @@ def test_resize_batch_image_error():
     input_tensor = torch.rand(1, 3, 100, 200)
     with pytest.raises(ValueError, match="resize\\(\\) does not support batched images; expected a 3-dimensional tensor."):
         resize(input_tensor, resizing_factor=2)
+
+def test_resize_hwc():
+    # Create a tensor with shape (100, 150, 3) representing HxWxC
+    input_tensor = torch.rand(100, 150, 3)
+    output = resize(input_tensor, (200, 300))
+    assert output.shape == (200, 300, 3), f"Expected shape (200, 300, 3) but got {output.shape}"
