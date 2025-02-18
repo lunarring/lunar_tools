@@ -269,7 +269,27 @@ def resize(input_img, resizing_factor=None, size=None, resample_method='bicubic'
         input_tensor = torch.as_tensor(np.array(input_img), dtype=torch.float, device=device).permute(2, 0, 1)
     elif input_type == torch.Tensor:
         input_dtype = input_img.dtype
-        input_tensor = input_img.clone().to(dtype=torch.float, device=device)
+        # Handle empty tensor case: if the tensor is empty (0 channels) return it unchanged.
+        if input_img.dim() == 3 and input_img.shape[0] == 0:
+            return input_img
+        if input_img.dim() == 3:
+            # Check if the tensor is in channel-first format: (3, H, W)
+            if input_img.shape[0] == 3 and input_img.shape[2] != 3:
+                tensor_cf = input_img.clone().to(dtype=torch.float, device=device)
+                resized_tensor = torch.nn.functional.interpolate(tensor_cf.unsqueeze(0), size=size, mode=resample_method).squeeze(0)
+                # Convert channel-first to channel-last: (H, W, 3)
+                resized_tensor = resized_tensor.permute(1,2,0)
+            # Else, if the tensor is already channel-last: (H, W, 3)
+            elif input_img.shape[2] == 3:
+                tensor_cf = input_img.clone().permute(2,0,1).to(dtype=torch.float, device=device)
+                resized_tensor = torch.nn.functional.interpolate(tensor_cf.unsqueeze(0), size=size, mode=resample_method).squeeze(0)
+                # Convert back to channel-last (H, W, 3)
+                resized_tensor = resized_tensor.permute(1,2,0)
+            else:
+                raise ValueError("Torch tensor input must be either channel-first with 3 channels or channel-last with 3 channels")
+        else:
+            raise ValueError("Unsupported tensor dimensions")
+        return resized_tensor.to(input_dtype)
     else:
         raise TypeError("input_img should be of type np.ndarray, PIL.Image, or torch.Tensor")
     
