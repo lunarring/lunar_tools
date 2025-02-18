@@ -271,7 +271,7 @@ def resize(input_img, resizing_factor=None, size=None, resample_method='bicubic'
         input_dtype = input_img.dtype
         input_tensor = input_img.clone().to(dtype=torch.float, device=device)
         is_channels_last = False
-        if input_tensor.dim() == 3 and input_tensor.shape[2] == 3:
+        if input_tensor.dim() == 3 and input_tensor.shape[2] <= 3:
             is_channels_last = True
             input_tensor = input_tensor.permute(2, 0, 1)
     else:
