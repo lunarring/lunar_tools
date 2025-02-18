@@ -277,13 +277,16 @@ def resize(input_img, resizing_factor=None, size=None, resample_method='bicubic'
         raise ValueError("Provide either size or downscaling_factor, not both.")
     elif (size is None) and (resizing_factor is None):
         raise ValueError("Either size or downscaling_factor must be provided.")
+    if input_tensor.dim() == 4:
+        raise ValueError("resize() does not support batched images; expected a 3-dimensional tensor.")
+    if (size is not None) and (resizing_factor is not None):
+        raise ValueError("Provide either size or downscaling_factor, not both.")
+    elif (size is None) and (resizing_factor is None):
+        raise ValueError("Either size or downscaling_factor must be provided.")
     elif size is not None:
         size = size
     else:
-        if len(input_tensor.shape) == 3:
-            size = (int(input_tensor.shape[1] * resizing_factor), int(input_tensor.shape[2] * resizing_factor))
-        elif len(input_tensor.shape) == 4:
-            size = (int(input_tensor.shape[2] * resizing_factor), int(input_tensor.shape[3] * resizing_factor))
+        size = (int(input_tensor.shape[1] * resizing_factor), int(input_tensor.shape[2] * resizing_factor))
     
     resized_tensor = torch.nn.functional.interpolate(input_tensor.unsqueeze(0), size=size, mode=resample_method).squeeze(0)
     
