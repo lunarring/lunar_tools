@@ -269,6 +269,15 @@ def resize(input_img, resizing_factor=None, size=None, resample_method='bicubic'
         input_tensor = torch.as_tensor(np.array(input_img), dtype=torch.float, device=device).permute(2, 0, 1)
     elif input_type == torch.Tensor:
         input_dtype = input_img.dtype
+        if input_img.ndim == 3:
+            if input_img.shape[0] == 0:
+                return input_img
+            if input_img.shape[0] == 3:
+                do_permute = True
+            else:
+                do_permute = False
+        elif input_img.ndim == 4:
+            do_permute = False
         input_tensor = input_img.clone().to(dtype=torch.float, device=device)
     else:
         raise TypeError("input_img should be of type np.ndarray, PIL.Image, or torch.Tensor")
@@ -298,7 +307,9 @@ def resize(input_img, resizing_factor=None, size=None, resample_method='bicubic'
         resized_tensor = resized_tensor.permute(1,2,0).cpu()
         resized_array = np.clip(np.round(resized_tensor.numpy()), 0, 255).astype('uint8')
         return Image.fromarray(resized_array, 'RGB')
-    else:
+    elif input_type == torch.Tensor:
+        if input_img.ndim == 3 and do_permute:
+            resized_tensor = resized_tensor.permute(1, 2, 0)
         return resized_tensor.to(input_dtype)
     
 class FrequencyFilter:
