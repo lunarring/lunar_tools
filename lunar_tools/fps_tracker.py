@@ -1,6 +1,7 @@
 import time
 from collections import deque
 from typing import Dict
+from lunar_tools.logprint import dynamic_print
 
 class FPSTracker:
     """A class to track and display FPS (Frames Per Second) with color-coded output and segment timing."""
@@ -84,8 +85,7 @@ class FPSTracker:
     
     def print_fps(self):
         self.update()
-        """Print the current FPS and segment timings to console with color coding."""
-        print(self.get_colored_fps_string(), end='')  # No \r needed as it's in the string
+        dynamic_print(self.get_colored_fps_string())
         if self._should_clear_segments:
             self.segments.clear()
             self._should_clear_segments = False 
