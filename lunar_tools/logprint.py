@@ -19,7 +19,30 @@ COLORS = {
 def dynamic_print(message):
     """
     Dynamically prints a message to the console, replacing the previous message.
+    Handles messages that are longer than the terminal width by clearing the line first
+    and truncating the message if necessary. Also handles multi-line messages by
+    converting them to a single line.
     """
+    # Get terminal width
+    try:
+        import shutil
+        terminal_width = shutil.get_terminal_size().columns
+    except (ImportError, AttributeError):
+        # Default to a reasonable width if we can't get the actual width
+        terminal_width = 80
+    
+    # Remove any newlines from the message to keep it on a single line
+    message = message.replace('\n', ' ').replace('\r', '')
+    
+    # Clear the current line completely
+    sys.stdout.write('\r' + ' ' * terminal_width)
+    sys.stdout.flush()  # Ensure the clearing is displayed
+    
+    # Truncate message if it's too long for the terminal
+    if len(message) > terminal_width - 3:  # Leave room for ellipsis
+        message = message[:terminal_width - 3] + "..."
+    
+    # Return to the beginning of the line and write the new message
     sys.stdout.write('\r' + message)
     sys.stdout.flush()
 
@@ -84,3 +107,7 @@ if __name__ == "__main__":
     logger.print("This CRITICAL message is a red message", "red")
     logger.print("This CRITICAL is a green message", "blue")
 
+    import time
+    for i in range(100):
+        dynamic_print(f"This {i} DEBUG message is a white message that won't be shown in consoleThis DEBUG message is a white message that won't be shown in consoleThis DEBUG message is a white message that won't be shown in consoleThis is a message {i}")
+        time.sleep(0.1)
