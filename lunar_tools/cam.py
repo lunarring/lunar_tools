@@ -12,21 +12,23 @@ from lunar_tools.utils import get_os_type
 
 
 class WebCam():
-    def __init__(self, cam_id=0, shape_hw=(576,1024), do_digital_exposure_accumulation=False):
+    def __init__(self, cam_id=0, shape_hw=(576,1024), do_digital_exposure_accumulation=False, exposure_buf_size=3):
         """
         """
         self.do_mirror = False
         self.shift_colors = True
         self.do_digital_exposure_accumulation = do_digital_exposure_accumulation
-        self.exposure_buf_size = 3
+        self.exposure_buf_size = exposure_buf_size
         self.cam_id = cam_id
         self.shape_hw = shape_hw
         self.img_last = np.zeros((shape_hw[0], shape_hw[1], 3), dtype=np.uint8)
         self.frame_buffer = []
         self.device_ptr = 0
         self.sleep_time_thread = 0.001 
+        # Add frame timing variables for FPS calculation
+        self.frame_times = []
+        self.camera_fps = 0
         self.smart_init()
-        
         self.threader_active = True
         self.acquire_image = True
         self.thread = threading.Thread(target=self.threader_runfunc_cam, daemon=True)
@@ -127,6 +129,23 @@ class WebCam():
                     self.smart_init()
                     time.sleep(1)
                 else:
+                    # Record current time for framerate calculation
+                    current_time = time.time()
+                    self.frame_times.append(current_time)
+                    
+                    # Keep only the last 30 frame times for a moving average
+                    if len(self.frame_times) > 30:
+                        self.frame_times = self.frame_times[-30:]
+                    
+                    # Calculate FPS if we have at least 2 frames
+                    if len(self.frame_times) >= 2:
+                        # Calculate time differences between consecutive frames
+                        time_diffs = [self.frame_times[i] - self.frame_times[i-1] for i in range(1, len(self.frame_times))]
+                        # Calculate average time difference
+                        avg_time_diff = sum(time_diffs) / len(time_diffs)
+                        # Calculate FPS
+                        self.camera_fps = 1.0 / avg_time_diff if avg_time_diff > 0 else 0
+                    
                     # accumulate frames over time and average to reduce noise
                     if self.do_digital_exposure_accumulation:
                         self.frame_buffer.append(img)
@@ -156,6 +175,27 @@ class WebCam():
     
     def get_img(self):
         return self.img_last
+
+    def get_fps(self):
+        """Return the current camera framerate."""
+        return self.camera_fps
+
+    def set_exposure_buf_size(self, size):
+        """Set the number of frames to accumulate for digital exposure.
+        
+        Args:
+            size (int): Number of frames to accumulate and average.
+                        Higher values reduce noise but increase motion blur.
+        """
+        if size < 1:
+            print("Warning: exposure_buf_size must be at least 1. Setting to 1.")
+            size = 1
+        
+        self.exposure_buf_size = size
+        
+        # Clear the existing frame buffer if the new size is smaller
+        if len(self.frame_buffer) > self.exposure_buf_size:
+            self.frame_buffer = self.frame_buffer[-self.exposure_buf_size:]
 
         
 if __name__ == "__main__":
