@@ -69,18 +69,28 @@ class WebCam():
         self.cam = cv2.VideoCapture(self.cam_id)
         
     def release(self):
+        # Ensure the async capture task is cancelled and awaited without blocking the event loop
+        try:
+            loop = asyncio.get_running_loop()
+            if loop.is_running():
+                future = asyncio.run_coroutine_threadsafe(self.stop(), loop)
+                future.result()
+            else:
+                loop.run_until_complete(self.stop())
+        except RuntimeError:
+            asyncio.run(self.stop())
+        self.cam.release()
+        cv2.destroyAllWindows()
+        cv2.VideoCapture(self.cam_id).release()    
+
+    async def stop(self):
         self.threader_active = False
         if hasattr(self, '_capture_task'):
             self._capture_task.cancel()
             try:
-                loop = asyncio.get_event_loop()
-                if not loop.is_running():
-                    loop.run_until_complete(self._capture_task)
-            except Exception:
+                await self._capture_task
+            except asyncio.CancelledError:
                 pass
-        self.cam.release()
-        cv2.destroyAllWindows()
-        cv2.VideoCapture(self.cam_id).release()    
 
     def smart_init(self):
         if get_os_type() == "Linux":
