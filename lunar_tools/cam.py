@@ -171,9 +171,10 @@ class WebCam():
                 time.sleep(self.sleep_time_thread)
 
     async def async_capture_loop(self):
+        loop = asyncio.get_running_loop()
         while self.threader_active:
             if self.acquire_image:
-                img = self.get_raw_image()
+                img = await loop.run_in_executor(None, self.get_raw_image)
                 if img is None:
                     print("async_capture_loop: bad img is None. trying to repair...")
                     self.cam.release()
@@ -197,15 +198,15 @@ class WebCam():
                         
                         if len(self.frame_buffer) > self.exposure_buf_size:
                             self.frame_buffer = self.frame_buffer[1:]
-                            frame_average = np.array(self.frame_buffer).astype(np.float32).mean(axis=0)
+                            frame_average = np.array(self.frame_buffer).astype(np.float32).mean(0)
                             img = frame_average.astype(np.uint8)
                     
                     self.img_last = self.process_raw_image(img)
             await asyncio.sleep(self.sleep_time_thread)
 
     def get_raw_image(self):
-        _, img = self.cam.read()
-        if img is None or img.size < 100:
+        ret, img = self.cam.read()
+        if not ret or img is None or img.size < 100:
             print("get_raw_image: fail, image is bad.")
             return
         return img
