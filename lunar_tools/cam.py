@@ -10,7 +10,7 @@ from lunar_tools.utils import get_os_type
 
 
 class WebCam():
-    def __init__(self, cam_id=0, shape_hw=(576,1024), do_digital_exposure_accumulation=False, exposure_buf_size=3):
+    def __init__(self, cam_id=0, shape_hw=(576,1024), do_digital_exposure_accumulation=False, exposure_buf_size=3, loop=None):
         """
         """
         self.do_mirror = False
@@ -29,8 +29,12 @@ class WebCam():
         self.smart_init()
         self.threader_active = True
         self.acquire_image = True
-        self.thread = threading.Thread(target=self.threader_runfunc_cam, daemon=True)
-        self.thread.start()
+        if loop is None:
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                loop = asyncio.get_event_loop()
+        self._capture_task = loop.create_task(self.async_capture_loop())
             
     def init_linux(self):
         device_paths = glob.glob('/dev/video*')
@@ -66,8 +70,14 @@ class WebCam():
         
     def release(self):
         self.threader_active = False
-        if hasattr(self, 'thread'):
-            self.thread.join()
+        if hasattr(self, '_capture_task'):
+            self._capture_task.cancel()
+            try:
+                loop = asyncio.get_event_loop()
+                if not loop.is_running():
+                    loop.run_until_complete(self._capture_task)
+            except Exception:
+                pass
         self.cam.release()
         cv2.destroyAllWindows()
         cv2.VideoCapture(self.cam_id).release()    
