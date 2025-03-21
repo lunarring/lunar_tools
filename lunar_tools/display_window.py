@@ -1,5 +1,3 @@
-# based on https://github.com/jbaron34/torchwindow
-
 import sys
 import ctypes
 import warnings
@@ -157,7 +155,8 @@ class Renderer:
                  do_fullscreen: bool = False,
                  do_window_refresh_no_freeze = True,  # TODO: setting it to True might interfere with event polling, such as grabbing inputs from keyboard/mouse; so far only implemented for "gl" backend
                  backend = None,
-                 display_id: int = None):
+                 display_id: int = None,
+                 available_displays: list = None):
         
         self.window_title = window_title
         self.gpu_id = gpu_id
@@ -166,6 +165,7 @@ class Renderer:
         self.do_fullscreen = do_fullscreen
         self.do_window_refresh_no_freeze = do_window_refresh_no_freeze
         self.display_id = display_id
+        self.available_displays = available_displays
         
         if backend is None:
             if get_os_type() == "Linux":
@@ -549,6 +549,12 @@ class Renderer:
 
     def pygame_setup(self, display_id=None):
         pygame.init()
+        # Check available displays if provided and if display_id is not in that list, fallback to 0.
+        if self.available_displays is not None and display_id is not None:
+            if display_id not in self.available_displays:
+                warnings.warn(f"Display ID {display_id} is not available. Falling back to display ID 0.", UserWarning)
+                display_id = 0
+                self.display_id = 0
         flags = (pygame.NOFRAME | pygame.RESIZABLE) if self.do_fullscreen else 0
         self.screen = pygame.display.set_mode((self.width, self.height), flags, display=display_id)
         pygame.display.set_caption(self.window_title)
