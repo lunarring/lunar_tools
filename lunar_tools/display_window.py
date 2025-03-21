@@ -1,5 +1,3 @@
-# based on https://github.com/jbaron34/torchwindow
-
 import sys
 import ctypes
 import warnings
@@ -13,6 +11,7 @@ from lunar_tools.utils import get_os_type
 import pygame
 import threading
 import time
+import os
 
 if get_os_type() == "Linux":
     from cuda import cudart as cu
@@ -155,6 +154,7 @@ class Renderer:
                  gpu_id: int = 0,
                  window_title: str = "lunar_render_window",
                  do_fullscreen: bool = False,
+                 screen_id: int = 0,
                  do_window_refresh_no_freeze = True,  # TODO: setting it to True might interfere with event polling, such as grabbing inputs from keyboard/mouse; so far only implemented for "gl" backend
                  backend = None):
         
@@ -163,6 +163,7 @@ class Renderer:
         self.width = width
         self.height = height
         self.do_fullscreen = do_fullscreen
+        self.screen_id = screen_id
         self.do_window_refresh_no_freeze = do_window_refresh_no_freeze
         
         if backend is None:
@@ -546,9 +547,10 @@ class Renderer:
         return peripheralEvent
 
     def pygame_setup(self):
+        if self.do_fullscreen:
+            os.environ["SDL_VIDEO_FULLSCREEN_DISPLAY"] = str(self.screen_id)
         pygame.init()
-        flags = (pygame.NOFRAME | pygame.RESIZABLE) if self.do_fullscreen else 0
-        # flags = pygame.FULLSCREEN if self.do_fullscreen else 0
+        flags = pygame.FULLSCREEN if self.do_fullscreen else 0
         self.screen = pygame.display.set_mode((self.width, self.height), flags)
         pygame.display.set_caption(self.window_title)
         self.running = True
@@ -741,4 +743,3 @@ if __name__ == '__main__':
 
 
     
-
