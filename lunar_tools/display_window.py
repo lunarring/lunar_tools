@@ -156,7 +156,8 @@ class Renderer:
                  window_title: str = "lunar_render_window",
                  do_fullscreen: bool = False,
                  do_window_refresh_no_freeze = True,  # TODO: setting it to True might interfere with event polling, such as grabbing inputs from keyboard/mouse; so far only implemented for "gl" backend
-                 backend = None):
+                 backend = None,
+                 display_id: int = None):
         
         self.window_title = window_title
         self.gpu_id = gpu_id
@@ -164,6 +165,7 @@ class Renderer:
         self.height = height
         self.do_fullscreen = do_fullscreen
         self.do_window_refresh_no_freeze = do_window_refresh_no_freeze
+        self.display_id = display_id
         
         if backend is None:
             if get_os_type() == "Linux":
@@ -189,7 +191,7 @@ class Renderer:
             self.sdl_setup()
             self.running = True
         elif self.backend == 'pygame':
-            self.pygame_setup()
+            self.pygame_setup(self.display_id)
             
     def sdl_setup(self):
         # Initialize SDL2
@@ -545,11 +547,10 @@ class Renderer:
             
         return peripheralEvent
 
-    def pygame_setup(self):
+    def pygame_setup(self, display_id=None):
         pygame.init()
         flags = (pygame.NOFRAME | pygame.RESIZABLE) if self.do_fullscreen else 0
-        # flags = pygame.FULLSCREEN if self.do_fullscreen else 0
-        self.screen = pygame.display.set_mode((self.width, self.height), flags)
+        self.screen = pygame.display.set_mode((self.width, self.height), flags, display=display_id)
         pygame.display.set_caption(self.window_title)
         self.running = True
 
@@ -741,4 +742,3 @@ if __name__ == '__main__':
 
 
     
-
