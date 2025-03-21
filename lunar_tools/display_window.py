@@ -201,10 +201,23 @@ class Renderer:
         else:
             flags_window = sdl2.SDL_WINDOW_OPENGL
         
+        # Determine window position based on screen_id if fullscreen is enabled.
+        if self.do_fullscreen:
+            rect = sdl2.SDL_Rect()
+            if sdl2.SDL_GetDisplayBounds(self.screen_id, ctypes.byref(rect)) != 0:
+                pos_x = sdl2.SDL_WINDOWPOS_CENTERED
+                pos_y = sdl2.SDL_WINDOWPOS_CENTERED
+            else:
+                pos_x = rect.x + (rect.w - self.width) // 2
+                pos_y = rect.y + (rect.h - self.height) // 2
+        else:
+            pos_x = sdl2.SDL_WINDOWPOS_CENTERED
+            pos_y = sdl2.SDL_WINDOWPOS_CENTERED
+
         # Create an SDL2 window
         self.sdl_window = sdl2.SDL_CreateWindow(b"Image Viewer", 
-                                            sdl2.SDL_WINDOWPOS_CENTERED, 
-                                            sdl2.SDL_WINDOWPOS_CENTERED, 
+                                            pos_x, 
+                                            pos_y, 
                                             self.width, self.height, 
                                             flags_window)
         if not self.sdl_window:
@@ -241,10 +254,23 @@ class Renderer:
         else:
             flags_window = sdl2.SDL_WINDOW_OPENGL
 
+        # Determine window position based on screen_id if fullscreen is enabled.
+        if self.do_fullscreen:
+            rect = sdl2.SDL_Rect()
+            if sdl2.SDL_GetDisplayBounds(self.screen_id, ctypes.byref(rect)) != 0:
+                pos_x = sdl2.SDL_WINDOWPOS_UNDEFINED
+                pos_y = sdl2.SDL_WINDOWPOS_UNDEFINED
+            else:
+                pos_x = rect.x + (rect.w - self.width) // 2
+                pos_y = rect.y + (rect.h - self.height) // 2
+        else:
+            pos_x = sdl2.SDL_WINDOWPOS_UNDEFINED
+            pos_y = sdl2.SDL_WINDOWPOS_UNDEFINED
+
         self.sdl_window = sdl2.SDL_CreateWindow(
             self.window_title.encode(),
-            sdl2.SDL_WINDOWPOS_UNDEFINED,
-            sdl2.SDL_WINDOWPOS_UNDEFINED,
+            pos_x,
+            pos_y,
             self.width,
             self.height,
             flags_window,
