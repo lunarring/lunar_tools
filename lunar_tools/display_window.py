@@ -403,13 +403,6 @@ class Renderer:
         
         events = sdl2.ext.get_events()
 
-        # Handle SDL2 events
-        # events = sdl2.ext.get_events()
-        # for event in events:
-        #     if event.type == sdl2.SDL_QUIT:
-        #         self.cleanup()
-        #         return
-
         # Clear the screen
         gl.glClear(gl.GL_COLOR_BUFFER_BIT)
         
@@ -458,9 +451,6 @@ class Renderer:
             image = torch.nn.functional.interpolate(image.permute([2,0,1])[None], size=(self.height, self.width))
             image = image[0].permute([1,2,0])
         
-        # transpose X/Y for openGL consistency
-        # image = image.permute((1,0,2))
-                
         # check for number of channels
         if len(image.shape) == 3:
             if image.shape[2] == 3: # add rgbA channel
@@ -549,12 +539,18 @@ class Renderer:
 
     def pygame_setup(self, display_id=None):
         pygame.init()
-        # Check available displays if provided and if display_id is not in that list, fallback to 0.
-        if self.available_displays is not None and display_id is not None:
-            if display_id not in self.available_displays:
-                warnings.warn(f"Display ID {display_id} is not available. Falling back to display ID 0.", UserWarning)
-                display_id = 0
-                self.display_id = 0
+        if display_id is not None:
+            if self.available_displays is not None:
+                if display_id not in self.available_displays:
+                    warnings.warn(f"Display ID {display_id} is not available. Falling back to display ID 0.", UserWarning)
+                    display_id = 0
+                    self.display_id = 0
+            else:
+                active_displays = pygame.display.get_num_video_displays()
+                if display_id >= active_displays:
+                    warnings.warn(f"Display ID {display_id} is not available. Falling back to display ID 0.", UserWarning)
+                    display_id = 0
+                    self.display_id = 0
         flags = (pygame.NOFRAME | pygame.RESIZABLE) if self.do_fullscreen else 0
         self.screen = pygame.display.set_mode((self.width, self.height), flags, display=display_id)
         pygame.display.set_caption(self.window_title)
