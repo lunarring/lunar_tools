@@ -159,6 +159,9 @@ class MidiInput:
         self.id_nmb_button_down = {}
         self.id_nmb_scan_cycles = {}
         self.id_name = {}
+        self.id_val_min = {}  # Store val_min for each control
+        self.id_val_max = {}  # Store val_max for each control
+        self.id_val_default = {}  # Store val_default for each control
         self.released_once_flags = {}  # Adding a new dictionary to track released_once flags
         for key in self.id_config:
             control_type = self.id_config[key][1]
@@ -168,6 +171,15 @@ class MidiInput:
             self.id_last_time_retrieved[key] = 0
             self.id_nmb_button_down[key] = 0 if control_type == "button" else None
             self.id_nmb_scan_cycles[key] = 0
+            # Initialize scaling parameters
+            if control_type == "slider":
+                self.id_val_min[key] = 0
+                self.id_val_max[key] = 1
+                self.id_val_default[key] = 0.5
+            else:
+                self.id_val_min[key] = None
+                self.id_val_max[key] = None
+                self.id_val_default[key] = False
 
     def compare_device_names(self, dev_info):
         if self.system_device_name in dev_info[1].decode():
@@ -331,6 +343,15 @@ class MidiInput:
             button_mode = 'released_once'
         assert button_mode in self.valid_button_modes
         
+        # Store scaling parameters for later use in get_parameters_dict
+        if alpha_num in self.id_config:
+            if self.id_config[alpha_num][1] == "slider":
+                self.id_val_min[alpha_num] = val_min
+                self.id_val_max[alpha_num] = val_max
+                self.id_val_default[alpha_num] = val_default
+            else:  # button
+                self.id_val_default[alpha_num] = val_default
+        
         if self.autodetect_varname and variable_name is None:
             if self.id_nmb_scan_cycles[alpha_num] <= 2:
                 # Inspecting the stack to find the variable name
@@ -400,6 +421,29 @@ class MidiInput:
         self.id_last_time_retrieved[alpha_num] = time.time()
         
         return val_return
+    
+    def get_parameters_dict(self, **misc):
+        """ Return a dictionary with all assigned parameters and their values. Additional information can be passed as kwargs"""
+        parameters = []
+        for id_, name in self.id_name.items():
+            if self.id_config[id_][1] == "slider":
+                # Scale the raw value using stored min/max parameters
+                if self.id_last_time_scanned[id_] == 0:
+                    # No input received yet, use default value
+                    scaled_value = self.id_val_default[id_]
+                else:
+                    # Scale the raw value (0-1) to the desired range
+                    val_min = self.id_val_min[id_]
+                    val_max = self.id_val_max[id_]
+                    scaled_value = val_min + (val_max - val_min) * self.id_value[id_]
+                parameters.append({'id': id_, 'name': name, 'value': scaled_value})
+            else:
+                # For buttons, return the boolean value as-is
+                value = self.id_value[id_]
+                parameters.append({'id': id_, 'name': name, 'value': value})
+        if misc:
+            parameters.append(misc)
+        return parameters    
 
         
     def set_led(self, alpha_num, state):
@@ -440,35 +484,21 @@ class MidiInput:
             print(row)
         print('\n')
         
-        def print_values(self):
-            print('id\tname\tvalue\n')
-            for id_, name in self.id_name.items():
-                value = self.id_value[id_]
-                print(f'{id_}\t{name}\t{value}')
-            print('\n')
+    def print_values(self):
+        print('id\tname\tvalue\n')
+        for id_, name in self.id_name.items():
+            value = self.id_value[id_]
+            print(f'{id_}\t{name}\t{value}')
+        print('\n')
 
-        def yaml_dump(self, path='/tmp', fn=None, **misc):
-            """ Write all assigned parameters and their values to a yaml file. Additional information can be passed as kwargs"""
-            parameters = []
-            if fn == None:
-                current_datetime_string = datetime.now().strftime("%Y-%m-%d_%H%M%S")
-                fn = f'midi_dump_{current_datetime_string}.yml'
-            fp = os.path.join(path, fn)
-            for id_, name in self.id_name.items():
-                value = self.id_value[id_]
-                parameters.append({'id':id_, 'name':name, 'value':value})
-            if misc:
-                parameters.append(misc)
-            with open(fp, 'w') as file:
-                yaml.dump(parameters, file)
-        
+       
 
 
 #%%
 
        
                     
-if __name__ == "__main__x":
+if __name__ == "__main__":
     import time
     akai_lpd8 = MidiInput(device_name="akai_lpd8")
     
@@ -484,7 +514,7 @@ if __name__ == "__main__x":
         
     akai_lpd8.show()
                     
-if __name__ == "__main__":
+if __name__ == "__main__x":
     import lunar_tools as lt
     import time
     akai_midimix = MidiInput(device_name="akai_midimix")
