@@ -14,6 +14,8 @@ from lunar_tools.utils import get_os_type
 class WebCam():
     def __init__(self, cam_id=0, shape_hw=(576,1024), do_digital_exposure_accumulation=False, exposure_buf_size=3):
         """
+        Args:
+            cam_id: Camera ID (int), -1 for auto-select first available device, or 'auto' to try IDs from -1 to 2
         """
         self.do_mirror = False
         self.shift_colors = True
@@ -34,46 +36,144 @@ class WebCam():
         self.thread = threading.Thread(target=self.threader_runfunc_cam, daemon=True)
         self.thread.start()
             
+    def try_camera_id(self, cam_id, max_attempts=3):
+        """
+        Try to initialize a camera with a specific ID.
+        
+        Args:
+            cam_id: Camera ID to try
+            max_attempts: Maximum number of attempts before giving up
+            
+        Returns:
+            tuple: (success: bool, camera_object, device_ptr)
+        """
+        os_type = get_os_type()
+        
+        for attempt in range(max_attempts):
+            try:
+                if os_type == "Linux":
+                    if cam_id == -1:
+                        device_paths = glob.glob('/dev/video*')
+                        if len(device_paths) == 0:
+                            return False, None, None
+                        device_ptr = device_paths[0]
+                    else:
+                        device_ptr = f'/dev/video{cam_id}'
+                    
+                    cam = cv2.VideoCapture(device_ptr)
+                    
+                elif os_type == "MacOS":
+                    cam = cv2.VideoCapture(cam_id, cv2.CAP_AVFOUNDATION)
+                    device_ptr = cam_id
+                    
+                elif os_type == "Windows":
+                    cam = cv2.VideoCapture(cam_id)
+                    device_ptr = cam_id
+                    
+                else:
+                    raise NotImplementedError("Only Linux, Mac, and Windows supported.")
+                
+                if not cam.isOpened():
+                    cam.release()
+                    continue
+                
+                # Try to read a frame to verify the camera works
+                ret, img = cam.read()
+                if ret and img is not None and img.size > 100:
+                    print(f"Successfully initialized camera with ID: {cam_id}")
+                    return True, cam, device_ptr
+                else:
+                    cam.release()
+                    
+            except Exception as e:
+                print(f"Attempt {attempt + 1} failed for camera ID {cam_id}: {e}")
+                if 'cam' in locals():
+                    cam.release()
+        
+        return False, None, None
                 
     def init_linux(self):
-        device_paths = glob.glob('/dev/video*')
-        if len(device_paths) == 0:
-            raise ValueError("No cameras found")
-        if self.cam_id == -1:
-            device_ptr = device_paths[0]
+        if self.cam_id == 'auto':
+            # Try camera IDs from -1 to 2
+            for test_id in [*range(10),-1]:
+                print(f"trying camera ID: {test_id}")
+                success, cam, device_ptr = self.try_camera_id(test_id)
+                if success:
+                    self.cam = cam
+                    self.device_ptr = device_ptr
+                    self.cam_id = test_id  # Update cam_id to the working one
+                    return
+            raise ValueError("No working cameras found after trying IDs -1 to 2")
         else:
-            device_ptr = f'/dev/video{self.cam_id}'
-        self.cam = cv2.VideoCapture(device_ptr)
-        
-        while True:
-            self.release()
-            if self.cam_id == -1 and len(device_paths) > 1:
-                device_paths.remove(device_ptr)
+            # Original logic for specific cam_id (unchanged)
+            device_paths = glob.glob('/dev/video*')
+            if len(device_paths) == 0:
+                raise ValueError("No cameras found")
+            if self.cam_id == -1:
                 device_ptr = device_paths[0]
-                print(f"smart_init: using device_ptr {device_ptr}")
-            
+            else:
+                device_ptr = f'/dev/video{self.cam_id}'
             self.cam = cv2.VideoCapture(device_ptr)
-            self.set_cap_props()
-            _, img = self.cam.read()
-            if img is not None:
-                break
-            print("release loop...")
-            time.sleep(0.2)
-        self.device_ptr = device_ptr
+            
+            while True:
+                if hasattr(self, 'cam'):
+                    self.cam.release()
+                if self.cam_id == -1 and len(device_paths) > 1:
+                    device_paths.remove(device_ptr)
+                    device_ptr = device_paths[0]
+                    print(f"smart_init: using device_ptr {device_ptr}")
+                
+                self.cam = cv2.VideoCapture(device_ptr)
+                self.set_cap_props()
+                _, img = self.cam.read()
+                if img is not None:
+                    break
+                print("release loop...")
+                time.sleep(0.2)
+            self.device_ptr = device_ptr
         
     def init_mac(self):
-        self.cam = cv2.VideoCapture(self.cam_id, cv2.CAP_AVFOUNDATION)
+        if self.cam_id == 'auto':
+            # Try camera IDs from 0 to 2 (Mac doesn't typically use -1)
+            for test_id in [0, 1, 2]:
+                success, cam, device_ptr = self.try_camera_id(test_id)
+                if success:
+                    self.cam = cam
+                    self.device_ptr = device_ptr
+                    self.cam_id = test_id
+                    return
+            raise ValueError("No working cameras found after trying IDs 0 to 2")
+        else:
+            # Original logic for specific cam_id (unchanged)
+            self.cam = cv2.VideoCapture(self.cam_id, cv2.CAP_AVFOUNDATION)
+            self.device_ptr = self.cam_id
         
     def init_windows(self):
-        self.cam = cv2.VideoCapture(self.cam_id)
+        if self.cam_id == 'auto':
+            # Try camera IDs from 0 to 2
+            for test_id in [0, 1, 2]:
+                success, cam, device_ptr = self.try_camera_id(test_id)
+                if success:
+                    self.cam = cam
+                    self.device_ptr = device_ptr
+                    self.cam_id = test_id
+                    return
+            raise ValueError("No working cameras found after trying IDs 0 to 2")
+        else:
+            # Original logic for specific cam_id (unchanged)
+            self.cam = cv2.VideoCapture(self.cam_id)
+            self.device_ptr = self.cam_id
         
     def release(self):
         self.threader_active = False
         if hasattr(self, 'thread'):
             self.thread.join()
-        self.cam.release()
+        if hasattr(self, 'cam'):
+            self.cam.release()
         cv2.destroyAllWindows()
-        cv2.VideoCapture(self.cam_id).release()    
+        # Only release by cam_id if it's a valid integer
+        if isinstance(self.cam_id, int):
+            cv2.VideoCapture(self.cam_id).release()    
 
     def smart_init(self):
         if get_os_type() == "Linux":
@@ -200,8 +300,14 @@ class WebCam():
         
 if __name__ == "__main__":
     from PIL import Image
-    cam = WebCam(cam_id=0, do_digital_exposure_accumulation=True)
-    # ir = WebCam(cam_id=2)
+    # Try auto-detection first, fall back to specific ID if needed
+    # try:
+    #     cam = WebCam(cam_id='auto', do_digital_exposure_accumulation=True)
+    #     print(f"Auto-detected camera ID: {cam.cam_id}")
+    # except ValueError:
+    #     print("Auto-detection failed, trying cam_id=0")
+    #     cam = WebCam(cam_id=0, do_digital_exposure_accumulation=True)
+    cam = WebCam(cam_id="auto", do_digital_exposure_accumulation=True)
     
     while True:
         img = cam.get_img()
