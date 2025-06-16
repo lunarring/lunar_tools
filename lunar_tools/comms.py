@@ -26,13 +26,19 @@ class ZMQPairEndpoint:
         self.last_image = None
         self.logger = logger if logger else LogPrint()
         self.running = False
+        self.timeout_ms = timeout * 1000  # Store timeout in milliseconds for polling
+
+        # Set socket timeouts for both server and client
+        self.socket.setsockopt(zmq.RCVTIMEO, timeout * 1000)
+        self.socket.setsockopt(zmq.SNDTIMEO, timeout * 1000)
+        
+        # Note: Heartbeat options are not supported for PAIR sockets
+        # They are only available for DEALER/ROUTER and some other socket types
 
         if is_server:
             self.socket.bind(self.address)
         else:
             self.socket.connect(self.address)
-            self.socket.setsockopt(zmq.RCVTIMEO, timeout * 1000)
-            self.socket.setsockopt(zmq.SNDTIMEO, timeout * 1000)
 
         # Default encoding properties
         self.format = '.jpg'
@@ -50,8 +56,8 @@ class ZMQPairEndpoint:
         poller = zmq.Poller()
         poller.register(self.socket, zmq.POLLIN)
         while self.running:
-            # Wait for a message for a short time
-            socks = dict(poller.poll(1000))  # timeout in milliseconds
+            # Wait for a message using configurable timeout
+            socks = dict(poller.poll(self.timeout_ms))  # timeout in milliseconds
             if self.socket in socks:
                 try:
                     message = self.socket.recv(zmq.NOBLOCK)
