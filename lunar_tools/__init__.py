@@ -8,6 +8,7 @@ from .cam import WebCam
 from .comms import OSCReceiver
 from .comms import OSCSender
 from .comms import ZMQPairEndpoint
+from .comms import get_local_ip
 from .control_input import KeyboardInput
 from .control_input import MetaInput
 from .midi import MidiInput

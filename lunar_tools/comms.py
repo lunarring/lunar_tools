@@ -5,9 +5,6 @@ import cv2
 import numpy as np
 from queue import Queue
 import time
-import numpy as np
-import matplotlib.pyplot as plt
-from PIL import Image
 from pythonosc import udp_client 
 from threading import Thread
 from pythonosc.dispatcher import Dispatcher
@@ -15,6 +12,99 @@ from pythonosc import osc_server
 from lunar_tools.logprint import LogPrint
 from lunar_tools.display_window import GridRenderer
 from lunar_tools.fontrender import add_text_to_image
+
+
+def get_local_ip():
+    """
+    Get the local IP address on Ubuntu/Linux systems.
+    
+    This function intelligently finds the local IP address by:
+    1. First trying to parse ifconfig output to find active interfaces
+    2. Looking for interfaces that are UP and RUNNING (not just UP)
+    3. Prioritizing private network IP ranges (10.x, 192.168.x, 172.x)
+    4. Falling back to socket-based detection if ifconfig fails
+    
+    Returns:
+        str: The local IP address, or None if not found
+    
+    Example:
+        >>> ip = get_local_ip()
+        >>> print(f"Local IP: {ip}")
+        Local IP: 10.40.49.109
+    """
+    import subprocess
+    import re
+    import socket
+    
+    # Method 1: Parse ifconfig output (most accurate for Linux)
+    try:
+        result = subprocess.run(['ifconfig'], capture_output=True,
+                                text=True, check=True)
+        output = result.stdout
+        
+        # Split by interface blocks (starts with interface name + colon)
+        interface_blocks = re.split(r'\n(?=\w+:)', output)
+        
+        candidate_ips = []
+        
+        for block in interface_blocks:
+            if not block.strip():
+                continue
+                
+            # Check if interface is UP and RUNNING (active interface)
+            if 'UP' in block and 'RUNNING' in block:
+                # Find inet addresses in this interface block
+                inet_pattern = r'inet (\d+\.\d+\.\d+\.\d+)'
+                inet_matches = re.findall(inet_pattern, block)
+                
+                for ip in inet_matches:
+                    # Skip localhost
+                    if ip.startswith('127.'):
+                        continue
+                    
+                    # Prioritize common private network ranges
+                    if ip.startswith('10.'):
+                        candidate_ips.insert(0, ip)  # Highest priority
+                    elif ip.startswith('192.168.'):
+                        candidate_ips.append(ip)     # Medium priority  
+                    elif (ip.startswith('172.') and
+                          16 <= int(ip.split('.')[1]) <= 31):
+                        candidate_ips.append(ip)     # Medium priority
+                    else:
+                        candidate_ips.append(ip)     # Lowest priority
+        
+        if candidate_ips:
+            return candidate_ips[0]
+            
+    except (subprocess.CalledProcessError, FileNotFoundError,
+            IndexError, ValueError):
+        pass
+    
+    # Method 2: Socket-based fallback (works on most systems)
+    try:
+        # Create socket and connect to remote address to get local IP
+        # We use Google's DNS server, but don't actually send data
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(('8.8.8.8', 80))
+            local_ip = s.getsockname()[0]
+            
+            # Verify it's not localhost
+            if not local_ip.startswith('127.'):
+                return local_ip
+                
+    except (socket.error, OSError):
+        pass
+    
+    # Method 3: Last resort - get hostname IP
+    try:
+        hostname = socket.gethostname()
+        local_ip = socket.gethostbyname(hostname)
+        if not local_ip.startswith('127.'):
+            return local_ip
+    except (socket.error, OSError):
+        pass
+    
+    return None
 
 
 class ZMQPairEndpoint:
