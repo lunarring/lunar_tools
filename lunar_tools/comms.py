@@ -114,6 +114,7 @@ class ZMQPairEndpoint:
         self.socket = self.context.socket(zmq.PAIR)
         self.messages = Queue()
         self.last_image = None
+        self.last_audio = None
         self.logger = logger if logger else LogPrint()
         self.running = False
         self.timeout_ms = timeout * 1000  # Store timeout in milliseconds for polling
@@ -155,6 +156,38 @@ class ZMQPairEndpoint:
                         nparr = np.frombuffer(message[4:], np.uint8)
                         self.last_image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
                         self.messages.put(('img', self.last_image))
+                    elif message.startswith(b'audio:'):
+                        # Parse audio message: audio:sample_rate:channels:dtype:data
+                        header_end = message.find(b':', 6)  # Find end of sample_rate
+                        if header_end == -1:
+                            continue
+                        sample_rate = int(message[6:header_end])
+                        
+                        channels_end = message.find(b':', header_end + 1)  # Find end of channels
+                        if channels_end == -1:
+                            continue
+                        channels = int(message[header_end + 1:channels_end])
+                        
+                        dtype_end = message.find(b':', channels_end + 1)  # Find end of dtype
+                        if dtype_end == -1:
+                            continue
+                        dtype_str = message[channels_end + 1:dtype_end].decode('utf-8')
+                        
+                        # Extract audio data
+                        audio_data = message[dtype_end + 1:]
+                        audio_array = np.frombuffer(audio_data, dtype=np.dtype(dtype_str))
+                        
+                        # Reshape for stereo if needed
+                        if channels == 2:
+                            audio_array = audio_array.reshape(-1, 2)
+                        
+                        self.last_audio = {
+                            'data': audio_array,
+                            'sample_rate': sample_rate,
+                            'channels': channels,
+                            'dtype': dtype_str
+                        }
+                        self.messages.put(('audio', self.last_audio))
                     else:
                         json_data = json.loads(message.decode('utf-8'))
                         self.messages.put(('json', json_data))
@@ -194,6 +227,23 @@ class ZMQPairEndpoint:
                 return message_data
         return None
 
+    def get_audio(self):
+        """
+        Retrieve the most recent audio data from the message queue.
+        
+        Returns:
+            dict or None: Dictionary containing audio data and metadata:
+                - 'data': numpy array with audio samples (1D for mono, 2D for stereo)
+                - 'sample_rate': int, sample rate in Hz
+                - 'channels': int, number of channels (1 for mono, 2 for stereo)
+                - 'dtype': str, numpy dtype of the audio data
+        """
+        while not self.messages.empty():
+            message_type, message_data = self.messages.get()
+            if message_type == 'audio':
+                return message_data
+        return None
+
     def configure_image_encoding(self, format='.jpg', **params):
         self.format = format
         self.encode_params = []
@@ -221,6 +271,59 @@ class ZMQPairEndpoint:
         
         # if self.socket not in socks:
         #     print("Timeout occurred while sending image.")
+
+    def send_audio(self, audio_data, sample_rate, channels=None):
+        """
+        Send audio data over ZMQ without any encoding/compression.
+        
+        Args:
+            audio_data (numpy.ndarray): Audio samples. 
+                - For mono: 1D array of shape (n_samples,)
+                - For stereo: 2D array of shape (n_samples, 2) or 1D interleaved
+            sample_rate (int): Sample rate in Hz (e.g., 44100, 48000)
+            channels (int, optional): Number of channels (1 for mono, 2 for stereo).
+                If None, inferred from audio_data shape.
+        
+        Example:
+            # Mono audio
+            mono_audio = np.random.randn(44100).astype(np.float32)  # 1 second at 44.1kHz
+            endpoint.send_audio(mono_audio, 44100)
+            
+            # Stereo audio 
+            stereo_audio = np.random.randn(44100, 2).astype(np.float32)
+            endpoint.send_audio(stereo_audio, 44100)
+        """
+        # Convert to numpy array if not already
+        audio_data = np.asarray(audio_data)
+        
+        # Infer channels from shape if not provided
+        if channels is None:
+            if audio_data.ndim == 1:
+                channels = 1
+            elif audio_data.ndim == 2:
+                channels = audio_data.shape[1]
+            else:
+                raise ValueError("Audio data must be 1D (mono) or 2D (stereo)")
+        
+        # Validate channels
+        if channels not in [1, 2]:
+            raise ValueError("Only mono (1) and stereo (2) audio are supported")
+        
+        # Ensure correct shape for stereo
+        if channels == 2 and audio_data.ndim == 2:
+            # Flatten stereo data to interleaved format for transmission
+            audio_data = audio_data.flatten()
+        elif channels == 1 and audio_data.ndim == 2:
+            raise ValueError("Mono audio should be 1D array")
+        
+        # Get dtype string
+        dtype_str = str(audio_data.dtype)
+        
+        # Create message: audio:sample_rate:channels:dtype:data
+        header = f"audio:{sample_rate}:{channels}:{dtype_str}:".encode('utf-8')
+        message = header + audio_data.tobytes()
+        
+        self.socket.send(message)
 
 
 #%% 
@@ -491,6 +594,31 @@ if __name__ == "__main__xxx":
     client_received_image = client.get_img()
     if client_received_image is not None:
         print("Client received image from Server")
+
+    # Bidirectional Audio Sending
+    sample_rate = 44100
+    duration = 1.0  # 1 second
+    n_samples = int(sample_rate * duration)
+    
+    # Client sends mono audio to Server
+    client_mono_audio = np.random.randn(n_samples).astype(np.float32) * 0.1
+    client.send_audio(client_mono_audio, sample_rate)
+    time.sleep(0.01)
+    server_received_audio = server.get_audio()
+    if server_received_audio is not None:
+        print(f"Server received mono audio: {server_received_audio['data'].shape}, "
+              f"sample_rate={server_received_audio['sample_rate']}, "
+              f"channels={server_received_audio['channels']}")
+
+    # Server sends stereo audio to Client  
+    server_stereo_audio = np.random.randn(n_samples, 2).astype(np.float32) * 0.1
+    server.send_audio(server_stereo_audio, sample_rate)
+    time.sleep(0.01)
+    client_received_audio = client.get_audio()
+    if client_received_audio is not None:
+        print(f"Client received stereo audio: {client_received_audio['data'].shape}, "
+              f"sample_rate={client_received_audio['sample_rate']}, "
+              f"channels={client_received_audio['channels']}")
         
 if __name__ == "__main__":
     # import lunar_tools as lt
