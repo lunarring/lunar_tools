@@ -5,10 +5,21 @@ from typing import Any, Dict, Optional, Callable, Awaitable, List
 import sounddevice as sd
 import numpy as np
 import threading
-from openai import AsyncOpenAI
-from openai.types.beta.realtime.session import Session
-from openai.resources.beta.realtime.realtime import AsyncRealtimeConnection
 import time
+
+# Optional OpenAI realtime imports
+try:
+    from openai import AsyncOpenAI
+    from openai.types.beta.realtime.session import Session
+    from openai.resources.beta.realtime.realtime import AsyncRealtimeConnection
+    OPENAI_REALTIME_AVAILABLE = True
+except ImportError as e:
+    OPENAI_REALTIME_AVAILABLE = False
+    print(f"OpenAI realtime not available: {e}")
+    # Create dummy classes for type hints
+    AsyncOpenAI = None
+    Session = None
+    AsyncRealtimeConnection = None
 
 from dataclasses import dataclass
 from datetime import datetime
@@ -133,6 +144,11 @@ class RealTimeVoice:
         mute_mic_while_ai_speaking=True,
         verbose: bool = False,
     ):
+        if not OPENAI_REALTIME_AVAILABLE:
+            raise ImportError(
+                "OpenAI realtime dependencies are not available. "
+                "Please install with: pip install openai[realtime] or check your OpenAI library version."
+            )
         self.instructions = instructions
         self.on_user_transcript = on_user_transcript
         self.on_ai_transcript = on_ai_transcript
@@ -457,6 +473,10 @@ class RealTimeVoice:
 # Example Usage
 # --------------------------
 if __name__ == "__main__":
+    if not OPENAI_REALTIME_AVAILABLE:
+        print("OpenAI realtime dependencies are not available. Cannot run example.")
+        exit(1)
+        
     instructions = "Respond briefly and with a sarcastic attitude."
     temperature = 0.9
     voice = "echo"
