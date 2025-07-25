@@ -24,6 +24,8 @@ from .image_gen import SDXL_LCM
 from .image_gen import SDXL_TURBO
 from .image_gen import FluxImageGenerator
 from .llm import GPT4
+from .llm import Gemini25Pro
+from .llm import Deepseek
 from .logprint import LogPrint
 from .logprint import dynamic_print
 from .movie import MovieReader
