@@ -5,6 +5,8 @@ import requests
 from io import BytesIO
 import time
 import os
+import tempfile
+import base64
 from PIL import Image
 import numpy as np
 from openai import OpenAI
@@ -46,6 +48,84 @@ class FluxImageGenerator:
         result = handler.get()
         self.last_result = result
         image_url = result['images'][0]['url']
+
+        # Download the image
+        response = requests.get(image_url)
+        response.raise_for_status()
+        image = Image.open(BytesIO(response.content))
+        return image
+
+
+class FluxKontextImageGenerator:
+    ALLOWED_ASPECT_RATIOS = [
+        "21:9", "16:9", "4:3", "3:2", "1:1", "2:3", "3:4", "9:16", "9:21"
+    ]
+    
+    ALLOWED_OUTPUT_FORMATS = ["jpeg", "png"]
+    
+    ALLOWED_SAFETY_TOLERANCE = ["1", "2", "3", "4", "5", "6"]
+
+    def __init__(self, model="fal-ai/flux-pro/kontext"):
+        self.client = fal_client
+        self.model = model
+        self.last_result = None
+
+    def generate(self, prompt, image_url, seed=None, guidance_scale=3.5, num_images=1, 
+                 output_format="jpeg", safety_tolerance="2", aspect_ratio=None, sync_mode=False):
+        """
+        Generate an edited image using Flux Kontext.
+        
+        Args:
+            prompt (str): Description of what to change in the image
+            image_url (str): URL or path to the input image
+            seed (int, optional): Random seed for reproducible results
+            guidance_scale (float): CFG scale (default: 3.5)
+            num_images (int): Number of images to generate (default: 1)
+            output_format (str): Output format - "jpeg" or "png" (default: "jpeg")
+            safety_tolerance (str): Safety level 1-6, 1 most strict (default: "2")
+            aspect_ratio (str, optional): Aspect ratio like "16:9", "1:1", etc.
+            sync_mode (bool): Wait for image before returning (default: False)
+        """
+        if output_format not in self.ALLOWED_OUTPUT_FORMATS:
+            raise ValueError(f"Invalid output format. Allowed formats are: {', '.join(self.ALLOWED_OUTPUT_FORMATS)}")
+            
+        if safety_tolerance not in self.ALLOWED_SAFETY_TOLERANCE:
+            raise ValueError(f"Invalid safety tolerance. Allowed values are: {', '.join(self.ALLOWED_SAFETY_TOLERANCE)}")
+            
+        if aspect_ratio and aspect_ratio not in self.ALLOWED_ASPECT_RATIOS:
+            raise ValueError(f"Invalid aspect ratio. Allowed ratios are: {', '.join(self.ALLOWED_ASPECT_RATIOS)}")
+
+        arguments = {
+            "prompt": prompt,
+            "image_url": image_url,
+            "guidance_scale": guidance_scale,
+            "num_images": num_images,
+            "output_format": output_format,
+            "safety_tolerance": safety_tolerance,
+            "sync_mode": sync_mode
+        }
+        
+        # Add optional parameters if provided
+        if seed is not None:
+            arguments["seed"] = seed
+        if aspect_ratio:
+            arguments["aspect_ratio"] = aspect_ratio
+
+        result = self.client.subscribe(
+            self.model,
+            arguments=arguments,
+            with_logs=True,
+            on_queue_update=lambda update: None  # You can add logging here if needed
+        )
+        self.last_result = result
+        
+        # Try to access the image URL correctly based on the result structure
+        if 'images' in result:
+            image_url = result['images'][0]['url']
+        elif 'data' in result and 'images' in result['data']:
+            image_url = result['data']['images'][0]['url']
+        else:
+            raise ValueError("Could not find images in result structure")
 
         # Download the image
         response = requests.get(image_url)
@@ -305,6 +385,54 @@ if __name__ == "__main__":
     seed = 420
 
     image = flux.generate(prompt_text, image_size, num_inference_steps, seed)
+
+    
+    # Example usage Flux Kontext - image to image editing
+    print("Running Flux Kontext example...")
+    
+    # Check if we already have an original image
+    if os.path.exists("original.jpg"):
+        print("Using existing original.jpg")
+    else:
+        # Download a random image and save it
+        temp_url = "https://picsum.photos/600/400"
+        print(f"Downloading image from: {temp_url}")
+        
+        response = requests.get(temp_url)
+        response.raise_for_status()
+        original_image = Image.open(BytesIO(response.content))
+        original_image.save("original.jpg")
+        print("Original image saved as: original.jpg")
+    
+    # Convert the local file to base64 data URI
+    print("Converting original.jpg to base64...")
+    with open("original.jpg", "rb") as f:
+        image_data = f.read()
+        image_base64 = base64.b64encode(image_data).decode('utf-8')
+        data_uri = f"data:image/jpeg;base64,{image_base64}"
+    print("Image converted to base64 data URI")
+    
+    # Use Flux Kontext to edit the image
+    flux_kontext = FluxKontextImageGenerator()
+    edit_prompt = "Change the colors to sunset colors but keep the original shapes"
+    
+    # Generate edited image using the base64 data URI
+    edited_image = flux_kontext.generate(
+        prompt=edit_prompt,
+        image_url=data_uri,
+        seed=420,
+        guidance_scale=3.5
+    )
+    
+    print("Flux Kontext editing complete!")
+    
+    # Save the edited result in current directory
+    edited_image.save("edited.jpg")
+    print("Edited image saved as: edited.jpg")
+    
+    # Show the images if running interactively
+    # original_image.show()
+    # edited_image.show()
 
     
     # Example usage glifapi
