@@ -74,6 +74,12 @@ def process_image(editor_data, prompt, seed):
         print(error_msg)  # For debugging
         return None, error_msg
 
+def swap_images(output_image):
+    """Swap the output image back to the input editor"""
+    if output_image is None:
+        return None, "No result image to swap"
+    return output_image, "Result image swapped to input"
+
 def create_interface():
     """Create the Gradio interface"""
     
@@ -108,6 +114,7 @@ def create_interface():
                 scale=1
             )
             process_btn = gr.Button("Generate", variant="primary", scale=1)
+            swap_btn = gr.Button("Swap", variant="secondary", scale=1)
                 
         status_text = gr.Textbox(show_label=False, interactive=False, container=False)
         
@@ -116,6 +123,13 @@ def create_interface():
             fn=process_image,
             inputs=[image_editor, prompt_input, seed_input],
             outputs=[output_image, status_text]
+        )
+        
+        # Set up the swap functionality
+        swap_btn.click(
+            fn=swap_images,
+            inputs=[output_image],
+            outputs=[image_editor, status_text]
         )
     
     return demo
