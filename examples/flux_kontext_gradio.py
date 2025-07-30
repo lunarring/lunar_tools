@@ -77,47 +77,39 @@ def process_image(editor_data, prompt, seed):
 def create_interface():
     """Create the Gradio interface"""
     
-    with gr.Blocks(title="Flux Kontext Image Editor", theme=gr.themes.Soft()) as demo:
-        gr.Markdown("# Flux Kontext Image Editor")
-        gr.Markdown("Draw or upload an image on the left, enter a prompt, and see the AI-edited result on the right!")
+    with gr.Blocks(title="Flux Kontext", theme=gr.themes.Soft()) as demo:
         
-        with gr.Row():
+        with gr.Row(equal_height=True):
             with gr.Column(scale=1):
-                gr.Markdown("### Input Image Editor")
                 image_editor = gr.ImageEditor(
-                    label="Draw or Upload Image",
                     type="pil",
                     image_mode="RGB",
-                    height=400,
-                    width=400
+                    height=700,
+                    container=False
                 )
                 
             with gr.Column(scale=1):
-                gr.Markdown("### Flux Kontext Result")
                 output_image = gr.Image(
-                    label="Edited Result",
                     type="pil",
-                    height=400,
-                    width=400
+                    height=700,
+                    container=False
                 )
         
         with gr.Row():
-            with gr.Column(scale=3):
-                prompt_input = gr.Textbox(
-                    label="Edit Prompt",
-                    placeholder="Describe how you want to modify the image (e.g. 'Change the colors to sunset colors', 'Add a mountain in the background')",
-                    lines=2
-                )
-            with gr.Column(scale=1):
-                seed_input = gr.Number(
-                    label="Seed (optional)",
-                    value=420,
-                    precision=0
-                )
+            prompt_input = gr.Textbox(
+                placeholder="Describe how you want to edit the image...",
+                container=False,
+                scale=4
+            )
+            seed_input = gr.Number(
+                value=420,
+                precision=0,
+                container=False,
+                scale=1
+            )
+            process_btn = gr.Button("Generate", variant="primary", scale=1)
                 
-        with gr.Row():
-            process_btn = gr.Button("Generate Edit", variant="primary", size="lg")
-            status_text = gr.Textbox(label="Status", interactive=False)
+        status_text = gr.Textbox(show_label=False, interactive=False, container=False)
         
         # Set up the processing
         process_btn.click(
@@ -125,16 +117,6 @@ def create_interface():
             inputs=[image_editor, prompt_input, seed_input],
             outputs=[output_image, status_text]
         )
-        
-        # Example prompts
-        gr.Markdown("""
-        ### Example Prompts:
-        - "Change the colors to sunset colors but keep the original shapes"
-        - "Make it look like a watercolor painting"
-        - "Add snow and winter atmosphere"
-        - "Transform into a cyberpunk style"
-        - "Make it look like an oil painting"
-        """)
     
     return demo
 
