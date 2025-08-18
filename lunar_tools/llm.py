@@ -18,7 +18,7 @@ except ImportError:
 
 
 
-class GPT4:
+class OpenAI:
     """
     A simple wrapper class for the GPT models provided by OpenAI.
     
@@ -31,7 +31,7 @@ class GPT4:
 
     def __init__(self, client=None, logger=None, model="gpt-4-0613"):
         """
-        Initializes the GPT4 class with a client, logger, and model.
+        Initializes the OpenAI class with a client, logger, and model.
 
         Args:
             client: An instance of the OpenAI API client. If None, it will initialize with the API key from environment variables.
@@ -91,9 +91,9 @@ class GPT4:
         return chat_completion.choices[0].message.content
 
 
-class Gemini25Pro:
+class Gemini:
     """
-    A simple wrapper class for the Gemini 2.5 Pro models provided by Google.
+    A simple wrapper class for the Gemini models provided by Google.
     
     Attributes:
         client: An instance of the Google GenAI client.
@@ -104,7 +104,7 @@ class Gemini25Pro:
 
     def __init__(self, client=None, logger=None, model="gemini-2.0-flash-exp"):
         """
-        Initializes the Gemini25Pro class with a client, logger, and model.
+        Initializes the Gemini class with a client, logger, and model.
 
         Args:
             client: An instance of the Google GenAI client. If None, it will initialize with the API key from environment variables.
@@ -251,17 +251,17 @@ class Deepseek:
 
 #%% EXAMPLE USE        
 if __name__ == "__main__":
-    # GPT4 Example
-    # print("Testing GPT4...")
-    # gpt4 = GPT4()
-    # gpt_msg = gpt4.generate("tell me about yourself in one sentence")
-    # print(f"GPT4 Response: {gpt_msg}")
+    # OpenAI Example
+    print("Testing OpenAI...")
+    openai = OpenAI(model="gpt-5-2025-08-07")
+    gpt_msg = openai.generate("tell me about yourself in one sentence")
+    print(f"GPT5 Response: {gpt_msg}")
     
     if False:
-        # Gemini 2.5 Pro Example
-        print("\nTesting Gemini 2.5 Pro...")
+        # Gemini Example
+        print("\nTesting Gemini...")
         try:
-            gemini = Gemini25Pro()
+            gemini = Gemini()
             gemini_msg = gemini.generate("tell me about yourself in one sentence")
             print(f"Gemini Response: {gemini_msg}")
         except ImportError as e:
