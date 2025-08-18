@@ -204,7 +204,7 @@ except KeyboardInterrupt:
 ## OpenAI
 ```python
 import lunar_tools as lt
-openai = lt.OpenAI()
+openai = lt.OpenAIWrapper()
 msg = openai.generate("tell me about yourself")
 ```
 

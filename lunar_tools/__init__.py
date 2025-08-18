@@ -23,7 +23,7 @@ from .image_gen import GlifAPI
 from .image_gen import SDXL_LCM
 from .image_gen import SDXL_TURBO
 from .image_gen import FluxImageGenerator
-from .llm import OpenAI
+from .llm import OpenAIWrapper
 from .llm import Gemini
 from .llm import Deepseek
 from .logprint import LogPrint

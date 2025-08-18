@@ -18,7 +18,7 @@ except ImportError:
 
 
 
-class OpenAI:
+class OpenAIWrapper:
     """
     A simple wrapper class for the GPT models provided by OpenAI.
     
@@ -31,7 +31,7 @@ class OpenAI:
 
     def __init__(self, client=None, logger=None, model="gpt-4-0613"):
         """
-        Initializes the OpenAI class with a client, logger, and model.
+        Initializes the OpenAIWrapper class with a client, logger, and model.
 
         Args:
             client: An instance of the OpenAI API client. If None, it will initialize with the API key from environment variables.
@@ -251,23 +251,22 @@ class Deepseek:
 
 #%% EXAMPLE USE        
 if __name__ == "__main__":
-    # OpenAI Example
-    print("Testing OpenAI...")
-    openai = OpenAI(model="gpt-5-2025-08-07")
-    gpt_msg = openai.generate("tell me about yourself in one sentence")
-    print(f"GPT5 Response: {gpt_msg}")
+    # OpenAIWrapper Example
+    print("Testing OpenAIWrapper...")
+    openai = OpenAIWrapper(model="gpt-5-2025-08-07")
+    gpt_msg = openai.generate("tell me about yourself in one sentence. which model are you?")
+    print(f"OpenAI Response: {gpt_msg}")
     
-    if False:
-        # Gemini Example
-        print("\nTesting Gemini...")
-        try:
-            gemini = Gemini()
-            gemini_msg = gemini.generate("tell me about yourself in one sentence")
-            print(f"Gemini Response: {gemini_msg}")
-        except ImportError as e:
-            print(f"Gemini not available: {e}")
-        except Exception as e:
-            print(f"Gemini error: {e}")
+    # Gemini Example
+    print("\nTesting Gemini...")
+    try:
+        gemini = Gemini()
+        gemini_msg = gemini.generate("tell me about yourself in one sentence")
+        print(f"Gemini Response: {gemini_msg}")
+    except ImportError as e:
+        print(f"Gemini not available: {e}")
+    except Exception as e:
+        print(f"Gemini error: {e}")
 
     # DeepSeek Example
     print("\nTesting DeepSeek...")
