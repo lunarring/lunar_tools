@@ -16,6 +16,22 @@ import numpy as np
 import wave
 from pydub import AudioSegment
 from lunar_tools.utils import read_api_key
+import asyncio
+from datetime import datetime
+import logging
+
+# Deepgram SDK imports are optional; guard at runtime if not installed
+try:
+    from deepgram import (
+        DeepgramClient,
+        DeepgramClientOptions,
+        LiveTranscriptionEvents,
+        LiveOptions,
+        Microphone,
+    )
+    _HAS_DEEPGRAM = True
+except Exception:
+    _HAS_DEEPGRAM = False
 
 class AudioRecorder:
     """
@@ -463,61 +479,221 @@ class SoundPlayer:
                 self._playback_object.stop()
             self._play_thread.join()
 
+class RealTimeTranscribe:
+    """
+    Real-time transcription using Deepgram, running inside a background thread.
+
+    - Starts a microphone stream and Deepgram websocket in an asyncio loop scoped to a thread
+    - Stores finalized utterance blocks with timestamps
+    - Exposes easy accessors to retrieve concatenated transcript text or structured blocks
+    """
+
+    def __init__(
+        self,
+        api_key: str | None = None,
+        model: str = "nova-3",
+        language: str = "multi",
+        sample_rate: int = 16000,
+        utterance_end_ms: int = 1000,
+        endpointing_ms: int = 30,
+        logger: LogPrint | None = None,
+    ) -> None:
+        if not _HAS_DEEPGRAM:
+            raise ImportError(
+                "Deepgram SDK not installed. Please install 'deepgram-sdk' to use RealTimeTranscribe."
+            )
+
+        self.logger = logger if logger else LogPrint()
+        self.api_key = api_key or read_api_key("DEEPGRAM_API_KEY")
+        if not self.api_key:
+            raise ValueError("No DEEPGRAM_API_KEY found (env or provided)")
+
+        self.model = model
+        self.language = language
+        self.sample_rate = sample_rate
+        self.utterance_end_ms = str(utterance_end_ms)
+        self.endpointing_ms = endpointing_ms
+
+        # Runtime state
+        self._thread: threading.Thread | None = None
+        self._loop: asyncio.AbstractEventLoop | None = None
+        self._stop_event: asyncio.Event | None = None
+        self._running = False
+
+        # Deepgram objects
+        self._deepgram: DeepgramClient | None = None
+        self._dg_connection = None
+        self._microphone: Microphone | None = None
+
+        # Transcript storage (thread-safe)
+        self._blocks_lock = threading.Lock()
+        self._blocks: list[dict] = []
+        self._utterance_counter = 0
+
+        # Internal buffering of interim finals
+        self._is_finals: list[str] = []
+        self._last_saved_utterance: str = ""
+
+        # Module logger for additional detail
+        self._py_logger = logging.getLogger(__name__)
+
+    # ------------- Public API -------------
+    def start(self) -> None:
+        if self._running:
+            return
+        self._running = True
+        self._thread = threading.Thread(target=self._thread_main, name="RealTimeTranscribeThread", daemon=True)
+        self._thread.start()
+
+    def stop(self, timeout: float | None = 10.0) -> None:
+        if not self._running:
+            return
+        self._running = False
+        if self._loop and self._stop_event:
+            # Signal the asyncio loop to shutdown
+            def _signal_stop() -> None:
+                if not self._stop_event.is_set():
+                    self._stop_event.set()
+            try:
+                self._loop.call_soon_threadsafe(_signal_stop)
+            except Exception:
+                pass
+        if self._thread:
+            self._thread.join(timeout=timeout)
+
+    def get_text(self) -> str:
+        """Return the concatenated transcript text of all finalized blocks."""
+        with self._blocks_lock:
+            return " ".join(block["text"] for block in self._blocks)
+
+    def get_blocks(self) -> list[dict]:
+        """Return a shallow copy of the structured blocks collected so far."""
+        with self._blocks_lock:
+            return list(self._blocks)
+
+    # ------------- Thread & asyncio orchestration -------------
+    def _thread_main(self) -> None:
+        self._loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self._loop)
+        self._stop_event = asyncio.Event()
+        try:
+            self._loop.run_until_complete(self._async_main())
+        finally:
+            try:
+                pending = asyncio.all_tasks(loop=self._loop)
+                for task in pending:
+                    task.cancel()
+                if pending:
+                    self._loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+            except Exception:
+                pass
+            self._loop.close()
+
+    async def _async_main(self) -> None:
+        # Configure and create Deepgram client
+        config: DeepgramClientOptions = DeepgramClientOptions(options={"keepalive": "true"})
+        self._deepgram = DeepgramClient(self.api_key, config)
+        self._dg_connection = self._deepgram.listen.asyncwebsocket.v("1")
+
+        # Event handlers
+        async def on_open(_self, _open, **kwargs):
+            self.logger.print("Deepgram connection open")
+
+        async def on_message(_self, result, **kwargs):
+            sentence = result.channel.alternatives[0].transcript
+            if not sentence:
+                return
+            if result.is_final:
+                self._is_finals.append(sentence)
+                if result.speech_final:
+                    utterance = " ".join(self._is_finals).strip()
+                    if utterance and utterance != self._last_saved_utterance:
+                        self._append_block(utterance)
+                        self._last_saved_utterance = utterance
+                    self._is_finals = []
+
+        async def on_close(_self, _close, **kwargs):
+            self.logger.print("Deepgram connection closed")
+
+        async def on_error(_self, error, **kwargs):
+            self._py_logger.error(f"Deepgram error: {error}")
+
+        self._dg_connection.on(LiveTranscriptionEvents.Open, on_open)
+        self._dg_connection.on(LiveTranscriptionEvents.Transcript, on_message)
+        self._dg_connection.on(LiveTranscriptionEvents.Close, on_close)
+        self._dg_connection.on(LiveTranscriptionEvents.Error, on_error)
+
+        # Connect to websocket
+        options: LiveOptions = LiveOptions(
+            model=self.model,
+            language=self.language,
+            smart_format=True,
+            encoding="linear16",
+            channels=1,
+            sample_rate=self.sample_rate,
+            interim_results=True,
+            utterance_end_ms=self.utterance_end_ms,
+            vad_events=True,
+            endpointing=self.endpointing_ms,
+        )
+
+        addons = {"no_delay": "true"}
+
+        started = await self._dg_connection.start(options, addons=addons)
+        if started is False:
+            self.logger.print("Failed to connect to Deepgram")
+            return
+
+        # Start microphone capture and forward to Deepgram
+        self._microphone = Microphone(self._dg_connection.send)
+        self._microphone.start()
+
+        try:
+            # Idle loop until stop is requested
+            while self._running and self._stop_event and not self._stop_event.is_set():
+                await asyncio.sleep(0.2)
+        finally:
+            try:
+                if self._microphone:
+                    self._microphone.finish()
+                if self._dg_connection:
+                    await self._dg_connection.finish()
+            except Exception:
+                pass
+
+    def _append_block(self, utterance: str) -> None:
+        block = {
+            "index": self._utterance_counter,
+            "text": utterance,
+            # Wall-clock timestamps; Deepgram word/segment timings are available via words if needed
+            "received_at": datetime.now().isoformat(),
+            "source": "deepgram_realtime_api",
+            "type": "transcription_complete",
+        }
+        with self._blocks_lock:
+            self._blocks.append(block)
+            self._utterance_counter += 1
+
     
 
-#%% EXAMPLE USE        
+#%% EXAMPLE USE
 if __name__ == "__main__":
-    audio_recorder = AudioRecorder()
-    # audio_recorder.start_recording("x.mp3")
-    # time.sleep(2)
-    # audio_recorder.stop_recording()
-    
-    # audio_recorder.start_recording("myvoice2.mp3")
-    # time.sleep(3)
-    # audio_recorder.stop_recording()
-    
-    
-    audio_recorder = AudioRecorder()
-    speech_detector = Speech2Text(audio_recorder=audio_recorder)
-    # speech_detector = Speech2Text(offline_model_type='large-v3')
-
-    #%%
-
-    speech_detector.start_recording()
-    time.sleep(3)
-    translation = speech_detector.stop_recording()
-    print(f"translation: {translation}")
-    
-    # speech_detector.start_recording()
-    # time.sleep(3)
-    # translation = speech_detector.stop_recording()
-    # print(f"translation: {translation}")
-    
-    # # Example Usage
-    # text2speech = Text2SpeechElevenlabs(blocking_playback=True)
-    # text2speech.play("hello")
-    
-    # text2speech.change_voice("FU5JW1L0DwfWILWkNpW6")
-    # text2speech.play("well how are you we are making this very long test of sound playback but is it blocking")
-    
-    
-    # # text2speech.change_voice("nova")
-    # # player = SoundPlayer()
-    # # player.play_sound("/tmp/bla.mp3")
-    # # player.stop_sound()
-    
-    # # %%
-    
-    # from elevenlabs import clone, generate, play
-
-    # voice = clone(
-    #     name="buba",
-    #     description="buba",
-    #     files=["jlong.mp3"],
-    # )
-    
-    # audio = generate(text="I am not sure!", voice=voice)
-    
-    # play(audio)
-    
-
+    # Real-time transcription example using Deepgram
+    if not _HAS_DEEPGRAM:
+        print("Deepgram SDK not installed. Install 'deepgram-sdk' to run RealTimeTranscribe example.")
+    else:
+        try:
+            rtt = RealTimeTranscribe()
+        except Exception as e:
+            print(f"Failed to initialize RealTimeTranscribe: {e}")
+        else:
+            rtt.start()
+            print("Start talking! Press Ctrl+C to stop...")
+            try:
+                while True:
+                    print(f"Transcript so far: {rtt.get_text()}")
+                    time.sleep(1)
+            except KeyboardInterrupt:
+                pass
+            finally:
+                rtt.stop()
