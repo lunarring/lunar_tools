@@ -542,6 +542,10 @@ class RealTimeTranscribe:
         self._chunk_events: list[dict] = []
         self._chunk_counter = 0
 
+        # Readiness state (set when Deepgram connection opens)
+        self._ready_event = threading.Event()
+        self._ready = False
+
     # ------------- Public API -------------
     def start(self) -> None:
         if self._running:
@@ -615,6 +619,12 @@ class RealTimeTranscribe:
 
         return [b["text"] for b in blocks_snapshot[last_break_index:]]
 
+    def is_ready(self) -> bool:
+        return self._ready
+
+    def wait_until_ready(self, timeout: float | None = None) -> bool:
+        return self._ready_event.wait(timeout=timeout)
+
     # ------------- Thread & asyncio orchestration -------------
     def _thread_main(self) -> None:
         self._loop = asyncio.new_event_loop()
@@ -642,6 +652,8 @@ class RealTimeTranscribe:
         # Event handlers
         async def on_open(_self, _open, **kwargs):
             self.logger.print("Deepgram connection open")
+            self._ready = True
+            self._ready_event.set()
 
         async def on_message(_self, result, **kwargs):
             sentence = result.channel.alternatives[0].transcript
@@ -662,6 +674,8 @@ class RealTimeTranscribe:
 
         async def on_close(_self, _close, **kwargs):
             self.logger.print("Deepgram connection closed")
+            self._ready = False
+            self._ready_event.clear()
 
         async def on_error(_self, error, **kwargs):
             self._py_logger.error(f"Deepgram error: {error}")
@@ -756,7 +770,12 @@ if __name__ == "__main__":
             print(f"Failed to initialize RealTimeTranscribe: {e}")
         else:
             rtt.start()
-            print("Start talking! Press Ctrl+C to stop...")
+            print("Connecting to Deepgram...")
+            rtt.wait_until_ready(timeout=10.0)
+            if rtt.is_ready():
+                print("Start talking! Press Ctrl+C to stop...")
+            else:
+                print("Deepgram not ready yet. Waiting for connection events...")
             try:
                 while True:
                     full_text = rtt.get_text()
