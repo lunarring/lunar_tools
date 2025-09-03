@@ -497,6 +497,8 @@ class RealTimeTranscribe:
         utterance_end_ms: int = 1000,
         endpointing_ms: int = 30,
         logger: LogPrint | None = None,
+        auto_start: bool = False,
+        ready_timeout: float | None = None,
     ) -> None:
         if not _HAS_DEEPGRAM:
             raise ImportError(
@@ -545,6 +547,11 @@ class RealTimeTranscribe:
         # Readiness state (set when Deepgram connection opens)
         self._ready_event = threading.Event()
         self._ready = False
+
+        # Optionally auto-start and wait for readiness
+        if auto_start:
+            self.start()
+            self.wait_until_ready(timeout=ready_timeout)
 
     # ------------- Public API -------------
     def start(self) -> None:
@@ -765,23 +772,26 @@ if __name__ == "__main__":
         print("Deepgram SDK not installed. Install 'deepgram-sdk' to run RealTimeTranscribe example.")
     else:
         try:
-            rtt = RealTimeTranscribe()
+            rtt = RealTimeTranscribe(auto_start=True, ready_timeout=10.0)
         except Exception as e:
             print(f"Failed to initialize RealTimeTranscribe: {e}")
         else:
-            rtt.start()
-            print("Connecting to Deepgram...")
-            rtt.wait_until_ready(timeout=10.0)
+            # If not yet ready (e.g., timed out), inform the user; otherwise prompt to speak
+            if rtt.is_ready():
+                print("Start talking! Press Ctrl+C to stop...")
+            else:
+                print("Deepgram not ready yet. Waiting for connection events...")
             if rtt.is_ready():
                 print("Start talking! Press Ctrl+C to stop...")
             else:
                 print("Deepgram not ready yet. Waiting for connection events...")
             try:
+                time_silence = 2
                 while True:
                     full_text = rtt.get_text()
-                    recent_text = " ".join(rtt.get_chunks(silence_duration=3.0))
+                    recent_text = " ".join(rtt.get_chunks(silence_duration=time_silence))
                     print(f"Transcript so far: {full_text}")
-                    print(f"Transcript since 3s silence: {recent_text}")
+                    print(f"Transcript since {time_silence}s silence: {recent_text}")
                     time.sleep(1)
             except KeyboardInterrupt:
                 pass
