@@ -537,6 +537,11 @@ class RealTimeTranscribe:
         # Module logger for additional detail
         self._py_logger = logging.getLogger(__name__)
 
+        # Per-chunk event logging (interim and final) with timestamps
+        self._chunk_events_lock = threading.Lock()
+        self._chunk_events: list[dict] = []
+        self._chunk_counter = 0
+
     # ------------- Public API -------------
     def start(self) -> None:
         if self._running:
@@ -571,6 +576,45 @@ class RealTimeTranscribe:
         with self._blocks_lock:
             return list(self._blocks)
 
+    def get_chunk_events(self) -> list[dict]:
+        """Return a shallow copy of per-chunk events (interim and final)."""
+        with self._chunk_events_lock:
+            return list(self._chunk_events)
+
+    def get_chunks(self, silence_duration: float = 10.0) -> list[str]:
+        """
+        Return utterance texts that occurred AFTER the last long silence gap.
+
+        A "long silence" is defined as a gap between consecutive finalized
+        utterances where (received_at[i] - received_at[i-1]) >= silence_duration.
+
+        Args:
+            silence_duration: Threshold in seconds to detect a long silence.
+
+        Returns:
+            List of utterance texts after the most recent long silence. If no
+            such gap exists yet, returns all collected utterances.
+        """
+        with self._blocks_lock:
+            blocks_snapshot = list(self._blocks)
+
+        if len(blocks_snapshot) == 0:
+            return []
+
+        last_break_index = 0
+        for i in range(1, len(blocks_snapshot)):
+            try:
+                prev_ts = datetime.fromisoformat(blocks_snapshot[i - 1]["received_at"])  # type: ignore[arg-type]
+                curr_ts = datetime.fromisoformat(blocks_snapshot[i]["received_at"])      # type: ignore[arg-type]
+            except Exception:
+                # If timestamps are malformed, skip this comparison
+                continue
+            gap_seconds = (curr_ts - prev_ts).total_seconds()
+            if gap_seconds >= silence_duration:
+                last_break_index = i
+
+        return [b["text"] for b in blocks_snapshot[last_break_index:]]
+
     # ------------- Thread & asyncio orchestration -------------
     def _thread_main(self) -> None:
         self._loop = asyncio.new_event_loop()
@@ -603,14 +647,18 @@ class RealTimeTranscribe:
             sentence = result.channel.alternatives[0].transcript
             if not sentence:
                 return
-            if result.is_final:
+            # Log interim and final chunk events with arrival time
+            if getattr(result, "is_final", False):
+                self._log_chunk_event("final", sentence, is_speech_final=getattr(result, "speech_final", False))
                 self._is_finals.append(sentence)
-                if result.speech_final:
+                if getattr(result, "speech_final", False):
                     utterance = " ".join(self._is_finals).strip()
                     if utterance and utterance != self._last_saved_utterance:
                         self._append_block(utterance)
                         self._last_saved_utterance = utterance
                     self._is_finals = []
+            else:
+                self._log_chunk_event("interim", sentence, is_speech_final=False)
 
         async def on_close(_self, _close, **kwargs):
             self.logger.print("Deepgram connection closed")
@@ -674,6 +722,26 @@ class RealTimeTranscribe:
             self._blocks.append(block)
             self._utterance_counter += 1
 
+    def _log_chunk_event(self, event_type: str, text: str, is_speech_final: bool | None = None) -> None:
+        """Record a chunk-level event with arrival timestamp.
+
+        Args:
+            event_type: 'interim' or 'final'.
+            text: transcript content for this event chunk.
+            is_speech_final: For final chunks, indicates Deepgram speech_final; otherwise None/False.
+        """
+        event = {
+            "index": self._chunk_counter,
+            "type": event_type,
+            "text": text,
+            "received_at": datetime.now().isoformat(),
+            "speech_final": bool(is_speech_final) if is_speech_final is not None else False,
+            "source": "deepgram_realtime_api",
+        }
+        with self._chunk_events_lock:
+            self._chunk_events.append(event)
+            self._chunk_counter += 1
+
     
 
 #%% EXAMPLE USE
@@ -691,7 +759,10 @@ if __name__ == "__main__":
             print("Start talking! Press Ctrl+C to stop...")
             try:
                 while True:
-                    print(f"Transcript so far: {rtt.get_text()}")
+                    full_text = rtt.get_text()
+                    recent_text = " ".join(rtt.get_chunks(silence_duration=3.0))
+                    print(f"Transcript so far: {full_text}")
+                    print(f"Transcript since 3s silence: {recent_text}")
                     time.sleep(1)
             except KeyboardInterrupt:
                 pass
