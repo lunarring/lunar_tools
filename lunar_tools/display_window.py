@@ -15,7 +15,13 @@ import threading
 import time
 
 if get_os_type() == "Linux":
-    from cuda import cudart as cu
+    try:
+        from cuda import cudart as cu
+    except ImportError:
+        try:
+            from cuda.bindings import runtime as cu
+        except ImportError:
+            raise ImportError("Could not import CUDA runtime. Please ensure cuda-python is properly installed.")
     
     with warnings.catch_warnings():
         warnings.filterwarnings(action="ignore", category=UserWarning)
