@@ -10,7 +10,6 @@ from threading import Thread
 from pythonosc.dispatcher import Dispatcher
 from pythonosc import osc_server
 from lunar_tools.logprint import LogPrint
-from lunar_tools.display_window import GridRenderer
 from lunar_tools.fontrender import add_text_to_image
 
 
@@ -419,6 +418,7 @@ class OSCReceiver():
         
 
     def start_visualization(self, shape_hw_vis=(200, 300), nmb_cols_vis=3, nmb_rows_vis=3, backend=None):
+        from lunar_tools.display_window import GridRenderer
         self.shape_hw_vis = shape_hw_vis
         self.nmb_cols_vis = nmb_cols_vis
         self.nmb_rows_vis = nmb_rows_vis
