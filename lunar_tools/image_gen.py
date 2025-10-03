@@ -56,6 +56,126 @@ class FluxImageGenerator:
         return image
 
 
+class NanoBananaEditImageGenerator:
+    """
+    Wrapper for fal.ai model: "fal-ai/nano-banana/edit".
+
+    Notes:
+    - Accepts a single image (base64 data URI or URL) via `image_url`, or a list via `image_urls`.
+    - If a mask is provided, pass it via `mask_url` (base64 data URI or URL). Areas to edit should be white.
+    - Additional tuning args supported by fal can be forwarded via **kwargs.
+    - Returns a PIL.Image for the first image in the response.
+    """
+
+    def __init__(self, model="fal-ai/nano-banana/edit"):
+        self.client = fal_client
+        self.model = model
+        self.last_result = None
+
+    def generate(self,
+                 prompt: str,
+                 image_url=None,
+                 image_urls=None,
+                 mask_url=None,
+                 seed=None,
+                 num_images: int = 1,
+                 sync_mode: bool = False,
+                 image_size: str = None,
+                 width: int = None,
+                 height: int = None,
+                 **kwargs):
+        """
+        Generate edited image(s) with Nano Banana edit.
+
+        Args:
+            prompt: Edit prompt.
+            image_url: Single input image (URL or base64 data URI).
+            image_urls: Multiple input images (list of URLs or base64 data URIs).
+            mask_url: Optional mask image (URL or base64 data URI). White = edit.
+            seed: Optional random seed for reproducibility.
+            num_images: Number of images to generate (for single input image).
+            sync_mode: If True, wait for image before returning.
+            **kwargs: Forwarded to fal model arguments for advanced controls.
+        """
+
+        if not image_url and not image_urls:
+            raise ValueError("Provide either image_url or image_urls")
+
+        arguments = {
+            "prompt": prompt,
+            "sync_mode": sync_mode,
+        }
+
+        # Always send list field expected by the API
+        if image_urls is not None:
+            if not isinstance(image_urls, (list, tuple)):
+                raise TypeError("image_urls must be a list of URLs/data URIs")
+            arguments["image_urls"] = list(image_urls)
+        else:
+            arguments["image_urls"] = [image_url]
+
+        if mask_url is not None:
+            arguments["mask_url"] = mask_url
+        if seed is not None:
+            arguments["seed"] = seed
+        if num_images is not None:
+            arguments["num_images"] = int(num_images)
+        if image_size is not None and image_size != "custom":
+            arguments["image_size"] = image_size
+        # If custom or explicit width/height provided, include them
+        if width is not None:
+            arguments["width"] = int(width)
+        if height is not None:
+            arguments["height"] = int(height)
+
+        # Merge any additional kwargs (e.g., guidance_scale, steps, strength, negative_prompt, etc.)
+        arguments.update(kwargs)
+
+        # Verbose logging about the request
+        try:
+            num_inputs = len(arguments.get("image_urls", []))
+        except Exception:
+            num_inputs = 1 if arguments.get("image_url") else 0
+        print(f"[NanoBanana] Submitting to {self.model} | images={num_inputs} | size={arguments.get('image_size') or 'custom'} | w={arguments.get('width')} | h={arguments.get('height')} | seed={arguments.get('seed')}")
+
+        def _on_update(update):
+            try:
+                status = getattr(update, 'status', None) or update.get('status')
+                message = getattr(update, 'message', None) or update.get('message')
+                if status or message:
+                    print(f"[NanoBanana][queue] status={status} msg={message}")
+            except Exception:
+                pass
+
+        result = self.client.subscribe(
+            self.model,
+            arguments=arguments,
+            with_logs=True,
+            on_queue_update=_on_update
+        )
+        self.last_result = result
+
+        # Extract first image URL from known result shapes
+        image_url_out = None
+        if isinstance(result, dict):
+            if "images" in result and result["images"]:
+                image_url_out = result["images"][0].get("url")
+            elif "data" in result and isinstance(result["data"], dict):
+                images = result["data"].get("images")
+                if images:
+                    image_url_out = images[0].get("url")
+
+        if not image_url_out:
+            raise ValueError("NanoBanana: could not find images in result")
+
+        print(f"[NanoBanana] Received response. Downloading image: {image_url_out}")
+        response = requests.get(image_url_out)
+        response.raise_for_status()
+        img = Image.open(BytesIO(response.content))
+        print(f"[NanoBanana] Image downloaded. size={img.size} mode={img.mode}")
+        return img
+
+
 class FluxKontextImageGenerator:
     ALLOWED_ASPECT_RATIOS = [
         "21:9", "16:9", "4:3", "3:2", "1:1", "2:3", "3:4", "9:16", "9:21"
