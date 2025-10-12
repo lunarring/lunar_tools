@@ -3,13 +3,13 @@ import json
 import threading
 import cv2
 import numpy as np
-from queue import Queue
+from queue import Queue, Empty, Full
 import time
 from pythonosc import udp_client 
 from threading import Thread
 from pythonosc.dispatcher import Dispatcher
 from pythonosc import osc_server
-from lunar_tools.logprint import LogPrint
+from lunar_tools.logprint import create_logger
 from lunar_tools.fontrender import add_text_to_image
 
 
@@ -112,15 +112,19 @@ class ZMQPairEndpoint:
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.PAIR)
         self.messages = Queue()
+        self.send_queue = Queue()
         self.last_image = None
         self.last_audio = None
-        self.logger = logger if logger else LogPrint()
+        self.logger = logger if logger else create_logger(__name__ + ".ZMQPairEndpoint")
         self.running = False
-        self.timeout_ms = timeout * 1000  # Store timeout in milliseconds for polling
+        timeout_seconds = float(timeout)
+        self.timeout_ms = max(int(timeout_seconds * 1000), 1)
+        self.poll_interval_ms = max(5, min(self.timeout_ms, 50))
+        self._send_block_timeout = timeout_seconds if timeout_seconds > 0 else None
 
         # Set socket timeouts for both server and client
-        self.socket.setsockopt(zmq.RCVTIMEO, timeout * 1000)
-        self.socket.setsockopt(zmq.SNDTIMEO, timeout * 1000)
+        self.socket.setsockopt(zmq.RCVTIMEO, self.timeout_ms)
+        self.socket.setsockopt(zmq.SNDTIMEO, self.timeout_ms)
         
         # Note: Heartbeat options are not supported for PAIR sockets
         # They are only available for DEALER/ROUTER and some other socket types
@@ -146,69 +150,159 @@ class ZMQPairEndpoint:
         poller = zmq.Poller()
         poller.register(self.socket, zmq.POLLIN)
         while self.running:
-            # Wait for a message using configurable timeout
-            socks = dict(poller.poll(self.timeout_ms))  # timeout in milliseconds
-            if self.socket in socks:
+            self._flush_outgoing()
+            try:
+                socks = dict(poller.poll(self.poll_interval_ms))
+            except zmq.ZMQError as exc:
+                if self.running:
+                    self.logger.error(f"ZMQ poll error: {exc}")
+                break
+
+            if not self.running:
+                break
+
+            if self.socket in socks and socks[self.socket] & zmq.POLLIN:
                 try:
-                    message = self.socket.recv(zmq.NOBLOCK)
-                    if message.startswith(b'img:'):
-                        nparr = np.frombuffer(message[4:], np.uint8)
-                        self.last_image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-                        self.messages.put(('img', self.last_image))
-                    elif message.startswith(b'audio:'):
-                        # Parse audio message: audio:sample_rate:channels:dtype:data
-                        header_end = message.find(b':', 6)  # Find end of sample_rate
-                        if header_end == -1:
-                            continue
-                        sample_rate = int(message[6:header_end])
-                        
-                        channels_end = message.find(b':', header_end + 1)  # Find end of channels
-                        if channels_end == -1:
-                            continue
-                        channels = int(message[header_end + 1:channels_end])
-                        
-                        dtype_end = message.find(b':', channels_end + 1)  # Find end of dtype
-                        if dtype_end == -1:
-                            continue
-                        dtype_str = message[channels_end + 1:dtype_end].decode('utf-8')
-                        
-                        # Extract audio data
-                        audio_data = message[dtype_end + 1:]
-                        audio_array = np.frombuffer(audio_data, dtype=np.dtype(dtype_str))
-                        
-                        # Reshape for stereo if needed
-                        if channels == 2:
-                            audio_array = audio_array.reshape(-1, 2)
-                        
-                        self.last_audio = {
-                            'data': audio_array,
-                            'sample_rate': sample_rate,
-                            'channels': channels,
-                            'dtype': dtype_str
-                        }
-                        self.messages.put(('audio', self.last_audio))
-                    else:
-                        json_data = json.loads(message.decode('utf-8'))
-                        self.messages.put(('json', json_data))
-                    
-                    
-                except zmq.Again:
-                    continue
-                except Exception as e:
-                    self.logger.error(f"Exception in listen thread: {e}")
+                    self._handle_incoming()
+                except Exception as exc:
+                    self.logger.error(f"Exception in listen thread: {exc}")
                     break
+
+            # Attempt to send any messages that arrived while processing input
+            self._flush_outgoing()
+
+        # Drain any remaining outgoing messages without sending once stopped
+        while True:
+            try:
+                _, response_queue = self.send_queue.get_nowait()
+            except Empty:
+                break
+
+            if response_queue is not None:
+                response_queue.put_nowait(("error", zmq.Again("Endpoint stopped")))
+
+    def _handle_incoming(self):
+        try:
+            message = self.socket.recv(zmq.NOBLOCK)
+        except zmq.Again:
+            return
+
+        if message.startswith(b'img:'):
+            nparr = np.frombuffer(message[4:], np.uint8)
+            self.last_image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            self.messages.put(('img', self.last_image))
+        elif message.startswith(b'audio:'):
+            # Parse audio message: audio:sample_rate:channels:dtype:data
+            header_end = message.find(b':', 6)  # Find end of sample_rate
+            if header_end == -1:
+                return
+            sample_rate = int(message[6:header_end])
+
+            channels_end = message.find(b':', header_end + 1)  # Find end of channels
+            if channels_end == -1:
+                return
+            channels = int(message[header_end + 1:channels_end])
+
+            dtype_end = message.find(b':', channels_end + 1)  # Find end of dtype
+            if dtype_end == -1:
+                return
+            dtype_str = message[channels_end + 1:dtype_end].decode('utf-8')
+
+            # Extract audio data
+            audio_data = message[dtype_end + 1:]
+            audio_array = np.frombuffer(audio_data, dtype=np.dtype(dtype_str))
+
+            # Reshape for stereo if needed
+            if channels == 2:
+                audio_array = audio_array.reshape(-1, 2)
+
+            self.last_audio = {
+                'data': audio_array,
+                'sample_rate': sample_rate,
+                'channels': channels,
+                'dtype': dtype_str
+            }
+            self.messages.put(('audio', self.last_audio))
+        else:
+            json_data = json.loads(message.decode('utf-8'))
+            self.messages.put(('json', json_data))
+
+    def _flush_outgoing(self):
+        while self.running:
+            try:
+                payload, response_queue = self.send_queue.get_nowait()
+            except Empty:
+                break
+
+            if payload is None:
+                if response_queue is not None:
+                    response_queue.put_nowait(("ok", None))
+                continue
+
+            try:
+                self.socket.send(payload)
+            except zmq.Again as exc:
+                if response_queue is not None:
+                    response_queue.put_nowait(("error", exc))
+                else:
+                    self.logger.error("Send failed with EAGAIN and no response handle.")
+            except zmq.ZMQError as exc:
+                if response_queue is not None:
+                    response_queue.put_nowait(("error", exc))
+                else:
+                    self.logger.error(f"Exception while sending message: {exc}")
+            else:
+                if response_queue is not None:
+                    response_queue.put_nowait(("ok", None))
+
+    def _queue_send(self, payload):
+        if payload is None:
+            self.send_queue.put_nowait((None, None))
+            return
+
+        response_queue = Queue(maxsize=1)
+        try:
+            if self._send_block_timeout is None:
+                self.send_queue.put((payload, response_queue))
+            else:
+                self.send_queue.put((payload, response_queue), timeout=self._send_block_timeout)
+        except Full as exc:
+            raise zmq.Again("Send queue full: peer not accepting data before timeout") from exc
+
+        try:
+            status, exc = response_queue.get(timeout=self._send_block_timeout or None)
+        except Empty as exc:
+            raise zmq.Again("Send acknowledgement timed out") from exc
+
+        if status == "error":
+            raise exc
     
 
     def stop(self):
         # Signal the thread to stop
         self.running = False
+        self._queue_send(None)
 
         # Wait for the listening thread to finish
-        if self.thread.is_alive():
+        if (
+            hasattr(self, "thread")
+            and self.thread.is_alive()
+            and threading.current_thread() is not self.thread
+        ):
             self.thread.join()
 
         # Now safely close the socket
-        self.socket.close()
+        if hasattr(self, "socket"):
+            try:
+                self.socket.close(linger=0)
+            finally:
+                self.socket = None
+
+        if getattr(self, "context", None) is not None:
+            try:
+                self.context.term()
+            finally:
+                self.context = None
 
 
     def get_messages(self):
@@ -256,11 +350,13 @@ class ZMQPairEndpoint:
 
     def send_json(self, data):
         json_data = json.dumps(data).encode('utf-8')
-        self.socket.send(json_data)
+        self._queue_send(json_data)
 
     def send_img(self, img):
-        _, buffer = cv2.imencode(self.format, img, self.encode_params)
-        self.socket.send(b'img:' + buffer.tobytes())
+        success, buffer = cv2.imencode(self.format, img, self.encode_params)
+        if not success:
+            raise ValueError("Failed to encode image for transmission")
+        self._queue_send(b'img:' + buffer.tobytes())
         # self.socket.send(b'img:' + buffer.tobytes(), zmq.NOBLOCK)
         
         # # Wait for up to 2 seconds for the message to be sent
@@ -322,7 +418,7 @@ class ZMQPairEndpoint:
         header = f"audio:{sample_rate}:{channels}:{dtype_str}:".encode('utf-8')
         message = header + audio_data.tobytes()
         
-        self.socket.send(message)
+        self._queue_send(message)
 
 
 #%% 

@@ -375,10 +375,10 @@ receiver.get_all_values("/env1")
 # Logging and terminal printing
 ```python
 import lunar_tools as lt
-logger = lt.LogPrint()  # No filename provided, will use default current_dir/logs/%y%m%d_%H%M
-logger.print("white")
-logger.print("red", "red")
-logger.print("green", "green")
+logger = lt.create_logger("demo.logger")
+logger.info("plain info message")
+logger.warning("highlighted warning message")
+lt.dynamic_print("Updating progress in-place...")
 ```
 
 # Health status reporting via telegram
@@ -422,4 +422,3 @@ python -m pytest lunar_tools/tests/
 ```python
 pipreqs . --force
 ```
-

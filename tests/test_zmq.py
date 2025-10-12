@@ -1,82 +1,111 @@
-import unittest
-import os
+import socket
 import time
-import sys
-import string
-sys.path.append(os.path.abspath('.'))
-sys.path.append(os.path.abspath('lunar_tools'))
-sys.path.append(os.path.join(os.getcwd(), 'lunar_tools'))
+
 import numpy as np
-from comms import ZMQPairEndpoint 
-import time
+import pytest
+import zmq
 
-class TestZMQPairEndpoint(unittest.TestCase):
-    def setUp(self):
-        self.server = ZMQPairEndpoint(is_server=True, ip='127.0.0.1', port='5556')
-        self.client = ZMQPairEndpoint(is_server=False, ip='127.0.0.1', port='5556')
+from lunar_tools.comms import ZMQPairEndpoint
 
-    def tearDown(self):
-        self.server.stop()
-        self.client.stop()
 
-    def test_init_server(self):
-        self.assertEqual(self.server.address, "tcp://127.0.0.1:5556")
+def _pick_free_port() -> str:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        return str(sock.getsockname()[1])
 
-    def test_init_client(self):
-        self.assertEqual(self.client.address, "tcp://127.0.0.1:5556")
 
-    def test_client_to_server_json(self):
-        self.client.send_json({"message": "Hello, server!"})
-        time.sleep(0.1)
-        msgs = self.server.get_messages()
-        self.assertEqual(len(msgs), 1)
-        self.assertEqual(msgs[0], {"message": "Hello, server!"})
+@pytest.fixture
+def zmq_pair():
+    port = _pick_free_port()
+    server = ZMQPairEndpoint(is_server=True, ip="127.0.0.1", port=port, timeout=0.5)
+    client = ZMQPairEndpoint(is_server=False, ip="127.0.0.1", port=port, timeout=0.5)
 
-    def test_server_to_client_json(self):
-        self.server.send_json({"response": "Hello, client!"})
-        time.sleep(0.1)
-        msgs = self.client.get_messages()
-        self.assertEqual(len(msgs), 1)
-        self.assertEqual(msgs[0], {"response": "Hello, client!"})
+    try:
+        yield server, client
+    finally:
+        client.stop()
+        server.stop()
 
-    def test_bidirectional_json(self):
-        self.client.send_json({"message": "Client to Server"})
-        time.sleep(0.1)
-        self.server.send_json({"response": "Server to Client"})
-        time.sleep(0.1)
-        client_msgs = self.client.get_messages()
-        server_msgs = self.server.get_messages()
 
-        self.assertIn({"message": "Client to Server"}, server_msgs)
-        self.assertIn({"response": "Server to Client"}, client_msgs)
+def _wait_for_json(endpoint, timeout=1.0):
+    deadline = time.time() + timeout
+    collected = []
+    while time.time() < deadline and not collected:
+        collected = endpoint.get_messages()
+        if collected:
+            break
+        time.sleep(0.01)
+    return collected
 
-    def test_client_to_server_image(self):
-        test_image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
-        self.client.send_img(test_image)
-        time.sleep(0.1)
-        received_image = self.server.get_img()
-        self.assertEqual(received_image.shape, (100, 100, 3))
 
-    def test_server_to_client_image(self):
-        test_image = np.random.randint(0, 256, (150, 150, 3), dtype=np.uint8)
-        self.server.send_img(test_image)
-        time.sleep(0.1)
-        received_image = self.client.get_img()
-        self.assertEqual(received_image.shape, (150, 150, 3))
+def _wait_for_img(endpoint, timeout=1.0):
+    deadline = time.time() + timeout
+    img = None
+    while time.time() < deadline and img is None:
+        img = endpoint.get_img()
+        if img is not None:
+            break
+        time.sleep(0.01)
+    return img
 
-    def test_bidirectional_image(self):
-        client_image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
-        server_image = np.random.randint(0, 256, (150, 150, 3), dtype=np.uint8)
 
-        self.client.send_img(client_image)
-        self.server.send_img(server_image)
+def test_addresses_match_configuration(zmq_pair):
+    server, client = zmq_pair
+    assert server.address == client.address
+    assert server.address.startswith("tcp://127.0.0.1")
 
-        time.sleep(0.1)
-        server_received_image = self.server.get_img()
-        client_received_image = self.client.get_img()
 
-        self.assertEqual(server_received_image.shape, (100, 100, 3))
-        self.assertEqual(client_received_image.shape, (150, 150, 3))
+def test_client_to_server_json(zmq_pair):
+    server, client = zmq_pair
+    client.send_json({"message": "Hello, server!"})
+    messages = _wait_for_json(server)
 
-if __name__ == '__main__':
-    unittest.main()
+    assert messages == [{"message": "Hello, server!"}]
+
+
+def test_server_to_client_json(zmq_pair):
+    server, client = zmq_pair
+    server.send_json({"response": "Hello, client!"})
+    messages = _wait_for_json(client)
+
+    assert messages == [{"response": "Hello, client!"}]
+
+
+def test_bidirectional_json(zmq_pair):
+    server, client = zmq_pair
+    client.send_json({"message": "Client to Server"})
+    server.send_json({"response": "Server to Client"})
+
+    server_msgs = _wait_for_json(server)
+    client_msgs = _wait_for_json(client)
+
+    assert {"message": "Client to Server"} in server_msgs
+    assert {"response": "Server to Client"} in client_msgs
+
+
+def test_image_round_trip(zmq_pair):
+    server, client = zmq_pair
+    client_image = np.random.randint(0, 256, (32, 32, 3), dtype=np.uint8)
+    server_image = np.random.randint(0, 256, (16, 16, 3), dtype=np.uint8)
+
+    client.send_img(client_image)
+    server.send_img(server_image)
+
+    received_server = _wait_for_img(server)
+    received_client = _wait_for_img(client)
+
+    assert received_server is not None and received_server.shape == (32, 32, 3)
+    assert received_client is not None and received_client.shape == (16, 16, 3)
+
+
+def test_send_blocks_when_peer_unavailable():
+    port = _pick_free_port()
+    server = ZMQPairEndpoint(is_server=True, ip="127.0.0.1", port=port, timeout=0.2)
+    try:
+        start = time.perf_counter()
+        with pytest.raises(zmq.Again):
+            server.send_json({"message": "should timeout"})
+        elapsed = time.perf_counter() - start
+        assert elapsed >= 0.18
+    finally:
+        server.stop()

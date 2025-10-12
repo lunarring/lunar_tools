@@ -6,7 +6,7 @@ import threading
 import time
 from openai import OpenAI
 import os
-from lunar_tools.logprint import LogPrint
+from lunar_tools.logprint import create_logger
 from lunar_tools.utils import read_api_key
 
 try:
@@ -44,7 +44,7 @@ class OpenAIWrapper:
         else:
             self.client = client
 
-        self.logger = logger if logger else LogPrint()
+        self.logger = logger if logger else create_logger(__name__ + ".OpenAIWrapper")
         self.model = model
         self.available_models = ["gpt-4-1106-preview", "gpt-4-0613", "gpt-3.5-turbo-1106"]
 
@@ -120,7 +120,7 @@ class Gemini:
         else:
             self.client = client
 
-        self.logger = logger if logger else LogPrint()
+        self.logger = logger if logger else create_logger(__name__ + ".Gemini")
         self.model = model
         self.available_models = [
             "gemini-2.0-flash-exp", 
@@ -200,7 +200,7 @@ class Deepseek:
         else:
             self.client = client
 
-        self.logger = logger if logger else LogPrint()
+        self.logger = logger if logger else create_logger(__name__ + ".Deepseek")
         self.model = model
         self.available_models = ["deepseek-chat", "deepseek-reasoner"]
 

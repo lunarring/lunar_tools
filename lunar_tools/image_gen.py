@@ -11,7 +11,7 @@ from PIL import Image
 import numpy as np
 from openai import OpenAI
 import replicate
-from lunar_tools.logprint import LogPrint
+from lunar_tools.logprint import create_logger
 from lunar_tools.utils import read_api_key
 
 import fal_client
@@ -271,7 +271,7 @@ class Dalle3ImageGenerator:
                 raise TypeError("Invalid client type. Expected a 'OpenAI' instance.")
             self.client = client
 
-        self.logger = logger if logger else LogPrint()
+        self.logger = logger if logger else create_logger(__name__ + ".Dalle3ImageGenerator")
         self.model = model
         self.quality = quality
         self.set_dimensions(size_output)
@@ -297,12 +297,12 @@ class Dalle3ImageGenerator:
             width, height = map(int, self.size.split('x'))
             image_array = np.random.randint(0, 255, (height, width, 3), dtype=np.uint8)
             image = Image.fromarray(image_array, 'RGB')
-            self.logger.print("Dalle3ImageGenerator: Simulation mode - random image generated")
+            self.logger.info("Dalle3ImageGenerator: Simulation mode - random image generated")
             revised_prompt = "Simulation mode - no revised prompt"
         else:
             # Normal mode: Call the API to generate an image
             try:
-                self.logger.print("Dalle3ImageGenerator: Starting image generation")
+                self.logger.info("Dalle3ImageGenerator: Starting image generation")
                 start_time = time.time()
 
                 response = self.client.images.generate(
@@ -321,13 +321,16 @@ class Dalle3ImageGenerator:
                 image = Image.open(image_data)
                 end_time = time.time()
                 revised_prompt = response.data[0].revised_prompt
-                self.logger.print(f"Dalle3ImageGenerator: Generation complete. Time taken: {int(end_time - start_time)} seconds")
+                self.logger.info(
+                    "Dalle3ImageGenerator: Generation complete. Time taken: %s seconds",
+                    int(end_time - start_time),
+                )
 
             except requests.exceptions.RequestException as e:
-                self.logger.print(f"HTTP Request failed: {e}")
+                self.logger.error("Dalle3ImageGenerator: HTTP request failed: %s", e)
                 return None, None
             except Exception as e:
-                self.logger.print(f"An error occurred: {e}")
+                self.logger.error("Dalle3ImageGenerator: An error occurred: %s", e)
                 return None, None
 
         return image, revised_prompt
@@ -342,7 +345,7 @@ class SDXL_LCM:
                 raise TypeError("Invalid client type. Expected a 'replicate.Client' instance.")
             self.client = client
 
-        self.logger = logger if logger else LogPrint()
+        self.logger = logger if logger else create_logger(__name__ + ".SDXL_LCM")
         self.size = size_output
         self.num_inference_steps = num_inference_steps
 
@@ -360,13 +363,13 @@ class SDXL_LCM:
             # Simulation mode: Generate a random image
             image_array = np.random.randint(0, 255, (height, width, 3), dtype=np.uint8)
             image = Image.fromarray(image_array, 'RGB')
-            self.logger.print("SDXL_LCM: Simulation mode - random image generated")
+            self.logger.info("SDXL_LCM: Simulation mode - random image generated")
             img_url = "Simulation mode - no image URL"
             return image, img_url
         else:
             # Normal mode: Call the API to generate an image
             try:
-                self.logger.print("SDXL_LCM: Starting image generation")
+                self.logger.info("SDXL_LCM: Starting image generation")
                 start_time = time.time()
 
                 output = self.client.run(
@@ -388,10 +391,13 @@ class SDXL_LCM:
                 image = Image.open(image_data)
                 end_time = time.time()
                 return image, img_url
-                self.logger.print(f"SDXL_LCM: Generation complete. Time taken: {int(end_time - start_time)} seconds")
+                self.logger.info(
+                    "SDXL_LCM: Generation complete. Time taken: %s seconds",
+                    int(end_time - start_time),
+                )
 
             except requests.exceptions.RequestException as e:
-                self.logger.print(f"HTTP Request failed: {e}")
+                self.logger.error("SDXL_LCM: HTTP request failed: %s", e)
                 return None, None
            
 class SDXL_TURBO:
@@ -403,7 +409,7 @@ class SDXL_TURBO:
                 raise TypeError("Invalid client type. Expected a 'replicate.Client' instance.")
             self.client = client
 
-        self.logger = logger if logger else LogPrint()
+        self.logger = logger if logger else create_logger(__name__ + ".SDXL_TURBO")
         self.size = size_output
         self.num_inference_steps = num_inference_steps
 
@@ -421,13 +427,13 @@ class SDXL_TURBO:
             # Simulation mode: Generate a random image
             image_array = np.random.randint(0, 255, (height, width, 3), dtype=np.uint8)
             image = Image.fromarray(image_array, 'RGB')
-            self.logger.print("SDXL_TURBO: Simulation mode - random image generated")
+            self.logger.info("SDXL_TURBO: Simulation mode - random image generated")
             img_url = "Simulation mode - no image URL"
             return image, img_url
         else:
             # Normal mode: Call the API to generate an image
             try:
-                self.logger.print("SDXL_TURBO: Starting image generation")
+                self.logger.info("SDXL_TURBO: Starting image generation")
                 start_time = time.time()
 
                 output = self.client.run(
@@ -450,10 +456,13 @@ class SDXL_TURBO:
                 image = Image.open(image_data)
                 end_time = time.time()
                 return image, img_url
-                self.logger.print(f"SDXL_TURBO: Generation complete. Time taken: {int(end_time - start_time)} seconds")
+                self.logger.info(
+                    "SDXL_TURBO: Generation complete. Time taken: %s seconds",
+                    int(end_time - start_time),
+                )
 
             except requests.exceptions.RequestException as e:
-                self.logger.print(f"HTTP Request failed: {e}")
+                self.logger.error("SDXL_TURBO: HTTP request failed: %s", e)
                 return None, None
 
 

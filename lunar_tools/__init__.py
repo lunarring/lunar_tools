@@ -27,7 +27,7 @@ from .image_gen import FluxImageGenerator
 from .llm import OpenAIWrapper
 from .llm import Gemini
 from .llm import Deepseek
-from .logprint import LogPrint
+from .logprint import create_logger
 from .logprint import dynamic_print
 from .movie import MovieReader
 from .movie import MovieSaver

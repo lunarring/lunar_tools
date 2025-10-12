@@ -7,7 +7,7 @@ import threading
 import os
 import time
 from openai import OpenAI
-from lunar_tools.logprint import LogPrint
+from lunar_tools.logprint import create_logger
 import simpleaudio
 from elevenlabs.client import ElevenLabs
 from elevenlabs import Voice, VoiceSettings, play, save
@@ -62,7 +62,7 @@ class AudioRecorder:
         self.is_recording = False
         self.stream = None
         self.output_filename = None
-        self.logger = logger if logger else LogPrint()
+        self.logger = logger if logger else create_logger(__name__ + ".AudioRecorder")
 
     def _record(self, max_time=None):
         self.stream = sd.InputStream(
@@ -71,7 +71,7 @@ class AudioRecorder:
             blocksize=self.chunk,
             dtype='float32'
         )
-        self.logger.print("Recording...")
+        self.logger.info("Recording...")
         self.frames = []
         start_time = time.time()
         with self.stream:
@@ -81,7 +81,7 @@ class AudioRecorder:
                 data, overflowed = self.stream.read(self.chunk)
                 self.frames.append(data.flatten())
 
-        self.logger.print("Finished recording.")
+        self.logger.info("Finished recording.")
         
         # Convert to WAV and then to MP3
         wav_filename = tempfile.mktemp(suffix='.wav')
@@ -147,7 +147,7 @@ class Speech2Text:
         else:
             self.offline_mode = False
         
-        self.logger = logger if logger else LogPrint()
+        self.logger = logger if logger else create_logger(__name__ + ".Speech2Text")
 
         if audio_recorder is None:
             self.audio_recorder = AudioRecorder(logger=logger)
@@ -188,7 +188,11 @@ Raises:
 
         audio_duration = AudioSegment.from_mp3(self.audio_recorder.output_filename).duration_seconds
         if audio_duration < minimum_duration:
-            self.logger.print(f"Recording is too short, only {audio_duration:.2f} seconds. Minimum required is {minimum_duration} seconds.")
+            self.logger.warning(
+                "Recording is too short, only %.2f seconds. Minimum required is %.2f seconds.",
+                audio_duration,
+                minimum_duration,
+            )
             return None
         return self.translate(self.audio_recorder.output_filename)
     
@@ -261,7 +265,7 @@ class Text2SpeechOpenAI:
             self.client = OpenAI(api_key=api_key)
         else:
             self.client = client
-        self.logger = logger if logger else LogPrint()
+        self.logger = logger if logger else create_logger(__name__ + ".Text2SpeechOpenAI")
         # Initialize the sound player only if provided
         self.sound_player = sound_player
         self.output_filename = None  # Initialize output filename
@@ -307,7 +311,7 @@ class Text2SpeechOpenAI:
         
         self.output_filename = output_filename if output_filename else "output_speech.mp3"
         response.stream_to_file(self.output_filename)
-        self.logger.print(f"Generated speech saved to {self.output_filename}")
+        self.logger.info("Generated speech saved to %s", self.output_filename)
 
 
     def change_voice(self, new_voice):
@@ -319,7 +323,7 @@ class Text2SpeechOpenAI:
         """
         if new_voice in self.list_available_voices():
             self.voice_model = new_voice
-            self.logger.print(f"Voice model changed to {new_voice}")
+            self.logger.info("Voice model changed to %s", new_voice)
         else:
             raise ValueError(f"Voice '{new_voice}' is not a valid voice model.")
 
@@ -346,7 +350,7 @@ class Text2SpeechElevenlabs:
         Initialize the Text2Speech for elevenlabs, a optional logger and optionally a sound player.
         """
         self.client = ElevenLabs(api_key=read_api_key("ELEVEN_API_KEY"))
-        self.logger = logger if logger else LogPrint()
+        self.logger = logger if logger else create_logger(__name__ + ".Text2SpeechElevenLabs")
         # Initialize the sound player only if provided
         self.sound_player = sound_player
         self.output_filename = None  # Initialize output filename
@@ -382,7 +386,7 @@ class Text2SpeechElevenlabs:
             new_voice (str): The new voice model to be used.
         """
         self.voice_id = voice_id
-        self.logger.print(f"Voice model changed to {voice_id}")    
+        self.logger.info("Voice model changed to %s", voice_id)
 
     def stop(self):
         """
@@ -435,7 +439,7 @@ class Text2SpeechElevenlabs:
     
         self.output_filename = output_filename if output_filename else "output_speech.mp3"
         save(audio, self.output_filename)
-        self.logger.print(f"Generated speech saved to {self.output_filename}")
+        self.logger.info("Generated speech saved to %s", self.output_filename)
 
 
 
@@ -496,7 +500,7 @@ class RealTimeTranscribe:
         sample_rate: int = 16000,
         utterance_end_ms: int = 1000,
         endpointing_ms: int = 30,
-        logger: LogPrint | None = None,
+        logger: logging.Logger | None = None,
         auto_start: bool = False,
         ready_timeout: float | None = None,
     ) -> None:
@@ -505,7 +509,7 @@ class RealTimeTranscribe:
                 "Deepgram SDK not installed. Please install 'deepgram-sdk' to use RealTimeTranscribe."
             )
 
-        self.logger = logger if logger else LogPrint()
+        self.logger = logger if logger else create_logger(__name__ + ".RealTimeTranscribe")
         self.api_key = api_key or read_api_key("DEEPGRAM_API_KEY")
         if not self.api_key:
             raise ValueError("No DEEPGRAM_API_KEY found (env or provided)")
@@ -658,7 +662,7 @@ class RealTimeTranscribe:
 
         # Event handlers
         async def on_open(_self, _open, **kwargs):
-            self.logger.print("Deepgram connection open")
+            self.logger.info("Deepgram connection open")
             self._ready = True
             self._ready_event.set()
 
@@ -680,7 +684,7 @@ class RealTimeTranscribe:
                 self._log_chunk_event("interim", sentence, is_speech_final=False)
 
         async def on_close(_self, _close, **kwargs):
-            self.logger.print("Deepgram connection closed")
+            self.logger.info("Deepgram connection closed")
             self._ready = False
             self._ready_event.clear()
 
@@ -710,7 +714,7 @@ class RealTimeTranscribe:
 
         started = await self._dg_connection.start(options, addons=addons)
         if started is False:
-            self.logger.print("Failed to connect to Deepgram")
+            self.logger.error("Failed to connect to Deepgram")
             return
 
         # Start microphone capture and forward to Deepgram
