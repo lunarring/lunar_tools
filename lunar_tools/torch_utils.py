@@ -389,18 +389,36 @@ class FrequencyFilter:
         return self._apply_filter(image, filter_torch)
 
     def _apply_filter(self, image, filter_torch):
-        batch_size, channels, height, width = image.shape
-        filtered_images = []
-        
-        for i in range(channels):
-            fft_image = torch.fft.fft2(image[0, i, :, :])
-            fft_image_shifted = torch.fft.fftshift(fft_image)
-            filtered_fft_shifted = fft_image_shifted * filter_torch
-            filtered_fft = torch.fft.ifftshift(filtered_fft_shifted)
-            filtered_image = torch.fft.ifft2(filtered_fft)
-            filtered_images.append(torch.real(filtered_image))
-        
-        return torch.stack(filtered_images, dim=0).unsqueeze(0)
+        if image.ndim != 4:
+            raise ValueError("Expected image tensor with shape (batch, channels, height, width).")
+
+        _batch_size, _channels, height, width = image.shape
+        if filter_torch.shape != (height, width):
+            raise ValueError(
+                f"Filter must match spatial dimensions {(height, width)}, got {tuple(filter_torch.shape)}."
+            )
+
+        # Ensure the filter tensor can broadcast across batch and channel dimensions.
+        filter_kernel = filter_torch.to(image.device, image.dtype).view(1, 1, height, width)
+
+        # Vectorised FFT filtering across every channel and batch.
+        fft_image = torch.fft.fft2(image, dim=(-2, -1))
+        fft_image_shifted = torch.fft.fftshift(fft_image, dim=(-2, -1))
+        filtered_fft_shifted = fft_image_shifted * filter_kernel
+        filtered_fft = torch.fft.ifftshift(filtered_fft_shifted, dim=(-2, -1))
+        filtered_image = torch.fft.ifft2(filtered_fft, dim=(-2, -1))
+
+        return filtered_image.real
+
+def frequency_filter_apply_filter(image, filter_kernel):
+    """
+    Helper wrapper for FrequencyFilter._apply_filter to simplify Ground Truth benchmarking.
+    Accepts NumPy arrays, performs the filter in PyTorch, and returns a NumPy array.
+    """
+    image_t = torch.from_numpy(image)
+    filter_t = torch.from_numpy(filter_kernel)
+    filtered = FrequencyFilter._apply_filter(None, image_t, filter_t)
+    return filtered.numpy()
 
 # Example for FrequencyFilter
 if __name__ == "__main__":
@@ -419,4 +437,3 @@ if __name__ == "__main__X":
     
     blur = GaussianBlur((3, 3), 3)
     output = blur(tx)
-
