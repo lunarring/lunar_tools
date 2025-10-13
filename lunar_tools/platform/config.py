@@ -59,34 +59,6 @@ def read_api_key_from_file(key_name: str) -> str | None:
     return keys.get(key_name)
 
 
-def save_api_key_to_file(key_name: str, key_value: str) -> None:
-    """
-    Persist (or update) an API key in the config file.
-    """
-    keys = read_all_api_keys_from_file()
-    keys[key_name] = key_value
-
-    config_path = get_config_path()
-    with open(config_path, "w", encoding="utf-8") as file:
-        for k, v in keys.items():
-            file.write(f"{k}={v}\n")
-
-
-def delete_api_key_from_file(key_name: str) -> None:
-    """
-    Remove a key from the config file if present.
-    """
-    keys = read_all_api_keys_from_file()
-    if key_name not in keys:
-        return
-
-    del keys[key_name]
-    config_path = get_config_path()
-    with open(config_path, "w", encoding="utf-8") as file:
-        for k, v in keys.items():
-            file.write(f"{k}={v}\n")
-
-
 def read_api_key(key_name: str) -> str | None:
     """
     Retrieve API key from environment variables (preferred lookup).

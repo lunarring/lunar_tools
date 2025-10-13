@@ -41,8 +41,6 @@ _EXPORTS: Dict[str, Tuple[str, str, str | None]] = {
     "read_api_key": ("lunar_tools.platform.config", "read_api_key", None),
     "read_api_key_from_lunar_config": ("lunar_tools.platform.config", "read_api_key_from_file", None),
     "read_all_api_keys_from_lunar_config": ("lunar_tools.platform.config", "read_all_api_keys_from_file", None),
-    "save_api_key_to_lunar_config": ("lunar_tools.platform.config", "save_api_key_to_file", None),
-    "delete_api_key_from_lunar_config": ("lunar_tools.platform.config", "delete_api_key_from_file", None),
     "MovieReader": ("lunar_tools.movie", "MovieReader", "video"),
     "MovieSaver": ("lunar_tools.movie", "MovieSaver", "video"),
     "MovieSaverThreaded": ("lunar_tools.movie", "MovieSaverThreaded", "video"),

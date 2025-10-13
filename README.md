@@ -103,7 +103,7 @@ export REPLICATE_API_TOKEN="YOUR_KEY"
 export ELEVEN_API_KEY="YOUR_KEY"
 ```
 
-See [`docs/development.md`](docs/development.md) for the built-in key management helpers.
+See [`docs/development.md`](docs/development.md) for environment setup and config-file fallback details.
 
 ## Operating-system notes
 - Linux users may need `sudo apt-get install libasound2-dev libportaudio2` for audio recording/playback.

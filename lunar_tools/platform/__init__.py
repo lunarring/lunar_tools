@@ -8,8 +8,6 @@ from .config import (
     read_api_key,
     read_api_key_from_file,
     read_all_api_keys_from_file,
-    save_api_key_to_file,
-    delete_api_key_from_file,
 )
 
 __all__ = [
@@ -20,6 +18,4 @@ __all__ = [
     "read_api_key",
     "read_api_key_from_file",
     "read_all_api_keys_from_file",
-    "save_api_key_to_file",
-    "delete_api_key_from_file",
 ]

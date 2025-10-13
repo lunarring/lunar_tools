@@ -42,17 +42,16 @@ Installing the suggested extra fixes the error without changing your code.
 
 ## API key management
 
-You can keep secrets in shell files (`~/.zshrc`, `~/.bashrc`, etc.) or let Lunar Tools manage a simple key-value store under `~/.lunar_tools_env_vars`.
+You can keep secrets in shell files (`~/.zshrc`, `~/.bashrc`, etc.) or create the file `~/.lunar_tools_env_vars` with lines like `OPENAI_API_KEY=sk-...`. Read access is available via:
 
 ```python
 import lunar_tools as lt
 
-lt.save_api_key_to_lunar_config("OPENAI_API_KEY", "sk-...")
-print(lt.read_api_key_from_lunar_config("OPENAI_API_KEY"))
-lt.delete_api_key_from_lunar_config("OPENAI_API_KEY")
+print(lt.read_api_key("OPENAI_API_KEY"))  # environment first
+print(lt.read_api_key_from_lunar_config("OPENAI_API_KEY"))  # fallback file
 ```
 
-Keys set via the environment always take precedence when the toolkit looks them up.
+Keys set via the environment always take precedence when the toolkit looks them up, and editing the config file is now a manual step.
 
 ## Documenting new features
 

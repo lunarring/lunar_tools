@@ -10,8 +10,6 @@ from lunar_tools.platform.config import (
     read_api_key,
     read_api_key_from_file,
     read_all_api_keys_from_file,
-    save_api_key_to_file,
-    delete_api_key_from_file,
 )
 
 
@@ -57,8 +55,6 @@ def get_os_type():
 
 read_all_api_keys_from_lunar_config = read_all_api_keys_from_file
 read_api_key_from_lunar_config = read_api_key_from_file
-save_api_key_to_lunar_config = save_api_key_to_file
-delete_api_key_from_lunar_config = delete_api_key_from_file
 
 class SimpleNumberBuffer:
     """
@@ -318,8 +314,4 @@ class MultiThreader():
 
 if __name__ == "__main__":
     # Example usage
-    # save_api_key_to_lunar_config('ELEVEN_API_KEY', "bba")
-    # # Reading a specific key
-    
-    api_key_value = read_api_key('ELEVEN_API_KEY')
-    delete_api_key_from_lunar_config('ELEVEN_API_KEY')
+    print(read_api_key('ELEVEN_API_KEY'))
