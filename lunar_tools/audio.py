@@ -9,16 +9,48 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-from lunar_tools.adapters.audio.deepgram_transcribe import RealTimeTranscribe
-from lunar_tools.adapters.audio.elevenlabs_tts import Text2SpeechElevenlabs
-from lunar_tools.adapters.audio.openai_transcribe import Speech2Text
-from lunar_tools.adapters.audio.openai_tts import Text2SpeechOpenAI
-from lunar_tools.adapters.audio.simpleaudio_player import SoundPlayer
-from lunar_tools.adapters.audio.sounddevice_recorder import SoundDeviceRecorder
+from lunar_tools._optional import optional_import_attr
 from lunar_tools.platform.logging import create_logger
 from lunar_tools.services.audio.recorder_service import RecorderService
 from lunar_tools.services.audio.transcription_service import TranscriptionService
 from lunar_tools.services.audio.tts_service import TextToSpeechService
+
+Speech2Text = optional_import_attr(
+    "lunar_tools.adapters.audio.openai_transcribe",
+    "Speech2Text",
+    feature="Speech2Text",
+    extras="audio",
+)
+Text2SpeechOpenAI = optional_import_attr(
+    "lunar_tools.adapters.audio.openai_tts",
+    "Text2SpeechOpenAI",
+    feature="Text2SpeechOpenAI",
+    extras="audio",
+)
+Text2SpeechElevenlabs = optional_import_attr(
+    "lunar_tools.adapters.audio.elevenlabs_tts",
+    "Text2SpeechElevenlabs",
+    feature="Text2SpeechElevenlabs",
+    extras="audio",
+)
+SoundPlayer = optional_import_attr(
+    "lunar_tools.adapters.audio.simpleaudio_player",
+    "SoundPlayer",
+    feature="SoundPlayer",
+    extras="audio",
+)
+SoundDeviceRecorder = optional_import_attr(
+    "lunar_tools.adapters.audio.sounddevice_recorder",
+    "SoundDeviceRecorder",
+    feature="SoundDeviceRecorder",
+    extras="audio",
+)
+RealTimeTranscribe = optional_import_attr(
+    "lunar_tools.adapters.audio.deepgram_transcribe",
+    "RealTimeTranscribe",
+    feature="RealTimeTranscribe",
+    extras="audio",
+)
 
 # Backwards-compatible aliases
 AudioRecorder = SoundDeviceRecorder

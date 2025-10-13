@@ -1,7 +1,9 @@
+from lunar_tools._optional import require_extra
+
 try:
     from pygame import midi
-except Exception as e:
-    print(f"IMPORT FAIL: {e}")
+except Exception as exc:  # pragma: no cover - optional dependency guard
+    require_extra("MidiInput", extras="inputs") from exc
 import numpy as np
 import time
 import os
@@ -525,4 +527,3 @@ if __name__ == "__main__x":
         a0 = akai_midimix.get("A0", val_min=3, val_max=6, val_default=5)
         ba = akai_midimix.get("A3", button_mode="toggle")
         print(ba)
-

@@ -10,8 +10,13 @@ import subprocess
 import re
 import socket
 
-from lunar_tools.adapters.comms.osc_endpoints import OSCReceiver, OSCSender
-from lunar_tools.adapters.comms.zmq_pair import ZMQPairEndpoint
+from lunar_tools._optional import optional_import_attr
+
+_OPTIONAL_EXPORTS = {
+    "OSCSender": ("lunar_tools.adapters.comms.osc_endpoints", "OSCSender"),
+    "OSCReceiver": ("lunar_tools.adapters.comms.osc_endpoints", "OSCReceiver"),
+    "ZMQPairEndpoint": ("lunar_tools.adapters.comms.zmq_pair", "ZMQPairEndpoint"),
+}
 
 
 def get_local_ip() -> str | None:
@@ -63,9 +68,22 @@ def get_local_ip() -> str | None:
     return None
 
 
-__all__ = [
-    "ZMQPairEndpoint",
-    "OSCSender",
-    "OSCReceiver",
-    "get_local_ip",
-]
+__all__ = ["get_local_ip", "OSCSender", "OSCReceiver", "ZMQPairEndpoint"]
+
+
+def __getattr__(name: str):
+    if name in _OPTIONAL_EXPORTS:
+        module, attribute = _OPTIONAL_EXPORTS[name]
+        value = optional_import_attr(
+            module,
+            attribute,
+            feature=name,
+            extras="comms",
+        )
+        globals()[name] = value
+        return value
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def __dir__() -> list[str]:
+    return sorted(set(globals().keys()) | set(__all__))

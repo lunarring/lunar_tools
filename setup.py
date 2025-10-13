@@ -1,20 +1,94 @@
-from setuptools import setup, find_packages
+from __future__ import annotations
 
-# Read requirements.txt and store its contents in a list
-with open('requirements.txt') as f:
-    required = f.read().splitlines()
+from pathlib import Path
+
+from setuptools import find_packages, setup
+
+
+def read_requirements() -> list[str]:
+    requirements_file = Path("requirements.txt")
+    if not requirements_file.exists():
+        return []
+    return [line.strip() for line in requirements_file.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+
+def build_extras() -> dict[str, list[str]]:
+    extras: dict[str, list[str]] = {
+        "audio": [
+            "openai",
+            "sounddevice",
+            "simpleaudio",
+            "pydub",
+            "elevenlabs",
+            "deepgram-sdk",
+        ],
+        "llm": [
+            "openai",
+            "google-genai",
+        ],
+        "imaging": [
+            "Pillow",
+            "fal-client",
+            "replicate",
+            "openai",
+        ],
+        "camera": [
+            "opencv-python",
+            "Pillow",
+        ],
+        "display": [
+            "opencv-python",
+            "torch",
+            "pygame",
+            "PyOpenGL",
+            "PySDL2",
+            "pysdl2-dll",
+            "Pillow",
+            "cuda-python; sys_platform == 'linux'",
+        ],
+        "video": [
+            "moviepy",
+            "opencv-python",
+            "ffmpeg",
+            "ffmpeg-python",
+            "tqdm",
+            "Pillow",
+        ],
+        "inputs": [
+            "pynput",
+            "pyusb",
+            "PyYAML",
+            "pygame",
+            "setuptools",
+        ],
+        "comms": [
+            "python-osc",
+            "zmq",
+            "opencv-python",
+        ],
+    }
+
+    full: set[str] = set()
+    for packages in extras.values():
+        for package in packages:
+            full.add(package)
+    extras["full"] = sorted(full)
+    return extras
+
 
 setup(
-    name='lunar_tools',
-    version='0.0.11',
+    name="lunar_tools",
+    version="0.0.11",
     packages=find_packages(),
     package_data={
-    'lunar_tools': ['midi_configs/*.yml'],
+        "lunar_tools": ["midi_configs/*.yml"],
     },
-    url='https://github.com/lunarring/lunar_tools',
-    description='Lunar Ring auxiliary tools and modules',
-    long_description=open('README.md').read(),
-    install_requires=required,  # Use the list from requirements.txt here
+    url="https://github.com/lunarring/lunar_tools",
+    description="Lunar Ring auxiliary tools and modules",
+    long_description=Path("README.md").read_text(encoding="utf-8"),
+    long_description_content_type="text/markdown",
+    install_requires=read_requirements(),
+    extras_require=build_extras(),
     dependency_links=[],
     include_package_data=True,
 )

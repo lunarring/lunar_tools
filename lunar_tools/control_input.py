@@ -1,7 +1,9 @@
+from lunar_tools._optional import require_extra
+
 try:
     from pynput import keyboard
-except Exception as e:
-    print(f"IMPORT FAIL: {e}")
+except Exception as exc:  # pragma: no cover - optional dependency guard
+    require_extra("KeyboardInput", extras="inputs") from exc
 import numpy as np
 import time
 import os
