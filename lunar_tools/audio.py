@@ -1,803 +1,94 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+"""High-level audio entry points for lunar_tools.
 
-import tempfile
-from pydub import AudioSegment
-import threading
-import os
-import time
-from openai import OpenAI
-from lunar_tools.logprint import create_logger
-import simpleaudio
-from elevenlabs.client import ElevenLabs
-from elevenlabs import Voice, VoiceSettings, play, save
-import sounddevice as sd
-import numpy as np
-import wave
-from pydub import AudioSegment
-from lunar_tools.utils import read_api_key
-import asyncio
-from datetime import datetime
-import logging
-
-# Deepgram SDK imports are optional; guard at runtime if not installed
-try:
-    from deepgram import (
-        DeepgramClient,
-        DeepgramClientOptions,
-        LiveTranscriptionEvents,
-        LiveOptions,
-        Microphone,
-    )
-    _HAS_DEEPGRAM = True
-except Exception:
-    _HAS_DEEPGRAM = False
-
-class AudioRecorder:
-    """
-    A class to handle audio recording using sounddevice instead of pyaudio.
-
-    Attributes:
-        channels (int): Number of audio channels.
-        rate (int): Sampling rate.
-        chunk (int): Number of frames per buffer.
-        frames (list): List to hold audio frames.
-        is_recording (bool): Flag to check if recording is in progress.
-        stream (sd.InputStream): Audio stream.
-        output_filename (str): Output file name.
-        logger: A logging instance. If None, a default logger will be used.
-    """
-
-    def __init__(
-        self,
-        channels=1,
-        rate=44100,
-        chunk=1024,
-        logger=None
-    ):
-        self.channels = channels
-        self.rate = rate
-        self.chunk = chunk
-        self.frames = []
-        self.is_recording = False
-        self.stream = None
-        self.output_filename = None
-        self.logger = logger if logger else create_logger(__name__ + ".AudioRecorder")
-
-    def _record(self, max_time=None):
-        self.stream = sd.InputStream(
-            samplerate=self.rate,
-            channels=self.channels,
-            blocksize=self.chunk,
-            dtype='float32'
-        )
-        self.logger.info("Recording...")
-        self.frames = []
-        start_time = time.time()
-        with self.stream:
-            while self.is_recording:
-                if max_time and (time.time() - start_time) >= max_time:
-                    break
-                data, overflowed = self.stream.read(self.chunk)
-                self.frames.append(data.flatten())
-
-        self.logger.info("Finished recording.")
-        
-        # Convert to WAV and then to MP3
-        wav_filename = tempfile.mktemp(suffix='.wav')
-        wf = wave.open(wav_filename, 'wb')
-        wf.setnchannels(self.channels)
-        wf.setsampwidth(2)  # 2 bytes for 16-bit audio
-        wf.setframerate(self.rate)
-        self.frames = np.clip(self.frames, -1, +1)
-        wf.writeframes(np.array(self.frames*32767).astype(np.int16).tobytes())
-        wf.close()
-
-        wav_audio = AudioSegment.from_wav(wav_filename)
-        wav_audio.export(self.output_filename, format="mp3")
-
-    def start_recording(self, output_filename=None, max_time=None):
-        if not self.is_recording:
-            self.is_recording = True
-            if output_filename is None:
-                temp_file = tempfile.NamedTemporaryFile(suffix='.mp3', delete=False)
-                self.output_filename = temp_file.name
-                temp_file.close()
-            else:
-                output_filename = str(output_filename)
-                if not output_filename.endswith('.mp3'):
-                    raise ValueError("Output filename must have a .mp3 extension")
-                self.output_filename = output_filename
-            self.thread = threading.Thread(target=self._record, args=(max_time,))
-            self.thread.start()
-
-    def stop_recording(self):
-        if self.is_recording:
-            self.is_recording = False
-            self.thread.join()
-            
-
-class Speech2Text:
-    def __init__(self, client=None, logger=None, audio_recorder=None, offline_model_type=None):
-        """
-        Initialize the Speech2Text with an OpenAI client, a logger, and an audio recorder.
-
-        Args:
-            client: An instance of OpenAI client. If None, it will be created using the OPENAI_API_KEY.
-            logger: A logging instance. If None, a default logger will be used.
-            audio_recorder: An instance of an audio recorder. If None, recording functionalities will be disabled.
-            offline_model_type: An instance of an offline model for speech recognition. If None, it will use the API for transcription.
-
-        Raises:
-            ValueError: If no OpenAI API key is found in the environment variables.
-        """
-        self.transcript = None
-        if client is None:
-            api_key = read_api_key("OPENAI_API_KEY")
-            if not api_key:
-                raise ValueError("No OPENAI_API_KEY found in environment variables")
-            self.client = OpenAI(api_key=api_key)
-        else:
-            self.client = client
-
-        if offline_model_type is not None:
-            import whisper
-            self.whisper_model = whisper.load_model(offline_model_type)
-            self.offline_mode = True
-        else:
-            self.offline_mode = False
-        
-        self.logger = logger if logger else create_logger(__name__ + ".Speech2Text")
-
-        if audio_recorder is None:
-            self.audio_recorder = AudioRecorder(logger=logger)
-        else:
-            self.audio_recorder = audio_recorder
-
-    def start_recording(self, output_filename=None, max_time=None):
-        """
-        Start the audio recording.
-        Args:
-            output_filename (str): The filename for the output file. If None, a temporary file is created.
-            max_time (int, optional): Maximum recording time in seconds.
-        Raises:
-            ValueError: If the audio recorder is not available.
-        """
-        if self.audio_recorder is None:
-            raise ValueError("Audio recorder is not available")
-        self.audio_recorder.start_recording(output_filename, max_time)
-
-
-    def stop_recording(self, minimum_duration=0.4):
-        """
-Stop the audio recording and check if the recording meets the minimum duration.
-
-Args:
-    minimum_duration (float, optional): The minimum duration in seconds for a recording to be valid.
-                                      Default is 1 second.
-
-Returns:
-    str: The transcribed text if the recording meets the minimum duration requirement, otherwise None.
-
-Raises:
-    ValueError: If the audio recorder is not available.
+This module re-exports concrete adapters for backwards compatibility while
+also providing service-layer factories that compose those adapters.
 """
-        if self.audio_recorder is None:
-            raise ValueError("Audio recorder is not available")
-        self.audio_recorder.stop_recording()
 
-        audio_duration = AudioSegment.from_mp3(self.audio_recorder.output_filename).duration_seconds
-        if audio_duration < minimum_duration:
-            self.logger.warning(
-                "Recording is too short, only %.2f seconds. Minimum required is %.2f seconds.",
-                audio_duration,
-                minimum_duration,
-            )
-            return None
-        return self.translate(self.audio_recorder.output_filename)
-    
-    def translate(self, audio_filepath):
-        """
-        Translate the audio file to text using OpenAI's translation model.
+from __future__ import annotations
 
-        Args:
-            audio_filepath: The file path of the audio file to be translated.
+from dataclasses import dataclass
+from typing import Optional
 
-        Returns:
-            str: The transcribed text.
+from lunar_tools.adapters.audio.deepgram_transcribe import RealTimeTranscribe
+from lunar_tools.adapters.audio.elevenlabs_tts import Text2SpeechElevenlabs
+from lunar_tools.adapters.audio.openai_transcribe import Speech2Text
+from lunar_tools.adapters.audio.openai_tts import Text2SpeechOpenAI
+from lunar_tools.adapters.audio.simpleaudio_player import SoundPlayer
+from lunar_tools.adapters.audio.sounddevice_recorder import SoundDeviceRecorder
+from lunar_tools.platform.logging import create_logger
+from lunar_tools.services.audio.recorder_service import RecorderService
+from lunar_tools.services.audio.transcription_service import TranscriptionService
+from lunar_tools.services.audio.tts_service import TextToSpeechService
 
-        Raises:
-            FileNotFoundError: If the audio file does not exist.
-        """
-        if not os.path.exists(audio_filepath):
-            raise FileNotFoundError(f"Audio file not found: {audio_filepath}")
-        if self.offline_mode:
-            audio_segment = AudioSegment.from_file(audio_filepath)
-            # Convert audio_segment to a numpy array
-            # Note: Pydub's samples are interleaved, so for multi-channel audio, every Nth sample is a sample from a different channel
-            numpydata = np.array(audio_segment.get_array_of_samples()).astype(np.int16)
-            numpydata = np.hstack(numpydata).astype(np.float32)
-            numpydata = numpydata.astype(np.float32) / 32768.0  # Convert to float32 in range [-1, 1]
-            options = dict(language="english", beam_size=5, best_of=5)
-            translate_options = dict(task="translate", **options)
-            result = self.whisper_model.transcribe(numpydata, **translate_options)
-            return result["text"].strip()
-        else:
-            with open(audio_filepath, "rb") as audio_file:
-                transcript = self.client.audio.translations.create(
-                    model="whisper-1", 
-                    file=audio_file
-                )
-                return transcript.text
-            
-    def handle_unmute_button(self, mic_button_state: bool):
-        if mic_button_state:
-            if not self.audio_recorder.is_recording:
-                self.start_recording()
-        else:
-            if self.audio_recorder.is_recording:
-                try:
-                    transcript = self.stop_recording()
-                    transcript = transcript.strip().lower()
-                    self.transcript = transcript
-                    return True
-                except Exception as e:
-                    print(f"Error stopping recording: {e}")
-        return False
+# Backwards-compatible aliases
+AudioRecorder = SoundDeviceRecorder
 
 
-class Text2SpeechOpenAI:
-    def __init__(
-        self, 
-        client=None, 
-        logger=None, 
-        voice_model="nova", 
-        sound_player=None,
-        blocking_playback=False
-    ):
-        """
-        Initialize the Text2Speech with an OpenAI client, a logger, a text source, a default voice model, and optionally a sound player.
-        """
-        if client is None:
-            api_key = read_api_key("OPENAI_API_KEY")
-            if not api_key:
-                raise ValueError("No OPENAI_API_KEY found in environment variables")
-            self.client = OpenAI(api_key=api_key)
-        else:
-            self.client = client
-        self.logger = logger if logger else create_logger(__name__ + ".Text2SpeechOpenAI")
-        # Initialize the sound player only if provided
-        self.sound_player = sound_player
-        self.output_filename = None  # Initialize output filename
-        self.voice_model = voice_model
-        self.blocking_playback = blocking_playback
+@dataclass
+class AudioServices:
+    """Bundle of audio-related services with their underlying adapters."""
 
-    def play(self, text=None):
-        """
-        Play a generated speech file. Instantiates SoundPlayer if it's not already.
-        """
-        self.generate(text)
-        if self.sound_player is None:
-            self.sound_player = SoundPlayer(blocking_playback=self.blocking_playback)
-        self.sound_player.play_sound(self.output_filename)
-
-    def stop(self):
-        """
-        Stop the currently playing speech file.
-        """
-        if self.sound_player:
-            self.sound_player.stop_sound()
+    recorder_service: RecorderService
+    speech_to_text: Speech2Text
+    openai_tts: TextToSpeechService
+    elevenlabs_tts: TextToSpeechService
+    realtime_transcription: Optional[TranscriptionService]
 
 
-    def generate(self, text, output_filename=None):
-        """
-        Generate speech from text.
-    
-        Args:
-            text (str): The text to be converted into speech. 
-            output_filename (str): The filename for the output file. If None, a default filename is used.
-    
-        Raises:
-            ValueError: If the text source is not available.
-        """
-        if text is None or len(text)==0:
-            raise ValueError("text is invalid!")
-    
-        response = self.client.audio.speech.create(
-            model="tts-1",
-            voice=self.voice_model,
-            input=text
-        )
-        
-        self.output_filename = output_filename if output_filename else "output_speech.mp3"
-        response.stream_to_file(self.output_filename)
-        self.logger.info("Generated speech saved to %s", self.output_filename)
+def create_audio_services(
+    *,
+    include_elevenlabs: bool = True,
+    include_realtime_transcription: bool = True,
+) -> AudioServices:
+    """Construct the default audio service stack.
 
-
-    def change_voice(self, new_voice):
-        """
-        Change the voice model for speech generation.
-
-        Args:
-            new_voice (str): The new voice model to be used.
-        """
-        if new_voice in self.list_available_voices():
-            self.voice_model = new_voice
-            self.logger.info("Voice model changed to %s", new_voice)
-        else:
-            raise ValueError(f"Voice '{new_voice}' is not a valid voice model.")
-
-    @staticmethod
-    def list_available_voices():
-        """
-        List the available voice models.
-
-        Returns:
-            list: A list of available voice models.
-        """
-        return ["alloy", "echo", "fable", "onyx", "nova", "shimmer"]
-    
-    
-class Text2SpeechElevenlabs:
-    def __init__(
-        self,
-        logger=None,
-        sound_player=None,
-        voice_id=None,
-        blocking_playback=False
-    ):
-        """
-        Initialize the Text2Speech for elevenlabs, a optional logger and optionally a sound player.
-        """
-        self.client = ElevenLabs(api_key=read_api_key("ELEVEN_API_KEY"))
-        self.logger = logger if logger else create_logger(__name__ + ".Text2SpeechElevenLabs")
-        # Initialize the sound player only if provided
-        self.sound_player = sound_player
-        self.output_filename = None  # Initialize output filename
-        self.default_voice_id = "EXAVITQu4vr4xnSDxMaL"
-        if voice_id is None:
-            self.voice_id = self.default_voice_id
-        else:
-            self.voice_id = voice_id
-        self.blocking_playback = blocking_playback
-
-    def play(
-            self,
-            text,
-            output_filename=None,
-            stability=0.71,
-            similarity_boost=0.5,
-            style=0.0,
-            use_speaker_boost=True
-            ):
-        """
-        Play a generated speech file. Instantiates SoundPlayer if it's not already.
-        """
-        self.generate(text, output_filename, self.voice_id, stability, similarity_boost, style, use_speaker_boost)
-        if self.sound_player is None:
-            self.sound_player = SoundPlayer(blocking_playback=self.blocking_playback)
-        self.sound_player.play_sound(self.output_filename)
-
-    def change_voice(self, voice_id):
-        """
-        Change the voice model for speech generation.
-
-        Args:
-            new_voice (str): The new voice model to be used.
-        """
-        self.voice_id = voice_id
-        self.logger.info("Voice model changed to %s", voice_id)
-
-    def stop(self):
-        """
-        Stop the currently playing speech file.
-        """
-        if self.sound_player:
-            self.sound_player.stop_sound()
-
-
-    def generate(
-            self,
-            text,
-            output_filename=None,
-            voice_id=None,
-            stability=0.71,
-            similarity_boost=0.5,
-            style=0.0,
-            use_speaker_boost=True
-            ):
-        """
-        Generate speech from text.
-    
-        Args:
-            text (str): The text to be converted into speech. 
-            output_filename (str): The filename for the output file. If None, a default filename is used.
-            voice_id (str): The ID for the voice to be used. If None, a default voice ID is used.
-            stability (float): Stability setting for voice generation.
-            similarity_boost (float): Similarity boost setting for voice generation.
-            style (float): Style setting for voice generation.
-            use_speaker_boost (bool): Flag to use speaker boost in voice generation.
-    
-        Raises:
-            ValueError: If the text source is not available.
-        """
-        if text is None or len(text) == 0:
-            raise ValueError("text is invalid!")
-    
-        if voice_id is None:
-            voice_id = self.default_voice_id
-        
-            
-    
-        audio = self.client.generate(
-            text=text,
-            voice=Voice(
-                voice_id=self.voice_id,
-                settings=VoiceSettings(stability=stability, similarity_boost=similarity_boost, style=style, use_speaker_boost=True)
-            )
-        )
-    
-        self.output_filename = output_filename if output_filename else "output_speech.mp3"
-        save(audio, self.output_filename)
-        self.logger.info("Generated speech saved to %s", self.output_filename)
-
-
-
-
-
-class SoundPlayer:
-    def __init__(self, blocking_playback=False):
-        self._play_thread = None
-        self._playback_object = None
-        self.blocking_playback = blocking_playback
-
-    def _play_sound_threaded(self, sound):
-        self._playback_object = simpleaudio.play_buffer(
-            sound.raw_data,
-            num_channels=sound.channels,
-            bytes_per_sample=sound.sample_width,
-            sample_rate=sound.frame_rate
-        )
-        self._playback_object.wait_done()  # Wait until sound has finished playing
-
-    def play_sound(self, file_path, pan_value=0):
-        # Stop any currently playing sound
-        self.stop_sound()
-
-        # Load the sound file
-        sound = AudioSegment.from_file(file_path)
-        
-        # play sound from left/right speaker
-        if pan_value != 0 and pan_value > -1 and pan_value < 1:
-            sound = sound.pan(pan_value)
-
-        # Start a new thread for playing the sound
-        self._play_thread = threading.Thread(target=self._play_sound_threaded, args=(sound,))
-        self._play_thread.start()
-        if self.blocking_playback:
-            self._play_thread.join()
-
-    def stop_sound(self):
-        if self._play_thread and self._play_thread.is_alive():
-            if self._playback_object:
-                self._playback_object.stop()
-            self._play_thread.join()
-
-class RealTimeTranscribe:
-    """
-    Real-time transcription using Deepgram, running inside a background thread.
-
-    - Starts a microphone stream and Deepgram websocket in an asyncio loop scoped to a thread
-    - Stores finalized utterance blocks with timestamps
-    - Exposes easy accessors to retrieve concatenated transcript text or structured blocks
+    Args:
+        include_elevenlabs: When False, the ElevenLabs adapter will be skipped.
+        include_realtime_transcription: When False, Deepgram real-time
+            transcription is not initialised.
     """
 
-    def __init__(
-        self,
-        api_key: str | None = None,
-        model: str = "nova-3",
-        language: str = "multi",
-        sample_rate: int = 16000,
-        utterance_end_ms: int = 1000,
-        endpointing_ms: int = 30,
-        logger: logging.Logger | None = None,
-        auto_start: bool = False,
-        ready_timeout: float | None = None,
-    ) -> None:
-        if not _HAS_DEEPGRAM:
-            raise ImportError(
-                "Deepgram SDK not installed. Please install 'deepgram-sdk' to use RealTimeTranscribe."
-            )
+    recorder_adapter = SoundDeviceRecorder(logger=create_logger(__name__ + ".Recorder"))
+    recorder_service = RecorderService(recorder_adapter)
 
-        self.logger = logger if logger else create_logger(__name__ + ".RealTimeTranscribe")
-        self.api_key = api_key or read_api_key("DEEPGRAM_API_KEY")
-        if not self.api_key:
-            raise ValueError("No DEEPGRAM_API_KEY found (env or provided)")
+    speech_to_text_adapter = Speech2Text(logger=create_logger(__name__ + ".Speech2Text"))
 
-        self.model = model
-        self.language = language
-        self.sample_rate = sample_rate
-        self.utterance_end_ms = str(utterance_end_ms)
-        self.endpointing_ms = endpointing_ms
+    openai_tts_adapter = Text2SpeechOpenAI(logger=create_logger(__name__ + ".TTS.OpenAI"))
+    openai_tts_service = TextToSpeechService(openai_tts_adapter)
 
-        # Runtime state
-        self._thread: threading.Thread | None = None
-        self._loop: asyncio.AbstractEventLoop | None = None
-        self._stop_event: asyncio.Event | None = None
-        self._running = False
-
-        # Deepgram objects
-        self._deepgram: DeepgramClient | None = None
-        self._dg_connection = None
-        self._microphone: Microphone | None = None
-
-        # Transcript storage (thread-safe)
-        self._blocks_lock = threading.Lock()
-        self._blocks: list[dict] = []
-        self._utterance_counter = 0
-
-        # Internal buffering of interim finals
-        self._is_finals: list[str] = []
-        self._last_saved_utterance: str = ""
-
-        # Module logger for additional detail
-        self._py_logger = logging.getLogger(__name__)
-
-        # Per-chunk event logging (interim and final) with timestamps
-        self._chunk_events_lock = threading.Lock()
-        self._chunk_events: list[dict] = []
-        self._chunk_counter = 0
-
-        # Readiness state (set when Deepgram connection opens)
-        self._ready_event = threading.Event()
-        self._ready = False
-
-        # Optionally auto-start and wait for readiness
-        if auto_start:
-            self.start()
-            self.wait_until_ready(timeout=ready_timeout)
-
-    # ------------- Public API -------------
-    def start(self) -> None:
-        if self._running:
-            return
-        self._running = True
-        self._thread = threading.Thread(target=self._thread_main, name="RealTimeTranscribeThread", daemon=True)
-        self._thread.start()
-
-    def stop(self, timeout: float | None = 10.0) -> None:
-        if not self._running:
-            return
-        self._running = False
-        if self._loop and self._stop_event:
-            # Signal the asyncio loop to shutdown
-            def _signal_stop() -> None:
-                if not self._stop_event.is_set():
-                    self._stop_event.set()
-            try:
-                self._loop.call_soon_threadsafe(_signal_stop)
-            except Exception:
-                pass
-        if self._thread:
-            self._thread.join(timeout=timeout)
-
-    def get_text(self) -> str:
-        """Return the concatenated transcript text of all finalized blocks."""
-        with self._blocks_lock:
-            return " ".join(block["text"] for block in self._blocks)
-
-    def get_blocks(self) -> list[dict]:
-        """Return a shallow copy of the structured blocks collected so far."""
-        with self._blocks_lock:
-            return list(self._blocks)
-
-    def get_chunk_events(self) -> list[dict]:
-        """Return a shallow copy of per-chunk events (interim and final)."""
-        with self._chunk_events_lock:
-            return list(self._chunk_events)
-
-    def get_chunks(self, silence_duration: float = 10.0) -> list[str]:
-        """
-        Return utterance texts that occurred AFTER the last long silence gap.
-
-        A "long silence" is defined as a gap between consecutive finalized
-        utterances where (received_at[i] - received_at[i-1]) >= silence_duration.
-
-        Args:
-            silence_duration: Threshold in seconds to detect a long silence.
-
-        Returns:
-            List of utterance texts after the most recent long silence. If no
-            such gap exists yet, returns all collected utterances.
-        """
-        with self._blocks_lock:
-            blocks_snapshot = list(self._blocks)
-
-        if len(blocks_snapshot) == 0:
-            return []
-
-        last_break_index = 0
-        for i in range(1, len(blocks_snapshot)):
-            try:
-                prev_ts = datetime.fromisoformat(blocks_snapshot[i - 1]["received_at"])  # type: ignore[arg-type]
-                curr_ts = datetime.fromisoformat(blocks_snapshot[i]["received_at"])      # type: ignore[arg-type]
-            except Exception:
-                # If timestamps are malformed, skip this comparison
-                continue
-            gap_seconds = (curr_ts - prev_ts).total_seconds()
-            if gap_seconds >= silence_duration:
-                last_break_index = i
-
-        return [b["text"] for b in blocks_snapshot[last_break_index:]]
-
-    def is_ready(self) -> bool:
-        return self._ready
-
-    def wait_until_ready(self, timeout: float | None = None) -> bool:
-        return self._ready_event.wait(timeout=timeout)
-
-    # ------------- Thread & asyncio orchestration -------------
-    def _thread_main(self) -> None:
-        self._loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(self._loop)
-        self._stop_event = asyncio.Event()
-        try:
-            self._loop.run_until_complete(self._async_main())
-        finally:
-            try:
-                pending = asyncio.all_tasks(loop=self._loop)
-                for task in pending:
-                    task.cancel()
-                if pending:
-                    self._loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
-            except Exception:
-                pass
-            self._loop.close()
-
-    async def _async_main(self) -> None:
-        # Configure and create Deepgram client
-        config: DeepgramClientOptions = DeepgramClientOptions(options={"keepalive": "true"})
-        self._deepgram = DeepgramClient(self.api_key, config)
-        self._dg_connection = self._deepgram.listen.asyncwebsocket.v("1")
-
-        # Event handlers
-        async def on_open(_self, _open, **kwargs):
-            self.logger.info("Deepgram connection open")
-            self._ready = True
-            self._ready_event.set()
-
-        async def on_message(_self, result, **kwargs):
-            sentence = result.channel.alternatives[0].transcript
-            if not sentence:
-                return
-            # Log interim and final chunk events with arrival time
-            if getattr(result, "is_final", False):
-                self._log_chunk_event("final", sentence, is_speech_final=getattr(result, "speech_final", False))
-                self._is_finals.append(sentence)
-                if getattr(result, "speech_final", False):
-                    utterance = " ".join(self._is_finals).strip()
-                    if utterance and utterance != self._last_saved_utterance:
-                        self._append_block(utterance)
-                        self._last_saved_utterance = utterance
-                    self._is_finals = []
-            else:
-                self._log_chunk_event("interim", sentence, is_speech_final=False)
-
-        async def on_close(_self, _close, **kwargs):
-            self.logger.info("Deepgram connection closed")
-            self._ready = False
-            self._ready_event.clear()
-
-        async def on_error(_self, error, **kwargs):
-            self._py_logger.error(f"Deepgram error: {error}")
-
-        self._dg_connection.on(LiveTranscriptionEvents.Open, on_open)
-        self._dg_connection.on(LiveTranscriptionEvents.Transcript, on_message)
-        self._dg_connection.on(LiveTranscriptionEvents.Close, on_close)
-        self._dg_connection.on(LiveTranscriptionEvents.Error, on_error)
-
-        # Connect to websocket
-        options: LiveOptions = LiveOptions(
-            model=self.model,
-            language=self.language,
-            smart_format=True,
-            encoding="linear16",
-            channels=1,
-            sample_rate=self.sample_rate,
-            interim_results=True,
-            utterance_end_ms=self.utterance_end_ms,
-            vad_events=True,
-            endpointing=self.endpointing_ms,
-        )
-
-        addons = {"no_delay": "true"}
-
-        started = await self._dg_connection.start(options, addons=addons)
-        if started is False:
-            self.logger.error("Failed to connect to Deepgram")
-            return
-
-        # Start microphone capture and forward to Deepgram
-        self._microphone = Microphone(self._dg_connection.send)
-        self._microphone.start()
-
-        try:
-            # Idle loop until stop is requested
-            while self._running and self._stop_event and not self._stop_event.is_set():
-                await asyncio.sleep(0.2)
-        finally:
-            try:
-                if self._microphone:
-                    self._microphone.finish()
-                if self._dg_connection:
-                    await self._dg_connection.finish()
-            except Exception:
-                pass
-
-    def _append_block(self, utterance: str) -> None:
-        block = {
-            "index": self._utterance_counter,
-            "text": utterance,
-            # Wall-clock timestamps; Deepgram word/segment timings are available via words if needed
-            "received_at": datetime.now().isoformat(),
-            "source": "deepgram_realtime_api",
-            "type": "transcription_complete",
-        }
-        with self._blocks_lock:
-            self._blocks.append(block)
-            self._utterance_counter += 1
-
-    def _log_chunk_event(self, event_type: str, text: str, is_speech_final: bool | None = None) -> None:
-        """Record a chunk-level event with arrival timestamp.
-
-        Args:
-            event_type: 'interim' or 'final'.
-            text: transcript content for this event chunk.
-            is_speech_final: For final chunks, indicates Deepgram speech_final; otherwise None/False.
-        """
-        event = {
-            "index": self._chunk_counter,
-            "type": event_type,
-            "text": text,
-            "received_at": datetime.now().isoformat(),
-            "speech_final": bool(is_speech_final) if is_speech_final is not None else False,
-            "source": "deepgram_realtime_api",
-        }
-        with self._chunk_events_lock:
-            self._chunk_events.append(event)
-            self._chunk_counter += 1
-
-    
-
-#%% EXAMPLE USE
-if __name__ == "__main__":
-    # Real-time transcription example using Deepgram
-    if not _HAS_DEEPGRAM:
-        print("Deepgram SDK not installed. Install 'deepgram-sdk' to run RealTimeTranscribe example.")
+    if include_elevenlabs:
+        elevenlabs_adapter = Text2SpeechElevenlabs(logger=create_logger(__name__ + ".TTS.ElevenLabs"))
+        elevenlabs_service = TextToSpeechService(elevenlabs_adapter)
     else:
+        elevenlabs_adapter = None
+        elevenlabs_service = TextToSpeechService(Text2SpeechOpenAI(logger=create_logger(__name__ + ".TTS.OpenAI.Fallback")))
+
+    realtime_service: Optional[TranscriptionService]
+    if include_realtime_transcription:
         try:
-            rtt = RealTimeTranscribe(auto_start=True, ready_timeout=10.0)
-        except Exception as e:
-            print(f"Failed to initialize RealTimeTranscribe: {e}")
-        else:
-            # If not yet ready (e.g., timed out), inform the user; otherwise prompt to speak
-            if rtt.is_ready():
-                print("Start talking! Press Ctrl+C to stop...")
-            else:
-                print("Deepgram not ready yet. Waiting for connection events...")
-            if rtt.is_ready():
-                print("Start talking! Press Ctrl+C to stop...")
-            else:
-                print("Deepgram not ready yet. Waiting for connection events...")
-            try:
-                time_silence = 2
-                while True:
-                    full_text = rtt.get_text()
-                    recent_text = " ".join(rtt.get_chunks(silence_duration=time_silence))
-                    print(f"Transcript so far: {full_text}")
-                    print(f"Transcript since {time_silence}s silence: {recent_text}")
-                    time.sleep(1)
-            except KeyboardInterrupt:
-                pass
-            finally:
-                rtt.stop()
+            realtime_adapter = RealTimeTranscribe(logger=create_logger(__name__ + ".RealtimeTranscribe"))
+            realtime_service = TranscriptionService(realtime_adapter)
+        except ImportError:
+            realtime_service = None
+    else:
+        realtime_service = None
+
+    return AudioServices(
+        recorder_service=recorder_service,
+        speech_to_text=speech_to_text_adapter,
+        openai_tts=openai_tts_service,
+        elevenlabs_tts=elevenlabs_service,
+        realtime_transcription=realtime_service,
+    )
+
+
+__all__ = [
+    "AudioRecorder",
+    "Speech2Text",
+    "Text2SpeechOpenAI",
+    "Text2SpeechElevenlabs",
+    "SoundPlayer",
+    "RealTimeTranscribe",
+    "AudioServices",
+    "create_audio_services",
+]

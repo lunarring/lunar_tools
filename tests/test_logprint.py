@@ -2,7 +2,7 @@ import logging
 
 import pytest
 
-from lunar_tools.logprint import create_logger
+from lunar_tools.platform.logging import create_logger
 
 
 def _flush_handlers(logger: logging.Logger) -> None:

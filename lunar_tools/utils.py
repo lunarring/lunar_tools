@@ -1,9 +1,27 @@
-import os
 import platform
 import numpy as np
 from threading import Thread
 import time
 from collections import deque
+import warnings
+
+from lunar_tools.platform.config import (
+    get_config_path,
+    read_api_key,
+    read_api_key_from_file,
+    read_all_api_keys_from_file,
+    save_api_key_to_file,
+    delete_api_key_from_file,
+)
+
+
+warnings.warn(
+    "Functions formerly provided by lunar_tools.utils have moved to "
+    "lunar_tools.platform.config. The aliases in lunar_tools.utils are "
+    "deprecated and will be removed in a future release.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 def exception_handler(func):
     """
@@ -37,56 +55,10 @@ def get_os_type():
     else:
         raise ValueError("unsupported OS")
 
-def get_config_path():
-    os_type = get_os_type()
-    if os_type in ["MacOS", "Linux"]:
-        return os.path.expanduser("~/.lunar_tools_env_vars")
-    elif os_type == "Windows":
-        return os.path.join(os.environ['USERPROFILE'], '.lunar_tools_env_vars')
-    else:
-        raise ValueError("Unsupported OS")
-
-def read_all_api_keys_from_lunar_config():
-    config_path = get_config_path()
-    if not os.path.exists(config_path):
-        return {}
-
-    with open(config_path, 'r') as file:
-        lines = file.readlines()
-        return dict(line.strip().split('=') for line in lines if line.strip())
-
-def read_api_key_from_lunar_config(key_name):
-    keys = read_all_api_keys_from_lunar_config()
-    return keys.get(key_name)
-
-def save_api_key_to_lunar_config(key_name, key_value):
-    keys = read_all_api_keys_from_lunar_config()
-    keys[key_name] = key_value
-
-    config_path = get_config_path()
-
-    with open(config_path, 'w') as file:
-        for k, v in keys.items():
-            file.write(f"{k}={v}\n")
-            
-    print(f"saved API KEY '{key_name}={key_value} in {get_config_path()}")
-
-def read_api_key(key_name):
-    """Retrieve API key directly from environment variables"""
-    return os.getenv(key_name)
-
-
-def delete_api_key_from_lunar_config(key_name):
-    keys = read_all_api_keys_from_lunar_config()
-    if key_name in keys:
-        del keys[key_name]
-
-        config_path = get_config_path()
-
-        with open(config_path, 'w') as file:
-            for k, v in keys.items():
-                file.write(f"{k}={v}\n")
-
+read_all_api_keys_from_lunar_config = read_all_api_keys_from_file
+read_api_key_from_lunar_config = read_api_key_from_file
+save_api_key_to_lunar_config = save_api_key_to_file
+delete_api_key_from_lunar_config = delete_api_key_from_file
 
 class SimpleNumberBuffer:
     """
@@ -351,4 +323,3 @@ if __name__ == "__main__":
     
     api_key_value = read_api_key('ELEVEN_API_KEY')
     delete_api_key_from_lunar_config('ELEVEN_API_KEY')
-

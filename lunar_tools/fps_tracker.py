@@ -1,7 +1,7 @@
 import time
 from collections import deque
 from typing import Dict
-from lunar_tools.logprint import dynamic_print
+from lunar_tools.platform.logging import dynamic_print
 
 class FPSTracker:
     """A class to track and display FPS (Frames Per Second) with color-coded output and segment timing."""

@@ -27,8 +27,16 @@ from .image_gen import FluxImageGenerator
 from .llm import OpenAIWrapper
 from .llm import Gemini
 from .llm import Deepseek
-from .logprint import create_logger
-from .logprint import dynamic_print
+from .platform.logging import create_logger
+from .platform.logging import dynamic_print
+from .platform.config import (
+    get_config_path,
+    read_api_key,
+    read_api_key_from_file as read_api_key_from_lunar_config,
+    read_all_api_keys_from_file as read_all_api_keys_from_lunar_config,
+    save_api_key_to_file as save_api_key_to_lunar_config,
+    delete_api_key_from_file as delete_api_key_from_lunar_config,
+)
 from .movie import MovieReader
 from .movie import MovieSaver
 from .movie import MovieSaverThreaded
@@ -46,10 +54,6 @@ from .torch_utils import resize
 from .utils import exception_handler
 from .utils import get_os_type
 from .utils import interpolate_linear
-from .utils import read_all_api_keys_from_lunar_config
-from .utils import read_api_key
-from .utils import read_api_key_from_lunar_config
-from .utils import save_api_key_to_lunar_config
 from .utils import NumpyArrayBuffer
 from .utils import scale_variable
 from .utils import SimpleNumberBuffer
