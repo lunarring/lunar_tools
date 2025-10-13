@@ -3,23 +3,8 @@ import numpy as np
 from threading import Thread
 import time
 from collections import deque
-import warnings
 
-from lunar_tools.platform.config import (
-    get_config_path,
-    read_api_key,
-    read_api_key_from_file,
-    read_all_api_keys_from_file,
-)
-
-
-warnings.warn(
-    "Functions formerly provided by lunar_tools.utils have moved to "
-    "lunar_tools.platform.config. The aliases in lunar_tools.utils are "
-    "deprecated and will be removed in a future release.",
-    DeprecationWarning,
-    stacklevel=2,
-)
+from lunar_tools.platform.config import read_api_key
 
 def exception_handler(func):
     """
@@ -52,9 +37,6 @@ def get_os_type():
         return "Windows"
     else:
         raise ValueError("unsupported OS")
-
-read_all_api_keys_from_lunar_config = read_all_api_keys_from_file
-read_api_key_from_lunar_config = read_api_key_from_file
 
 class SimpleNumberBuffer:
     """

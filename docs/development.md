@@ -44,14 +44,15 @@ Installing the suggested extra fixes the error without changing your code.
 
 You can keep secrets in shell files (`~/.zshrc`, `~/.bashrc`, etc.) or create the file `~/.lunar_tools_env_vars` with lines like `OPENAI_API_KEY=sk-...`. Read access is available via:
 
-```python
-import lunar_tools as lt
+Use standard environment variable lookups in your code—for example:
 
-print(lt.read_api_key("OPENAI_API_KEY"))  # environment first
-print(lt.read_api_key_from_lunar_config("OPENAI_API_KEY"))  # fallback file
+```python
+import os
+
+openai_key = os.getenv("OPENAI_API_KEY")
 ```
 
-Keys set via the environment always take precedence when the toolkit looks them up, and editing the config file is now a manual step.
+Lunar Tools only checks `os.environ`; managing any local key files is up to your deployment or shell configuration.
 
 ## Documenting new features
 
