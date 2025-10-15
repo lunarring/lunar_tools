@@ -19,6 +19,7 @@ from lunar_tools.utils import read_api_key
 import asyncio
 from datetime import datetime
 import logging
+from contextlib import suppress
 
 # Deepgram SDK imports are optional; guard at runtime if not installed
 try:
@@ -526,6 +527,9 @@ class RealTimeTranscribe:
         self._deepgram: DeepgramClient | None = None
         self._dg_connection = None
         self._microphone: Microphone | None = None
+        self._audio_queue: asyncio.Queue[bytes] | None = None
+        self._audio_task: asyncio.Task | None = None
+        self._need_restart = False
 
         # Transcript storage (thread-safe)
         self._blocks_lock = threading.Lock()
@@ -565,6 +569,7 @@ class RealTimeTranscribe:
         if not self._running:
             return
         self._running = False
+        self._need_restart = False
         if self._loop and self._stop_event:
             # Signal the asyncio loop to shutdown
             def _signal_stop() -> None:
@@ -636,9 +641,8 @@ class RealTimeTranscribe:
     def _thread_main(self) -> None:
         self._loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self._loop)
-        self._stop_event = asyncio.Event()
         try:
-            self._loop.run_until_complete(self._async_main())
+            self._loop.run_until_complete(self._run_session_loop())
         finally:
             try:
                 pending = asyncio.all_tasks(loop=self._loop)
@@ -650,7 +654,28 @@ class RealTimeTranscribe:
                 pass
             self._loop.close()
 
+    async def _run_session_loop(self) -> None:
+        while self._running:
+            self._stop_event = asyncio.Event()
+            try:
+                await self._async_main()
+            except Exception as exc:  # noqa: BLE001
+                self._py_logger.error(f"Deepgram session error: {exc}")
+            if not self._running:
+                break
+            if self._need_restart:
+                self._py_logger.info("Restarting Deepgram realtime session after disconnect.")
+                self._need_restart = False
+                await asyncio.sleep(1.0)
+                continue
+            break
+        self._stop_event = None
+
     async def _async_main(self) -> None:
+        self._need_restart = False
+        self._ready = False
+        self._ready_event.clear()
+
         # Configure and create Deepgram client
         config: DeepgramClientOptions = DeepgramClientOptions(options={"keepalive": "true"})
         self._deepgram = DeepgramClient(self.api_key, config)
@@ -679,13 +704,27 @@ class RealTimeTranscribe:
             else:
                 self._log_chunk_event("interim", sentence, is_speech_final=False)
 
-        async def on_close(_self, _close, **kwargs):
+        async def on_close(_self, _close=None, **kwargs):
             self.logger.print("Deepgram connection closed")
             self._ready = False
             self._ready_event.clear()
+            if not self._running:
+                return
+            if self._need_restart:
+                return
+            code = getattr(_close, "code", None) if _close is not None else None
+            reason = getattr(_close, "reason", None) if _close is not None else None
+            if isinstance(_close, dict):
+                code = _close.get("code", code)
+                reason = _close.get("reason", reason)
+            if code in (1000, 1001):
+                return
+            desc = f"code={code} reason={reason or _close!r}" if _close is not None else "code=unknown"
+            self._request_restart(f"websocket closed unexpectedly ({desc})")
 
         async def on_error(_self, error, **kwargs):
             self._py_logger.error(f"Deepgram error: {error}")
+            self._request_restart(f"error event: {error}")
 
         self._dg_connection.on(LiveTranscriptionEvents.Open, on_open)
         self._dg_connection.on(LiveTranscriptionEvents.Transcript, on_message)
@@ -713,8 +752,12 @@ class RealTimeTranscribe:
             self.logger.print("Failed to connect to Deepgram")
             return
 
+        # Prepare audio forwarding queue/task in the loop thread
+        self._audio_queue = asyncio.Queue(maxsize=50)
+        self._audio_task = asyncio.create_task(self._drain_audio_queue())
+
         # Start microphone capture and forward to Deepgram
-        self._microphone = Microphone(self._dg_connection.send)
+        self._microphone = Microphone(self._forward_audio_to_deepgram, rate=self.sample_rate, channels=1)
         self._microphone.start()
 
         try:
@@ -723,12 +766,110 @@ class RealTimeTranscribe:
                 await asyncio.sleep(0.2)
         finally:
             try:
+                self._ready = False
+                self._ready_event.clear()
                 if self._microphone:
                     self._microphone.finish()
+                    self._microphone = None
+                if self._audio_task:
+                    self._audio_queue = None
+                    self._audio_task.cancel()
+                    with suppress(asyncio.CancelledError):
+                        await self._audio_task
+                    self._audio_task = None
+                self._audio_queue = None
                 if self._dg_connection:
                     await self._dg_connection.finish()
+                    self._dg_connection = None
+                self._deepgram = None
             except Exception:
                 pass
+
+    def _request_restart(self, reason: str | None = None) -> None:
+        if not self._running:
+            return
+        if reason:
+            self._py_logger.warning(f"Deepgram restart requested: {reason}")
+        self._need_restart = True
+
+        def _signal_stop() -> None:
+            if self._stop_event and not self._stop_event.is_set():
+                self._stop_event.set()
+
+        loop = self._loop
+        if not loop or not loop.is_running():
+            return
+        try:
+            current_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            current_loop = None
+        if current_loop is loop:
+            _signal_stop()
+        else:
+            loop.call_soon_threadsafe(_signal_stop)
+
+    def _forward_audio_to_deepgram(self, data: bytes) -> None:
+        """Synchronously invoked by Microphone; schedule send on the loop thread."""
+        loop = self._loop
+        queue = self._audio_queue
+        if not loop or not queue or loop.is_closed() or not loop.is_running():
+            return
+        if not data:
+            return
+        chunk = bytes(data)
+
+        def _enqueue() -> None:
+            if self._audio_queue is None:
+                return
+            try:
+                self._audio_queue.put_nowait(chunk)
+            except asyncio.QueueFull:
+                # Drop oldest chunk to avoid runaway backpressure
+                try:
+                    self._audio_queue.get_nowait()
+                    self._audio_queue.task_done()
+                except asyncio.QueueEmpty:
+                    pass
+                try:
+                    self._audio_queue.put_nowait(chunk)
+                except asyncio.QueueFull:
+                    self._py_logger.warning("Dropping Deepgram audio chunk: queue full")
+
+        try:
+            loop.call_soon_threadsafe(_enqueue)
+        except Exception as exc:  # noqa: BLE001
+            self._py_logger.error(f"Deepgram audio enqueue failed: {exc}")
+
+    async def _drain_audio_queue(self) -> None:
+        """Consume queued audio chunks and forward them over Deepgram connection."""
+        idle_interval = 2.0
+        silence_duration = 0.2  # seconds
+        silence_frames = max(1, int(self.sample_rate * silence_duration))
+        silence_bytes = b"\x00" * (silence_frames * 2)
+        while self._running and self._dg_connection and self._stop_event and not self._stop_event.is_set():
+            queue = self._audio_queue
+            if queue is None:
+                break
+            try:
+                chunk = await asyncio.wait_for(queue.get(), timeout=idle_interval)
+            except asyncio.TimeoutError:
+                try:
+                    await self._dg_connection.send(silence_bytes)
+                except Exception as exc:  # noqa: BLE001
+                    self._py_logger.error(f"Deepgram keepalive send failed: {exc}")
+                    self._request_restart(f"keepalive failed: {exc}")
+                    break
+                continue
+
+            try:
+                await self._dg_connection.send(chunk)
+            except Exception as exc:  # noqa: BLE001
+                self._py_logger.error(f"Deepgram audio send failed: {exc}")
+                self._request_restart(f"audio send failed: {exc}")
+                break
+            finally:
+                queue.task_done()
+        self._audio_queue = None
 
     def _append_block(self, utterance: str) -> None:
         block = {
@@ -764,36 +905,4 @@ class RealTimeTranscribe:
             self._chunk_counter += 1
 
     
-
-#%% EXAMPLE USE
-if __name__ == "__main__":
-    # Real-time transcription example using Deepgram
-    if not _HAS_DEEPGRAM:
-        print("Deepgram SDK not installed. Install 'deepgram-sdk' to run RealTimeTranscribe example.")
-    else:
-        try:
-            rtt = RealTimeTranscribe(auto_start=True, ready_timeout=10.0)
-        except Exception as e:
-            print(f"Failed to initialize RealTimeTranscribe: {e}")
-        else:
-            # If not yet ready (e.g., timed out), inform the user; otherwise prompt to speak
-            if rtt.is_ready():
-                print("Start talking! Press Ctrl+C to stop...")
-            else:
-                print("Deepgram not ready yet. Waiting for connection events...")
-            if rtt.is_ready():
-                print("Start talking! Press Ctrl+C to stop...")
-            else:
-                print("Deepgram not ready yet. Waiting for connection events...")
-            try:
-                time_silence = 2
-                while True:
-                    full_text = rtt.get_text()
-                    recent_text = " ".join(rtt.get_chunks(silence_duration=time_silence))
-                    print(f"Transcript so far: {full_text}")
-                    print(f"Transcript since {time_silence}s silence: {recent_text}")
-                    time.sleep(1)
-            except KeyboardInterrupt:
-                pass
-            finally:
-                rtt.stop()
+# Example usage moved to examples/deepgram_realtime_transcribe_example.py
