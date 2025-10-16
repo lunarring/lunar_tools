@@ -556,7 +556,10 @@ class Renderer:
     def pygame_setup(self, display_id=None):
         pygame.init()
         flags = (pygame.NOFRAME | pygame.RESIZABLE) if self.do_fullscreen else 0
-        self.screen = pygame.display.set_mode((self.width, self.height), flags, display=display_id)
+        set_mode_kwargs = {}
+        if display_id is not None:
+            set_mode_kwargs["display"] = display_id
+        self.screen = pygame.display.set_mode((self.width, self.height), flags, **set_mode_kwargs)
         pygame.display.set_caption(self.window_title)
         self.running = True
 

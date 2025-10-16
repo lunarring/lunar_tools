@@ -98,4 +98,4 @@ while True:
 
 Tap `z` once to focus the emulated slider, then use the up/down arrow keys to step through the configured range.
 
-See [`examples/midi_meta_test.py`](../examples/midi_meta_test.py) for a full MIDI walkthrough.
+See [`examples/midi_meta_example.py`](../examples/midi_meta_example.py) for a full MIDI walkthrough.
