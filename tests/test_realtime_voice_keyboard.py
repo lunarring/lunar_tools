@@ -10,7 +10,8 @@ from examples.realtime_voice_example import run_realtime_voice_example
 
 class DummyRTV(RealTimeVoice):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        # Intentionally bypass the heavy RealTimeVoice initialisation for tests.
+        self.transcripts = []
     def start(self):
         print("Dummy start triggered")
     def pause(self):

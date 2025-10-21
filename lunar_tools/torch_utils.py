@@ -7,6 +7,11 @@ from typing import List, Tuple, Optional
 import numpy as np
 from PIL import Image
 
+from lunar_tools._optional import OptionalDependencyError
+
+if getattr(np, "__lunar_stub__", False) or not hasattr(np, "ndarray"):
+    raise OptionalDependencyError("torch_utils", extras=["torch"])
+
 def get_binary_kernel2d(
     window_size: tuple[int, int] | int, *, device: Optional[torch.device] = None, dtype: torch.dtype = torch.float32
 ) -> torch.Tensor:

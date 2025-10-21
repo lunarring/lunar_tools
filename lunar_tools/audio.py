@@ -12,6 +12,7 @@ from typing import Optional
 from lunar_tools._optional import optional_import_attr
 from lunar_tools.platform.logging import create_logger
 from lunar_tools.services.audio.recorder_service import RecorderService
+from lunar_tools.services.audio.speech_to_text_service import SpeechToTextService
 from lunar_tools.services.audio.transcription_service import TranscriptionService
 from lunar_tools.services.audio.tts_service import TextToSpeechService
 
@@ -61,7 +62,8 @@ class AudioServices:
     """Bundle of audio-related services with their underlying adapters."""
 
     recorder_service: RecorderService
-    speech_to_text: Speech2Text
+    speech_to_text: SpeechToTextService
+    speech_to_text_adapter: object
     openai_tts: TextToSpeechService
     elevenlabs_tts: TextToSpeechService
     realtime_transcription: Optional[TranscriptionService]
@@ -84,6 +86,7 @@ def create_audio_services(
     recorder_service = RecorderService(recorder_adapter)
 
     speech_to_text_adapter = Speech2Text(logger=create_logger(__name__ + ".Speech2Text"))
+    speech_to_text_service = SpeechToTextService(speech_to_text_adapter)
 
     openai_tts_adapter = Text2SpeechOpenAI(logger=create_logger(__name__ + ".TTS.OpenAI"))
     openai_tts_service = TextToSpeechService(openai_tts_adapter)
@@ -107,7 +110,8 @@ def create_audio_services(
 
     return AudioServices(
         recorder_service=recorder_service,
-        speech_to_text=speech_to_text_adapter,
+        speech_to_text=speech_to_text_service,
+        speech_to_text_adapter=speech_to_text_adapter,
         openai_tts=openai_tts_service,
         elevenlabs_tts=elevenlabs_service,
         realtime_transcription=realtime_service,

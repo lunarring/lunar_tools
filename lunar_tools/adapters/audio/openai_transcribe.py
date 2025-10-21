@@ -3,13 +3,17 @@ from __future__ import annotations
 import os
 from typing import Optional
 
-import numpy as np
-from openai import OpenAI
-from pydub import AudioSegment
-
 from lunar_tools.adapters.audio.sounddevice_recorder import SoundDeviceRecorder
 from lunar_tools.platform.config import read_api_key
 from lunar_tools.platform.logging import create_logger
+from lunar_tools._optional import require_extra
+
+try:  # pragma: no cover - optional audio stack dependency guard
+    import numpy as np
+    from openai import OpenAI
+    from pydub import AudioSegment
+except ImportError:  # pragma: no cover - import side effect
+    require_extra("Speech2Text", extras="audio")
 
 
 class Speech2Text:
@@ -35,7 +39,10 @@ class Speech2Text:
             self.client = client
 
         if offline_model_type is not None:
-            import whisper
+            try:
+                import whisper
+            except ImportError as exc:  # pragma: no cover - offline dependency
+                require_extra("Speech2Text offline mode", extras="audio")
 
             self.whisper_model = whisper.load_model(offline_model_type)
             self.offline_mode = True

@@ -3,11 +3,18 @@ import os
 import time
 import sys
 import string
+
+import pytest
+
+import numpy as np
+
+if getattr(np, "__lunar_stub__", False) or not hasattr(np, "ndarray"):
+    pytest.skip("OSC tests require functional numpy.", allow_module_level=True)
+
 sys.path.append(os.path.abspath('.'))
 sys.path.append(os.path.abspath('lunar_tools'))
 sys.path.append(os.path.join(os.getcwd(), 'lunar_tools'))
 from comms import OSCSender, OSCReceiver
-import numpy as np
 
 class TestOSCReceiverClient(unittest.TestCase):
     def setUp(self):
@@ -45,4 +52,3 @@ class TestOSCReceiverClient(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

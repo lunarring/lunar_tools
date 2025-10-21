@@ -1,9 +1,12 @@
 import socket
 import time
 
-import numpy as np
 import pytest
 import zmq
+import numpy as np
+
+if getattr(np, "__lunar_stub__", False) or not hasattr(np, "ndarray"):
+    pytest.skip("ZMQ tests require functional numpy.", allow_module_level=True)
 
 from lunar_tools.comms import ZMQPairEndpoint
 

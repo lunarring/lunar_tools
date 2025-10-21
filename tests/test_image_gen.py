@@ -3,6 +3,11 @@
 
 import sys
 import os
+import pytest
+import numpy as np
+
+if getattr(np, "__lunar_stub__", False) or not hasattr(np, "ndarray"):
+    pytest.skip("Image generation tests require functional numpy.", allow_module_level=True)
 sys.path.append("../lunar_tools/")
 sys.path.append(os.path.join(os.getcwd(), 'lunar_tools'))
 import unittest
@@ -11,8 +16,9 @@ from image_gen import Dalle3ImageGenerator
 from image_gen import SDXL_LCM
 from utils import read_api_key
 from PIL import Image
-from openai import OpenAI
-import replicate
+
+OpenAI = pytest.importorskip("openai").OpenAI
+replicate = pytest.importorskip("replicate")
 
 # class TestDalle3ImageGenerator(unittest.TestCase):
 #     def test_openai_client_initialization(self):

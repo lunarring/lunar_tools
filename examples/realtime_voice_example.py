@@ -1,5 +1,6 @@
 import time
-from lunar_tools.realtime_voice import RealTimeVoice
+from lunar_tools.presentation.audio_stack import AudioStackConfig
+from lunar_tools.presentation.realtime_voice import RealTimeVoice
 
 _audio_complete_flag = {"called": False}
 
@@ -11,10 +12,13 @@ def run_realtime_voice_example():
     instructions = ("Interactive RealTimeVoice example. Commands:\n"
                     "s: Start, p: Pause, r: Resume, m: Mute/Unmute, i: Inject message, "
                     "u: Update instructions, q: Quit")
+    audio_config = AudioStackConfig(enable_playback=True, include_elevenlabs=False)
+
     rtv = RealTimeVoice(
         instructions=instructions,
         on_ai_audio_complete=dummy_audio_complete_callback,
-        verbose=True
+        verbose=True,
+        audio_stack_config=audio_config,
     )
     
     print(instructions)

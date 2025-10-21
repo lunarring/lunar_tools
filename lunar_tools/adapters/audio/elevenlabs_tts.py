@@ -2,12 +2,16 @@ from __future__ import annotations
 
 from typing import Optional
 
-from elevenlabs import Voice, VoiceSettings, save
-from elevenlabs.client import ElevenLabs
-
-from lunar_tools.adapters.audio.simpleaudio_player import SoundPlayer
 from lunar_tools.platform.config import read_api_key
 from lunar_tools.platform.logging import create_logger
+from lunar_tools.services.audio.contracts import SoundPlaybackPort
+from lunar_tools._optional import require_extra
+
+try:  # pragma: no cover - optional ElevenLabs dependency guard
+    from elevenlabs import Voice, VoiceSettings, save
+    from elevenlabs.client import ElevenLabs
+except ImportError:  # pragma: no cover
+    require_extra("Text2SpeechElevenlabs", extras="audio")
 
 
 class Text2SpeechElevenlabs:
@@ -18,7 +22,7 @@ class Text2SpeechElevenlabs:
     def __init__(
         self,
         logger=None,
-        sound_player: Optional[SoundPlayer] = None,
+        sound_player: Optional[SoundPlaybackPort] = None,
         voice_id: Optional[str] = None,
         blocking_playback: bool = False,
     ) -> None:
@@ -39,10 +43,14 @@ class Text2SpeechElevenlabs:
         style: float = 0.0,
         use_speaker_boost: bool = True,
     ) -> None:
-        self.generate(text, output_filename, self.voice_id, stability, similarity_boost, style, use_speaker_boost)
+        output = self.generate(text, output_filename, self.voice_id, stability, similarity_boost, style, use_speaker_boost)
         if self.sound_player is None:
+            try:
+                from lunar_tools.adapters.audio.simpleaudio_player import SoundPlayer
+            except ImportError:  # pragma: no cover
+                require_extra("SoundPlayer", extras="audio")
             self.sound_player = SoundPlayer(blocking_playback=self.blocking_playback)
-        self.sound_player.play_sound(self.output_filename)
+        self.sound_player.play(output)
 
     def change_voice(self, voice_id: str) -> None:
         self.voice_id = voice_id
@@ -50,7 +58,7 @@ class Text2SpeechElevenlabs:
 
     def stop(self) -> None:
         if self.sound_player:
-            self.sound_player.stop_sound()
+            self.sound_player.stop()
 
     def generate(
         self,

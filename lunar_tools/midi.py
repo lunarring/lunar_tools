@@ -2,8 +2,8 @@ from lunar_tools._optional import require_extra
 
 try:
     from pygame import midi
-except Exception as exc:  # pragma: no cover - optional dependency guard
-    require_extra("MidiInput", extras="inputs") from exc
+except Exception:  # pragma: no cover - optional dependency guard
+    require_extra("MidiInput", extras="inputs")
 import numpy as np
 import time
 import os

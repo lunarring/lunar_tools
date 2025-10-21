@@ -4,13 +4,33 @@ import tempfile
 import threading
 import time
 import wave
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
-import numpy as np
-import sounddevice as sd
-from pydub import AudioSegment
+try:
+    import numpy as np
+    from pydub import AudioSegment
+except ImportError as exc:  # pragma: no cover
+    raise OptionalDependencyError("SoundDeviceRecorder", ["audio"]) from exc
 
 from lunar_tools.platform.logging import create_logger
+from lunar_tools._optional import OptionalDependencyError
+
+if TYPE_CHECKING:  # pragma: no cover - type checking only
+    import sounddevice as _sounddevice
+
+
+_SD_MODULE = None
+
+
+def _ensure_sounddevice():
+    global _SD_MODULE
+    if _SD_MODULE is None:
+        try:  # pragma: no cover - optional dependency guard
+            import sounddevice as sd_module
+        except ImportError as exc:  # pragma: no cover
+            raise OptionalDependencyError("SoundDeviceRecorder", ["audio"]) from exc
+        _SD_MODULE = sd_module
+    return _SD_MODULE
 
 
 class SoundDeviceRecorder:
@@ -30,7 +50,7 @@ class SoundDeviceRecorder:
         self.chunk = chunk
         self.frames: list[np.ndarray] = []
         self.is_recording = False
-        self.stream: Optional[sd.InputStream] = None
+        self.stream: Optional["_sounddevice.InputStream"] = None
         self.output_filename: Optional[str] = None
         self.logger = logger if logger else create_logger(__name__)
         self.thread: Optional[threading.Thread] = None
@@ -54,7 +74,8 @@ class SoundDeviceRecorder:
         self.thread.start()
 
     def _record(self, max_time: Optional[float]) -> None:
-        self.stream = sd.InputStream(
+        sd_module = _ensure_sounddevice()
+        self.stream = sd_module.InputStream(
             samplerate=self.rate,
             channels=self.channels,
             blocksize=self.chunk,

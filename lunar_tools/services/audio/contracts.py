@@ -19,8 +19,19 @@ class SpeechSynthesisPort(Protocol):
         ...
 
 
+class SpeechToTextPort(Protocol):
+    def start_recording(self, output_filename: Optional[str] = None, max_time: Optional[float] = None) -> None:
+        ...
+
+    def stop_recording(self, minimum_duration: float = 0.4) -> Optional[str]:
+        ...
+
+    def translate(self, audio_filepath: str) -> str:
+        ...
+
+
 class SoundPlaybackPort(Protocol):
-    def play(self, text: str, **kwargs) -> None:
+    def play(self, file_path: str, **kwargs) -> None:
         ...
 
     def stop(self) -> None:
@@ -36,4 +47,3 @@ class TranscriptionPort(Protocol):
 
     def get_text(self) -> str:
         ...
-

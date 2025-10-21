@@ -2,11 +2,16 @@ from __future__ import annotations
 
 from typing import Optional
 
-from openai import OpenAI
-
-from lunar_tools.adapters.audio.simpleaudio_player import SoundPlayer
 from lunar_tools.platform.config import read_api_key
 from lunar_tools.platform.logging import create_logger
+
+from lunar_tools._optional import require_extra
+from lunar_tools.services.audio.contracts import SoundPlaybackPort
+
+try:  # pragma: no cover - optional dependency guard for OpenAI SDK
+    from openai import OpenAI
+except ImportError:  # pragma: no cover - import side effect
+    require_extra("Text2SpeechOpenAI", extras="audio")
 
 
 class Text2SpeechOpenAI:
@@ -19,7 +24,7 @@ class Text2SpeechOpenAI:
         client: Optional[OpenAI] = None,
         logger=None,
         voice_model: str = "nova",
-        sound_player: Optional[SoundPlayer] = None,
+        sound_player: Optional[SoundPlaybackPort] = None,
         blocking_playback: bool = False,
     ) -> None:
         if client is None:
@@ -37,14 +42,18 @@ class Text2SpeechOpenAI:
         self.blocking_playback = blocking_playback
 
     def play(self, text: Optional[str] = None) -> None:
-        self.generate(text)
+        output = self.generate(text)
         if self.sound_player is None:
+            try:
+                from lunar_tools.adapters.audio.simpleaudio_player import SoundPlayer
+            except ImportError:  # pragma: no cover - optional playback dependency
+                require_extra("SoundPlayer", extras="audio")
             self.sound_player = SoundPlayer(blocking_playback=self.blocking_playback)
-        self.sound_player.play_sound(self.output_filename)
+        self.sound_player.play(output)
 
     def stop(self) -> None:
         if self.sound_player:
-            self.sound_player.stop_sound()
+            self.sound_player.stop()
 
     def generate(self, text: Optional[str], output_filename: Optional[str] = None) -> str:
         if not text:

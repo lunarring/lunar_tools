@@ -3,8 +3,13 @@ from __future__ import annotations
 import threading
 from typing import Optional
 
-import simpleaudio
-from pydub import AudioSegment
+from lunar_tools._optional import require_extra
+
+try:  # pragma: no cover - optional dependency guard
+    import simpleaudio
+    from pydub import AudioSegment
+except ImportError:  # pragma: no cover - import side effect
+    require_extra("SoundPlayer", extras="audio")
 
 
 class SoundPlayer:
@@ -45,3 +50,13 @@ class SoundPlayer:
             self._play_thread.join()
             self._play_thread = None
 
+    # SoundPlaybackPort compatibility -------------------------------------------------
+    def play(self, file_path: str, **kwargs) -> None:
+        """
+        Adapter-style entry point conforming to SoundPlaybackPort.
+        """
+        pan_value = float(kwargs.get("pan", 0))
+        self.play_sound(file_path, pan_value=pan_value)
+
+    def stop(self) -> None:
+        self.stop_sound()

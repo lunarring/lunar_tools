@@ -1,6 +1,11 @@
-import pygame
 import sys
 import pytest
+import pygame
+import numpy as np
+
+if getattr(np, "__lunar_stub__", False) or not hasattr(np, "ndarray"):
+    pytest.skip("Display window tests require functional numpy.", allow_module_level=True)
+
 from lunar_tools.display_window import Renderer
 
 def test_pygame_display_id(monkeypatch):

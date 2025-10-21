@@ -7,6 +7,11 @@
 - **Improve testability** by separating orchestration logic from device/network integrations.
 - **Lay groundwork** for future CLI/tooling built on a consistent service layer.
 
+## Status Snapshot
+
+- Phase A – Platform Foundation: completed; package layout, logging/config consolidation, and service contracts are in place.
+- Phase B – Audio Stack Pilot: initiated; adapters, services, and presentation wiring are the new focus.
+
 ---
 
 ## 2. Architectural Model
@@ -46,23 +51,15 @@ Adopt a service-based layering inspired by well-run platform teams:
 
 ## 4. Migration Roadmap
 
-### Phase A – Platform Foundation
+### Phase A – Platform Foundation (Completed)
 
-1. **Create packages**
-   - Add `platform/`, `services/`, `adapters/`, `presentation/` with `__init__.py`.
-   - Move `create_logger` & `dynamic_print` to `platform/logging.py`; update imports.
-   - Extract configuration helpers (`read_api_key`, env loaders) into `platform/config.py`.
-   - Tag optional dependency imports with clear error messaging (e.g., `raise RuntimeError("Install lunar-tools[audio]")`).
+Phase A established the foundational layout, centralized logging/config helpers, and introduced the initial service contracts plus testing scaffolding.
 
-2. **Define service contracts**
-   - Introduce lightweight protocols/ABCs in `services/audio/contracts.py`, `services/comms/contracts.py`, etc.
-   - Document expected methods (e.g., `generate(text: str) -> str`, `send(payload: bytes) -> None`).
+- [x] Create packages `platform/`, `services/`, `adapters/`, `presentation/`; relocate logging/config utilities; add optional dependency guards.
+- [x] Define service contracts via protocols/ABCs under `services/*/contracts.py`.
+- [x] Bootstrap tests with fake adapters and pytest markers to prepare for feature slices.
 
-3. **Bootstrap tests**
-   - Provide fake adapter implementations under `tests/fakes/` for use in unit tests.
-   - Configure pytest markers for optional features (`@pytest.mark.audio`).
-
-### Phase B – Audio Stack Pilot
+### Phase B – Audio Stack Pilot (In Progress)
 
 1. **Adapters**
    - Split `audio.py` responsibilities:
@@ -71,19 +68,26 @@ Adopt a service-based layering inspired by well-run platform teams:
      - `adapters/audio/elevenlabs_tts.py`
      - `adapters/audio/deepgram_transcriber.py`
    - Each adapter implements contracts defined in Phase A and handles missing SDKs gracefully.
+   - [x] Optional dependency guards now funnel through `_optional.require_extra` for clearer guidance.
 
 2. **Services**
    - `services/audio/recorder_service.py` orchestrates recording lifecycle.
    - `services/audio/tts_service.py` handles TTS; configurable to pick desired adapter.
    - `services/audio/transcription_service.py` for streaming/offline transcripts.
+   - [x] Added `SpeechToTextService` and extended TTS service to handle playback adapters.
 
 3. **Presentation wiring**
    - Update `realtime_voice.py` (temporarily move to `presentation/`) to build services via a factory (e.g., `bootstrap_audio_stack(config)`).
    - Replace direct `LogPrint` usage with injected loggers (obtained from `platform.logging`).
+   - [x] Introduced `presentation/audio_stack.py` with `AudioStackConfig`, `bootstrap_audio_stack`, and an `AudioConversationController` orchestrating services.
+   - [x] Migrated the realtime voice client to `presentation/realtime_voice.py` with lazy adapter bootstrapping plus a shim module for backwards compatibility.
 
 4. **Testing & docs**
    - Add unit tests for services using fake adapters.
    - Document new audio APIs and migration steps for downstream users.
+   - [x] Added service-layer tests (`tests/test_audio_services.py`, `tests/test_audio_module.py`) leveraging the fake adapters.
+   - [x] Introduced lightweight stubs/pytest markers so CI can exercise services without audio hardware or third-party SDKs.
+   - [ ] Publish user-facing guide for the audio conversation controller and bootstrap helper.
 
 ### Phase C – Communications & Vision
 
@@ -135,11 +139,16 @@ Adopt a service-based layering inspired by well-run platform teams:
 
 ---
 
-## 5. Immediate Tasks (Iteration 0)
+## 5. Immediate Tasks (Phase B Kickoff)
 
-1. Introduce `platform/`, `services/`, `adapters/`, `presentation/` folders; move `logging` and config helpers under `platform/`.
-2. Draft interface contracts for audio services and outline expected adapter methods.
-3. Prepare issue tracker / task board reflecting the roadmap phases.
-4. Align team on dependency strategy (extras vs. optional imports) before deep refactors.
+1. Polish documentation for the audio bootstrap/controller APIs and publish a migration note for downstream users.
+2. Extend adapter coverage (Deepgram/OpenAI transcription) to align with the new service contracts and ensure graceful SDK handling.
+3. Update the realtime voice sample in `examples/` to demonstrate the new bootstrap + controller flow end-to-end.
+4. Enable optional extras (e.g., `lunar-tools[audio]`) in packaging metadata so users can install the full stack in one step.
 
-Once the foundation is merged, the Audio Pilot (Phase B) becomes the proving ground for the new architecture. Subsequent phases can borrow patterns from that pilot to bring the rest of the toolkit up to the same standard.
+Latest iteration:
+- Hardened adapters with lazy optional imports and playback integration hooks.
+- Added `SpeechToTextService`, playback-aware `TextToSpeechService`, and presentation helpers (`AudioStackConfig`, `AudioConversationController`, `RealTimeVoice`).
+- Reworked audio tests (with stubs for heavy deps) to exercise the new layering without requiring hardware access.
+
+With Phase A complete, Phase B is now the proving ground for the architecture. Patterns from the audio stack will guide the remaining roadmap stages.

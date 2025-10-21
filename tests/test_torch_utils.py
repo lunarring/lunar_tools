@@ -1,6 +1,17 @@
-import torch
 import pytest
-from lunar_tools.torch_utils import resize
+import numpy as np
+
+if getattr(np, "__lunar_stub__", False) or not hasattr(np, "ndarray"):
+    pytest.skip("Torch utility tests require functional numpy.", allow_module_level=True)
+
+import torch
+
+torch_utils = pytest.importorskip(
+    "lunar_tools.torch_utils",
+    reason="Torch utility tests require numpy/torch extras.",
+)
+
+resize = torch_utils.resize
 
 def test_resize_single_image():
     # Create a 3-dimensional tensor (C, H, W)

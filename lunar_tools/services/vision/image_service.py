@@ -1,12 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Callable, Optional, Protocol, Tuple
+from typing import Any, Optional, Tuple
 
-
-class ImageGeneratorPort(Protocol):
-    def generate(self, prompt: str, *args, **kwargs):
-        ...
+from .contracts import ImageGeneratorPort
 
 
 @dataclass
