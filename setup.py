@@ -72,7 +72,9 @@ def build_extras() -> dict[str, list[str]]:
     for packages in extras.values():
         for package in packages:
             full.add(package)
-    extras["full"] = sorted(full)
+    full_list = sorted(full)
+    extras["full"] = full_list
+    extras["all"] = full_list
     return extras
 
 
