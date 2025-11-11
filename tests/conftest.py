@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import sys
 import types
 
@@ -205,6 +206,47 @@ class _StubInputStream:
         pass
 
 
+async def _async_noop(*args, **kwargs):
+    return None
+
+
+class _StubAsyncRealtimeConnection:
+    def __init__(self) -> None:
+        self.session = types.SimpleNamespace(id="stub-session", update=_async_noop)
+        self.response = types.SimpleNamespace(create=_async_noop, output=[])
+        self.input_audio_buffer = types.SimpleNamespace(append=_async_noop, commit=_async_noop)
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        return False
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        raise StopAsyncIteration
+
+
+class _StubAsyncOpenAI:
+    def __init__(self, *args, **kwargs) -> None:
+        connection = _StubAsyncRealtimeConnection()
+
+        @contextlib.asynccontextmanager
+        async def _connect(*_args, **_kwargs):
+            yield connection
+
+        self.beta = types.SimpleNamespace(
+            realtime=types.SimpleNamespace(connect=_connect)
+        )
+
+
+class _StubSession:
+    def __init__(self, *args, **kwargs) -> None:
+        self.id = "stub-session"
+
+
 _register_stub(
     "lunar_tools.adapters.audio.simpleaudio_player",
     SoundPlayer=_StubSoundPlayer,
@@ -235,3 +277,47 @@ _register_stub(
     InputStream=_StubInputStream,
     OutputStream=_StubOutputStream,
 )
+
+
+def _register_package(name: str) -> types.ModuleType:
+    module = types.ModuleType(name)
+    module.__path__ = []  # type: ignore[attr-defined]
+    sys.modules[name] = module
+    return module
+
+
+if "openai" not in sys.modules:
+    openai_module = types.ModuleType("openai")
+    openai_module.AsyncOpenAI = _StubAsyncOpenAI
+    openai_module.__path__ = []  # type: ignore[attr-defined]
+    sys.modules["openai"] = openai_module
+else:
+    setattr(sys.modules["openai"], "AsyncOpenAI", _StubAsyncOpenAI)
+
+for package_name in [
+    "openai.types",
+    "openai.types.beta",
+    "openai.types.beta.realtime",
+    "openai.resources",
+    "openai.resources.beta",
+    "openai.resources.beta.realtime",
+]:
+    if package_name not in sys.modules:
+        _register_package(package_name)
+
+session_module = types.ModuleType("openai.types.beta.realtime.session")
+session_module.Session = _StubSession
+sys.modules["openai.types.beta.realtime.session"] = session_module
+
+realtime_module = types.ModuleType("openai.resources.beta.realtime.realtime")
+realtime_module.AsyncRealtimeConnection = _StubAsyncRealtimeConnection
+sys.modules["openai.resources.beta.realtime.realtime"] = realtime_module
+
+sys.modules["openai"].types = sys.modules["openai.types"]
+sys.modules["openai.types"].beta = sys.modules["openai.types.beta"]
+sys.modules["openai.types.beta"].realtime = sys.modules["openai.types.beta.realtime"]
+sys.modules["openai.types.beta.realtime"].session = session_module
+
+sys.modules["openai.resources"].beta = sys.modules["openai.resources.beta"]
+sys.modules["openai.resources.beta"].realtime = sys.modules["openai.resources.beta.realtime"]
+sys.modules["openai.resources.beta.realtime"].realtime = realtime_module

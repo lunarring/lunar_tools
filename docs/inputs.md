@@ -99,3 +99,33 @@ while True:
 Tap `z` once to focus the emulated slider, then use the up/down arrow keys to step through the configured range.
 
 See [`examples/midi_meta_example.py`](../examples/midi_meta_example.py) for a full MIDI walkthrough.
+
+## Presentation bootstrap
+
+Prefer the presentation-layer factory when wiring controllers into larger demos.
+
+```python
+from lunar_tools import MessageBusConfig
+from lunar_tools.presentation.input_stack import (
+    ControlInputStackConfig,
+    bootstrap_control_inputs,
+)
+
+stack = bootstrap_control_inputs(
+    ControlInputStackConfig(
+        use_meta=True,
+        attach_message_bus=True,
+        message_bus_config=MessageBusConfig(zmq_bind=False),
+    )
+)
+
+values = stack.poll_and_broadcast(
+    {
+        "intensity": {"akai_lpd8": "B0", "val_min": 0.0, "val_max": 1.0},
+        "trigger": {"akai_lpd8": "A0", "button_mode": "toggle"},
+    }
+)
+```
+
+`stack.communication` exposes the optional message bus, and `stack.close()` will
+stop any registered receivers.

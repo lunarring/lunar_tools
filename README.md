@@ -30,11 +30,17 @@ Install the extras you need to pull in optional dependencies. Combine extras wit
 | `video` | ffmpeg/ffmpeg-python, moviepy, tqdm | `MovieSaver`, video composition helpers |
 | `inputs` | pynput, pyusb, pygame, PyYAML | `KeyboardInput`, `MetaInput`, `MidiInput` |
 | `comms` | python-osc, pyzmq, OpenCV | OSC/ZMQ endpoints (`OSCSender`, `ZMQPairEndpoint`) |
+| `vision` | imaging + display extras | Image generator registry + renderers (`DisplayStack`) |
+| `presentation` | display, video, inputs, comms extras | Presentation-layer stacks (display/movie/control input) |
+| `stacks` | audio, llm, presentation extras | Complete service+presentation stack bundle |
 | `full` | Everything above | Matches the legacy all-in-one install |
 
 ```bash
 python -m pip install lunar_tools[audio,display]
 ```
+
+The `full` bundle is also available as `all` for compatibility with older
+scripts.
 
 If a module is missing an optional dependency you will see an `OptionalDependencyError` telling you which extra to install.
 

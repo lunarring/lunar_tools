@@ -150,6 +150,7 @@ Latest iteration:
 - Introduced message-port adapters (`OSCMessageSender`/`OSCMessageReceiver`, `ZMQMessageEndpoint`) guarded by friendly optional dependency errors.
 - Refreshed documentation, README examples, and ZMQ demos to highlight the new communications workflow.
 - Added vision provider registry + selection hooks and mirrored the LLM stack so services can resolve models by name.
+- Presentation layer now offers bootstrap factories for displays, movie writing, and control inputs, each consuming the service registries to wire up message buses and vision providers. Examples and docs now lean on config-driven bootstrapping across audio and comms flows.
 
 ## 5. Immediate Tasks (Phase D Kickoff)
 

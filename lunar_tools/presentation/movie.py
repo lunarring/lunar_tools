@@ -346,6 +346,19 @@ class MovieReader():
         else:
             return np.zeros(self.shape)
 
+    def close(self) -> None:
+        """Release the underlying capture resource."""
+        if self.video_player_object is not None:
+            self.video_player_object.release()
+            self.video_player_object = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        self.close()
+        return False
+
 
 def interpolate_between_images(img1, img2, nmb_frames):
     list_imgs_interp = []  # Initialize the list to store interpolated images

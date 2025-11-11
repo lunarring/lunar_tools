@@ -16,6 +16,10 @@ import random
 import numpy as np
 
 import lunar_tools as lt
+from lunar_tools.presentation.movie_stack import (
+    MovieStackConfig,
+    bootstrap_movie_stack,
+)
 
 
 def render_gallery_frame(width: int, height: int, frame_idx: int, total_frames: int) -> np.ndarray:
@@ -56,13 +60,20 @@ def main() -> None:
     total_frames = fps * 5  # 5 seconds
 
     print(f"Writing {total_frames} frames to {movie_path} ...")
-    saver = lt.MovieSaver(str(movie_path), fps=fps)
+    stack = bootstrap_movie_stack(
+        MovieStackConfig(
+            output_path=str(movie_path),
+            fps=fps,
+        )
+    )
+    saver = stack.writer
     try:
         for frame_idx in range(total_frames):
             frame = render_gallery_frame(width, height, frame_idx, total_frames)
             saver.write_frame(frame)
     finally:
         saver.finalize()
+        stack.close()
     print("Movie saved.")
 
     if movie_path.exists():
@@ -70,15 +81,14 @@ def main() -> None:
         print(f"Movie file size: {size_mb:.2f} MB")
 
     print("Reading back a few frames to validate output...")
-    reader = lt.MovieReader(str(movie_path))
-    for _ in range(3):
-        frame = reader.get_next_frame()
-        if frame is None:
-            print("No more frames available.")
-            break
-        print(f"Read frame with shape: {frame.shape}")
+    with lt.MovieReader(str(movie_path)) as reader:
+        for _ in range(3):
+            frame = reader.get_next_frame()
+            if frame is None:
+                print("No more frames available.")
+                break
+            print(f"Read frame with shape: {frame.shape}")
 
-    reader.close()
     print("Done.")
 
 

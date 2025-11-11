@@ -47,6 +47,39 @@ while True:
     grid.render()
 ```
 
+## Display bootstrap
+
+Phase D adds a presentation-layer factory so scripts can compose renderers,
+message buses, and vision providers without reimplementing wiring.
+
+```python
+from lunar_tools import MessageBusConfig
+from lunar_tools.presentation.display_stack import (
+    DisplayStackConfig,
+    bootstrap_display_stack,
+)
+
+stack = bootstrap_display_stack(
+    DisplayStackConfig(
+        backend="gl",
+        attach_message_bus=True,
+        include_image_generators=True,
+        message_bus_config=MessageBusConfig(
+            zmq_bind=False,
+            zmq_host="127.0.0.1",
+            zmq_port=5557,
+            zmq_default_address="frames",
+        ),
+    )
+)
+
+renderer = stack.renderer
+bus = stack.communication.message_bus  # requires attach_message_bus=True
+generators = stack.generators          # present when include_image_generators=True
+```
+
+`stack.close()` stops registered receivers/endpoints on shutdown.
+
 ## Generative imagery (`imaging` extra)
 
 ### OpenAI DALL·E 3
@@ -126,6 +159,33 @@ Other utilities:
 - `lt.add_sound(video_path, audio_path, output_path)`
 - `lt.concatenate_movies([...], output_path)`
 - `lt.MovieSaverThreaded` for background encoding while the main loop keeps running.
+
+### Movie bootstrap
+
+Use the presentation factory when you need to bundle writing, messaging, and
+optional vision providers:
+
+```python
+from lunar_tools import MessageBusConfig
+from lunar_tools.presentation.movie_stack import (
+    MovieStackConfig,
+    bootstrap_movie_stack,
+)
+
+stack = bootstrap_movie_stack(
+    MovieStackConfig(
+        output_path="renders/showreel.mp4",
+        attach_message_bus=True,
+        include_image_generators=True,
+        message_bus_config=MessageBusConfig(zmq_bind=True, zmq_port=5557),
+    )
+)
+
+writer = stack.writer
+generators = stack.generators
+```
+
+Call `stack.close()` once writing or streaming completes to stop endpoints.
 
 ## Torch image utilities (`display` extra)
 

@@ -13,30 +13,30 @@ def read_requirements() -> list[str]:
 
 
 def build_extras() -> dict[str, list[str]]:
-    extras: dict[str, list[str]] = {
-        "audio": [
+    base: dict[str, set[str]] = {
+        "audio": {
             "openai",
             "sounddevice",
             "simpleaudio",
             "pydub",
             "elevenlabs",
             "deepgram-sdk",
-        ],
-        "llm": [
+        },
+        "llm": {
             "openai",
             "google-genai",
-        ],
-        "imaging": [
+        },
+        "imaging": {
             "Pillow",
             "fal-client",
             "replicate",
             "openai",
-        ],
-        "camera": [
+        },
+        "camera": {
             "opencv-python",
             "Pillow",
-        ],
-        "display": [
+        },
+        "display": {
             "opencv-python",
             "torch",
             "pygame",
@@ -45,37 +45,48 @@ def build_extras() -> dict[str, list[str]]:
             "pysdl2-dll",
             "Pillow",
             "cuda-python; sys_platform == 'linux'",
-        ],
-        "video": [
+        },
+        "video": {
             "moviepy",
             "opencv-python",
             "ffmpeg",
             "ffmpeg-python",
             "tqdm",
             "Pillow",
-        ],
-        "inputs": [
+        },
+        "inputs": {
             "pynput",
             "pyusb",
             "PyYAML",
             "pygame",
             "setuptools",
-        ],
-        "comms": [
+        },
+        "comms": {
             "python-osc",
             "zmq",
             "opencv-python",
-        ],
+        },
     }
 
-    full: set[str] = set()
-    for packages in extras.values():
-        for package in packages:
-            full.add(package)
-    full_list = sorted(full)
-    extras["full"] = full_list
-    extras["all"] = full_list
-    return extras
+    extras_sets = dict(base)
+    extras_sets["vision"] = set().union(base["imaging"], base["display"])
+    extras_sets["presentation"] = set().union(
+        base["display"],
+        base["video"],
+        base["inputs"],
+        base["comms"],
+    )
+    extras_sets["stacks"] = set().union(
+        base["audio"],
+        base["llm"],
+        extras_sets["presentation"],
+    )
+
+    full = set().union(*extras_sets.values())
+    extras_sets["full"] = full
+    extras_sets["all"] = full
+
+    return {name: sorted(packages) for name, packages in extras_sets.items()}
 
 
 setup(
