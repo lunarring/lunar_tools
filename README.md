@@ -75,6 +75,31 @@ if transcript:
 when the dependency is available, and you can set custom playback adapters via
 `services.openai_tts.set_playback(...)`.
 
+### Route OSC and ZeroMQ messages
+Install the `comms` extra and bootstrap the message bus.
+
+```bash
+python -m pip install lunar_tools[comms]
+```
+
+```python
+from lunar_tools import MessageBusConfig, create_message_bus
+
+services = create_message_bus(
+    MessageBusConfig(
+        osc_host="127.0.0.1",
+        osc_port=9000,
+        zmq_bind=True,
+        zmq_port=5556,
+    )
+)
+
+bus = services.message_bus
+bus.send("osc", {"scene": "sunrise"}, address="/lighting/state")
+message = bus.wait_for("zmq", timeout=2.0)
+print("Inbound:", message)
+```
+
 ### Render a numpy frame stream
 Requires the `display` extra.
 

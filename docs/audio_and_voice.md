@@ -134,6 +134,28 @@ mirror transcripts or trigger side effects. See
 [`examples/realtime_voice_example.py`](../examples/realtime_voice_example.py)
 for an interactive CLI walkthrough.
 
+## Language model selection (`llm` extra)
+
+Phase C introduced a selector that mirrors the audio and comms patterns. Build
+the stack once and pick models by name:
+
+```python
+from lunar_tools.llm import LanguageStackConfig, create_language_models
+
+models = create_language_models(
+    config=LanguageStackConfig(preferred="deepseek", include_gemini=False)
+)
+
+print(models.preferred.complete("Draft a welcome message for the lobby display."))
+
+openai = models.get("openai")
+print(openai.complete("Suggest three ambient lighting scenes."))
+```
+
+Call `models.selector.available()` to inspect registered providers. Legacy
+wrappers (e.g. `lt.OpenAIWrapper`) remain accessible during the migration window
+for scripts that prefer direct SDK access.
+
 ## Migration guide (legacy adapters)
 
 Legacy entry points remain available during the deprecation window via

@@ -28,7 +28,7 @@ from typing import Tuple
 import numpy as np
 import zmq
 
-import lunar_tools as lt
+from lunar_tools import MessageBusConfig, create_message_bus
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -94,11 +94,16 @@ def generate_frame(
 def main(argv: Tuple[str, ...] | None = None) -> int:
     args = build_parser().parse_args(argv)
 
-    endpoint = lt.ZMQPairEndpoint(
-        is_server=True,
-        ip=args.bind,
-        port=str(args.port),
+    services = create_message_bus(
+        MessageBusConfig(
+            zmq_bind=True,
+            zmq_host=args.bind,
+            zmq_port=args.port,
+            zmq_default_address="frames",
+        )
     )
+    endpoint = services.zmq_endpoint
+    bus = services.message_bus
     print(
         f"Streaming from {args.bind}:{args.port} "
         f"at {args.fps:.2f} FPS ({args.width}x{args.height})"
@@ -112,14 +117,24 @@ def main(argv: Tuple[str, ...] | None = None) -> int:
         next_frame_time = time.perf_counter()
         while True:
             frame = generate_frame(frame_id, args.width, args.height, args.pattern)
+            payload = {
+                "type": "frame",
+                "shape": frame.shape,
+                "dtype": str(frame.dtype),
+                "data": frame.tobytes(),
+            }
             try:
-                endpoint.send_img(frame)
+                bus.send("zmq", payload)
             except zmq.Again:
                 if not waiting_for_peer:
                     print("Waiting for receiver to connect or catch up...")
                     waiting_for_peer = True
                 time.sleep(0.1)
                 next_frame_time = time.perf_counter()
+                continue
+            except Exception as exc:  # pragma: no cover - defensive logging
+                print(f"Error sending frame: {exc}")
+                time.sleep(0.1)
                 continue
 
             waiting_for_peer = False
@@ -135,7 +150,10 @@ def main(argv: Tuple[str, ...] | None = None) -> int:
         print("\nStopping sender...")
         return 0
     finally:
-        endpoint.stop()
+        if endpoint:
+            endpoint.stop()
+        if services:
+            services.message_bus.stop_all()
         print("ZeroMQ endpoint closed.")
 
 

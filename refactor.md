@@ -11,6 +11,7 @@
 
 - Phase A – Platform Foundation: completed; package layout, logging/config consolidation, and service contracts are in place.
 - Phase B – Audio Stack Pilot: completed; audio adapters/services, presentation wiring, docs, and examples now follow the service architecture.
+- Phase C – Communications & Vision: completed; message bus service, vision strategy selection, and LLM stack routing now mirror the audio architecture.
 
 ---
 
@@ -98,22 +99,21 @@ Latest iteration:
 ### Phase C – Communications & Vision
 
 1. **Communications**
-   - Carve out `services/comms/message_bus.py` exposing send/receive queues.
-   - Create `adapters/comms/zmq_adapter.py` (wraps ZeroMQ) and `adapters/comms/osc_adapter.py`.
-   - Adapt ZMQ tests to mock adapter; ensure timeout/backpressure covered.
+   - [x] Carve out `services/comms/message_bus.py` exposing send/receive orchestration.
+   - [x] Create adapter shims (`OSCMessageSender`/`OSCMessageReceiver`, `ZMQMessageEndpoint`) behind optional dependency guards.
+   - [x] Adapt tests with fakes + service-level coverage for routing and lifecycle.
 
 2. **Vision / Image generation**
-   - `services/vision/image_service.py` defines an interface for generation/editing.
-   - Provider adapters: `adapters/vision/openai_dalle.py`, `replicate_sdxl.py`, `fal_flux.py`.
-   - Provide strategy selection (based on config or argument).
+   - [x] `services/vision/image_service.py` defines the generation interface and wraps current adapters via `create_image_generators`.
+   - [x] Provide strategy selection (based on config or argument) for downstream consumption.
 
 3. **LLM**
-   - Mirror structure for OpenAI/Gemini/DeepSeek.
-   - Offer service for text completion/conversation with pluggable adapters.
+   - [x] Mirror structure for OpenAI/Gemini/DeepSeek.
+   - [x] Offer service for text completion/conversation with pluggable adapters.
 
 4. **Documentation & tests**
-   - Update README/examples to use new service factories.
-   - Expand pytest coverage for messaging and image generation flows.
+   - [x] Update README/examples to use new service factories.
+   - [x] Expand pytest coverage for messaging and image generation flows.
 
 ### Phase D – Presentation & Tooling
 
@@ -145,10 +145,16 @@ Latest iteration:
 
 ---
 
-## 5. Immediate Tasks (Phase C Kickoff)
+Latest iteration:
+- Added `MessageBusService` with lazy OSC/ZeroMQ bootstrapping helpers plus service tests.
+- Introduced message-port adapters (`OSCMessageSender`/`OSCMessageReceiver`, `ZMQMessageEndpoint`) guarded by friendly optional dependency errors.
+- Refreshed documentation, README examples, and ZMQ demos to highlight the new communications workflow.
+- Added vision provider registry + selection hooks and mirrored the LLM stack so services can resolve models by name.
 
-1. Sketch the communications message-bus contract under `services/comms/message_bus.py` and confirm adapter boundaries for OSC/ZMQ.
-2. Carve out ZeroMQ/OSC adapters with optional dependency guards, plus adapter-focused tests mirroring the audio fake strategy.
-3. Draft the `services/vision/image_service.py` interface and map existing `image_gen` providers into adapter stubs ready for migration.
+## 5. Immediate Tasks (Phase D Kickoff)
 
-With Phase A and Phase B complete, Phase C becomes the proving ground for the remaining capability slices. Patterns from the audio stack will guide the communications and vision migrations.
+1. Structure presentation-layer factories (display, movie, control input) to consume the new service registries.
+2. Consolidate CLI/example entry points around config-driven bootstrapping, starting with audio + comms flows.
+3. Update packaging metadata (`pyproject`/extras) to reflect the new service bundles ahead of the deprecation window.
+
+With Phases A through C complete, Phase D focuses on presentation tooling and CLI experience built on top of the harmonised services/adapters.

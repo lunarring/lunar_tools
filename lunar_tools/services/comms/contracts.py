@@ -1,12 +1,14 @@
 from __future__ import annotations
 
-from typing import Optional, Protocol, Sequence
+from typing import Any, Optional, Protocol, Sequence
+
+MessagePayload = Sequence[float] | bytes | str | dict[str, Any] | Any
 
 
 class MessageSenderPort(Protocol):
     """Port responsible for pushing messages to a transport."""
 
-    def send(self, address: str, payload: Sequence[float] | bytes | str) -> None:
+    def send(self, address: str, payload: MessagePayload) -> None:
         ...
 
 
@@ -23,8 +25,8 @@ class MessageReceiverPort(Protocol):
         self,
         address: Optional[str] = None,
         timeout: Optional[float] = None,
-    ) -> Optional[Sequence[float] | bytes | str]:
+    ) -> Optional[MessagePayload]:
         ...
 
 
-__all__ = ["MessageSenderPort", "MessageReceiverPort"]
+__all__ = ["MessagePayload", "MessageSenderPort", "MessageReceiverPort"]

@@ -23,7 +23,10 @@ import sys
 import time
 from typing import Optional, Tuple
 
+import numpy as np
+
 import lunar_tools as lt
+from lunar_tools import MessageBusConfig, create_message_bus
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -55,11 +58,16 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Tuple[str, ...] | None = None) -> int:
     args = build_parser().parse_args(argv)
 
-    endpoint = lt.ZMQPairEndpoint(
-        is_server=False,
-        ip=args.endpoint,
-        port=str(args.port),
+    services = create_message_bus(
+        MessageBusConfig(
+            zmq_bind=False,
+            zmq_host=args.endpoint,
+            zmq_port=args.port,
+            zmq_default_address="frames",
+        )
     )
+    endpoint = services.zmq_endpoint
+    bus = services.message_bus
     renderer: Optional[lt.Renderer] = None
     fps_tracker = lt.FPSTracker()
 
@@ -68,10 +76,17 @@ def main(argv: Tuple[str, ...] | None = None) -> int:
 
     try:
         while True:
-            frame = endpoint.get_img()
-            if frame is None:
+            message = bus.wait_for("zmq", timeout=0.05)
+            if not message or message.get("payload") is None:
                 time.sleep(0.005)
                 continue
+
+            payload = message["payload"]
+            if payload.get("type") != "frame":
+                continue
+
+            frame = np.frombuffer(payload["data"], dtype=np.dtype(payload["dtype"]))
+            frame = frame.reshape(payload["shape"])
 
             if renderer is None:
                 height, width = frame.shape[:2]
@@ -91,7 +106,10 @@ def main(argv: Tuple[str, ...] | None = None) -> int:
         print("\nStopping receiver...")
         return 0
     finally:
-        endpoint.stop()
+        if services:
+            services.message_bus.stop_all()
+        if endpoint:
+            endpoint.stop()
         print("ZeroMQ endpoint closed.")
 
 

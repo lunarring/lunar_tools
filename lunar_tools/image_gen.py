@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from lunar_tools._optional import optional_import_attr
-from lunar_tools.services.vision.image_service import ImageService
+from lunar_tools.services.vision.image_service import ImageService, VisionProviderRegistry
 
 __all__ = [
     "FluxImageGenerator",
@@ -17,6 +17,7 @@ __all__ = [
     "SDXL_TURBO",
     "GlifAPI",
     "ImageGenerators",
+    "VisionProviderRegistry",
     "create_image_generators",
 ]
 
@@ -58,6 +59,10 @@ class ImageGenerators:
     nano_banana: "NanoBananaEditImageGenerator"
     flux_kontext: "FluxKontextImageGenerator"
     glif_api: Optional["GlifAPI"]
+    registry: VisionProviderRegistry
+
+    def get(self, name: str) -> ImageService:
+        return self.registry.get(name)
 
 
 def create_image_generators(*, include_glif: bool = True) -> ImageGenerators:
@@ -75,6 +80,19 @@ def create_image_generators(*, include_glif: bool = True) -> ImageGenerators:
     flux_kontext_adapter = _load("FluxKontextImageGenerator")()
 
     glif_api_adapter = _load("GlifAPI")() if include_glif else None
+    flux_service = ImageService(flux_adapter)
+    nano_banana_service = ImageService(nano_banana_adapter)
+    flux_kontext_service = ImageService(flux_kontext_adapter)
+
+    registry = VisionProviderRegistry()
+    registry.register("dalle3", dalle_service, aliases=("openai", "dalle"))
+    registry.register("sdxl_lcm", sdxl_lcm_service, aliases=("sdxl", "replicate_lcm"))
+    registry.register("sdxl_turbo", sdxl_turbo_service, aliases=("sdxl_fast",))
+    registry.register("flux", flux_service)
+    registry.register("nano_banana", nano_banana_service, aliases=("nano",))
+    registry.register("flux_kontext", flux_kontext_service, aliases=("kontext",))
+    if glif_api_adapter:
+        registry.register("glif", ImageService(glif_api_adapter))
 
     return ImageGenerators(
         dalle3=dalle_service,
@@ -84,4 +102,5 @@ def create_image_generators(*, include_glif: bool = True) -> ImageGenerators:
         nano_banana=nano_banana_adapter,
         flux_kontext=flux_kontext_adapter,
         glif_api=glif_api_adapter,
+        registry=registry,
     )

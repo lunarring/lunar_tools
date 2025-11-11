@@ -2,14 +2,19 @@ from __future__ import annotations
 
 import json
 import threading
+import time
 from queue import Empty, Full, Queue
-from typing import Optional
+from typing import Any, Dict, List, Optional
 
-import cv2
-import numpy as np
-import zmq
-
+from lunar_tools._optional import require_extra
 from lunar_tools.platform.logging import create_logger
+
+try:  # pragma: no cover - optional dependency guard
+    import cv2
+    import numpy as np
+    import zmq
+except ImportError:  # pragma: no cover - optional dependency
+    require_extra("ZeroMQ communication", extras="comms")
 
 
 class ZMQPairEndpoint:
@@ -262,3 +267,151 @@ class ZMQPairEndpoint:
         header = f"audio:{sample_rate}:{channels}:{dtype_str}:".encode("utf-8")
         message = header + audio_data.tobytes()
         self._queue_send(message)
+
+
+class ZMQMessageEndpoint:
+    """
+    Lightweight PAIR socket wrapper implementing the message bus contracts.
+    """
+
+    def __init__(
+        self,
+        *,
+        bind: bool,
+        host: str = "127.0.0.1",
+        port: int = 5556,
+        context: Optional["zmq.Context"] = None,
+        poll_interval: float = 0.05,
+        logger=None,
+    ) -> None:
+        self._host = host
+        self._port = port
+        self._bind = bind
+        self._poll_interval_ms = max(int(poll_interval * 1000), 1)
+        self._context = context or zmq.Context.instance()
+        self._logger = logger if logger else create_logger(__name__ + ".endpoint")
+
+        self._socket: Optional["zmq.Socket"] = None
+        self._thread: Optional[threading.Thread] = None
+        self._running = False
+
+        self._messages: List[Dict[str, Any]] = []
+        self._condition = threading.Condition()
+
+        self._ensure_socket()
+
+    # Socket lifecycle -------------------------------------------------
+    def _address(self) -> str:
+        return f"tcp://{self._host}:{self._port}"
+
+    def _ensure_socket(self) -> None:
+        if self._socket is not None:
+            return
+        socket = self._context.socket(zmq.PAIR)
+        socket.setsockopt(zmq.LINGER, 0)
+        address = self._address()
+        if self._bind:
+            socket.bind(address)
+        else:
+            socket.connect(address)
+        self._socket = socket
+
+    def start(self) -> None:
+        if self._running:
+            return
+        self._ensure_socket()
+        if self._socket is None:
+            raise RuntimeError("ZMQ socket is unavailable")
+        self._running = True
+        self._thread = threading.Thread(target=self._run, name="ZMQMessageEndpoint", daemon=True)
+        self._thread.start()
+
+    def stop(self) -> None:
+        if not self._running:
+            return
+        self._running = False
+        socket = self._socket
+        self._socket = None
+
+        if socket is not None:
+            try:
+                socket.close(linger=0)
+            except Exception:  # pragma: no cover - defensive shutdown
+                pass
+
+        if self._thread and self._thread.is_alive():
+            self._thread.join(timeout=1.0)
+        self._thread = None
+
+        with self._condition:
+            self._messages.clear()
+
+    # Sending ----------------------------------------------------------
+    def send(self, address: str, payload: Any) -> None:
+        self._ensure_socket()
+        if self._socket is None:
+            raise RuntimeError("ZMQ socket is unavailable")
+        envelope = {"address": address, "payload": payload}
+        self._socket.send_pyobj(envelope)
+
+    # Receiving --------------------------------------------------------
+    def _run(self) -> None:
+        socket = self._socket
+        if socket is None:
+            return
+        poller = zmq.Poller()
+        poller.register(socket, zmq.POLLIN)
+
+        while self._running:
+            try:
+                events = dict(poller.poll(self._poll_interval_ms))
+            except zmq.ZMQError as exc:  # pragma: no cover - poll interruption
+                if self._running:
+                    self._logger.error("ZMQ poll error: %s", exc)
+                break
+
+            if not self._running:
+                break
+
+            if socket in events and events[socket] & zmq.POLLIN:
+                try:
+                    message = socket.recv_pyobj(flags=zmq.NOBLOCK)
+                except zmq.Again:
+                    continue
+                except zmq.ZMQError as exc:  # pragma: no cover - recv error
+                    self._logger.error("ZMQ recv error: %s", exc)
+                    break
+                with self._condition:
+                    self._messages.append(message)
+                    self._condition.notify_all()
+
+        poller.unregister(socket)
+
+    def receive(
+        self,
+        address: Optional[str] = None,
+        timeout: Optional[float] = None,
+    ) -> Optional[Dict[str, Any]]:
+        deadline = None if timeout is None else time.monotonic() + timeout
+        with self._condition:
+            message = self._pop_message(address)
+            while message is None:
+                if deadline is not None:
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        return None
+                else:
+                    remaining = None
+                self._condition.wait(timeout=remaining)
+                message = self._pop_message(address)
+            return message
+
+    def _pop_message(self, address: Optional[str]) -> Optional[Dict[str, Any]]:
+        if not self._messages:
+            return None
+        if address is None:
+            return self._messages.pop(0)
+        for idx, message in enumerate(self._messages):
+            if message.get("address") == address:
+                return self._messages.pop(idx)
+        return None

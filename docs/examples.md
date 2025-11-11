@@ -8,7 +8,7 @@ Short descriptions of the runnable demos in [`examples/`](../examples). Use thes
 | [`fps_tracker_example.py`](../examples/fps_tracker_example.py) | _none_ | Minimal `FPSTracker` usage with simulated workloads to visualise segment timings. |
 | [`simple_webcam_renderer.py`](../examples/simple_webcam_renderer.py) | `camera`, `display` | Smallest possible webcam→renderer loop; great for hardware smoke tests. |
 | [`webcam_renderer_example.py`](../examples/webcam_renderer_example.py) | `camera`, `display` | Adds error handling and FPS metrics to the webcam preview so you can benchmark capture latency. |
-| [`zmq_remote_renderer_sender.py`](../examples/zmq_remote_renderer_sender.py) / [`zmq_remote_renderer_receiver.py`](../examples/zmq_remote_renderer_receiver.py) | `comms`, `display` | Streams generated frames over ZeroMQ so a remote renderer can display them, mirroring the README example. |
+| [`zmq_remote_renderer_sender.py`](../examples/zmq_remote_renderer_sender.py) / [`zmq_remote_renderer_receiver.py`](../examples/zmq_remote_renderer_receiver.py) | `comms`, `display` | Uses `create_message_bus` with the ZeroMQ adapter to stream frames from a producer to a remote renderer. |
 | [`midi_meta_example.py`](../examples/midi_meta_example.py) | `inputs` | Demonstrates `MetaInput` auto-detection with simultaneous Akai MIDImix / LPD8 mappings. |
 | [`flux_kontext_gradio.py`](../examples/flux_kontext_gradio.py) | `imaging` + `gradio` | Gradio UI that pipes drawings/uploads through the Flux Kontext image-edit endpoint. |
 | [`nano_banana_edit_gradio.py`](../examples/nano_banana_edit_gradio.py) | `imaging` + `gradio` | Advanced image editing workflow with masks, reference galleries, and Nano Banana edits. |

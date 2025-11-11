@@ -1,11 +1,17 @@
 from __future__ import annotations
 
+import threading
 import time
-from threading import Thread
-from typing import Dict, List
+from typing import Any, Dict, List, Optional, Sequence
 
-from pythonosc import osc_server, udp_client
-from pythonosc.dispatcher import Dispatcher
+from lunar_tools._optional import require_extra
+from lunar_tools.platform.logging import create_logger
+
+try:  # pragma: no cover - optional dependency guard
+    from pythonosc import osc_server, udp_client
+    from pythonosc.dispatcher import Dispatcher
+except ImportError:  # pragma: no cover - optional dependency
+    require_extra("OSC communication", extras="comms")
 
 osc_server.ThreadingOSCUDPServer.allow_reuse_address = True
 
@@ -136,3 +142,143 @@ class OSCReceiver:
         for identifier, timestamp_all in self.dict_time.items():
             time_since_received = current_time - timestamp_all[-1]
             print(f"Signal '{identifier}' was last received {time_since_received:.2f} seconds ago.")
+
+
+class OSCMessageSender:
+    """
+    Thin wrapper around python-osc used by the message bus service.
+    """
+
+    def __init__(
+        self,
+        host: str,
+        port: int,
+        *,
+        logger=None,
+    ) -> None:
+        self._client = udp_client.SimpleUDPClient(host, port)
+        self._logger = logger if logger else create_logger(__name__ + ".sender")
+
+    def send(self, address: str, payload: Sequence[float] | bytes | str | Any) -> None:
+        self._client.send_message(address, payload)
+        if self._logger.isEnabledFor(10):  # DEBUG
+            self._logger.debug("Sent OSC message %s -> %s", address, payload)
+
+
+class OSCMessageReceiver:
+    """
+    Background OSC server that buffers incoming messages for the communications service.
+    """
+
+    def __init__(
+        self,
+        host: str,
+        port: int,
+        *,
+        max_queue_size: int = 512,
+        logger=None,
+    ) -> None:
+        self._host = host
+        self._port = port
+        self._max_queue_size = max_queue_size
+        self._logger = logger if logger else create_logger(__name__ + ".receiver")
+
+        self._dispatcher = Dispatcher()
+        self._dispatcher.set_default_handler(self._handle_message)
+
+        self._server: Optional[osc_server.ThreadingOSCUDPServer] = None
+        self._thread: Optional[threading.Thread] = None
+        self._running = False
+
+        self._messages: List[dict[str, Any]] = []
+        self._condition = threading.Condition()
+
+    # Lifecycle --------------------------------------------------------
+    def _ensure_server(self) -> None:
+        if self._server is None:
+            self._server = osc_server.ThreadingOSCUDPServer((self._host, self._port), self._dispatcher)
+
+    def start(self) -> None:
+        if self._running:
+            return
+        self._ensure_server()
+        assert self._server is not None  # for type checkers
+        self._running = True
+
+        def _serve() -> None:
+            try:
+                self._logger.debug("Starting OSC server on %s:%s", self._host, self._port)
+                self._server.serve_forever()
+            except Exception as exc:  # pragma: no cover - logging side effect
+                self._logger.error("OSC server thread exited with error: %s", exc)
+            finally:
+                self._logger.debug("OSC server thread finished")
+
+        self._thread = threading.Thread(target=_serve, name="OSCMessageReceiver", daemon=True)
+        self._thread.start()
+
+    def stop(self) -> None:
+        if not self._running:
+            return
+        self._running = False
+        if self._server:
+            try:
+                self._server.shutdown()
+                self._server.server_close()
+            except Exception:  # pragma: no cover - defensive shutdown
+                pass
+            finally:
+                self._server = None
+        if self._thread and self._thread.is_alive():
+            self._thread.join(timeout=1.0)
+        self._thread = None
+
+        with self._condition:
+            self._messages.clear()
+
+    # Message handling -------------------------------------------------
+    def _handle_message(self, address: str, *args: Any) -> None:
+        payload: Any
+        if not args:
+            payload = None
+        elif len(args) == 1:
+            payload = args[0]
+        else:
+            payload = list(args)
+
+        message = {"address": address, "payload": payload}
+        with self._condition:
+            if len(self._messages) >= self._max_queue_size:
+                self._messages.pop(0)
+            self._messages.append(message)
+            self._condition.notify_all()
+
+    def receive(
+        self,
+        address: Optional[str] = None,
+        timeout: Optional[float] = None,
+    ) -> Optional[dict[str, Any]]:
+        deadline = None if timeout is None else time.monotonic() + timeout
+        with self._condition:
+            message = self._pop_message(address)
+            while message is None:
+                if deadline is not None:
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        return None
+                else:
+                    remaining = None
+                self._condition.wait(timeout=remaining)
+                message = self._pop_message(address)
+            return message
+
+    def _pop_message(self, address: Optional[str]) -> Optional[dict[str, Any]]:
+        if not self._messages:
+            return None
+        if address is None:
+            return self._messages.pop(0)
+
+        for idx, message in enumerate(self._messages):
+            if message.get("address") == address:
+                return self._messages.pop(idx)
+        return None

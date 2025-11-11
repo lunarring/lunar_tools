@@ -74,6 +74,28 @@ image.save("outputs/city.png")
 
 For more providers (Flux, GLIF) inspect `lunar_tools/image_gen.py`.
 
+### Selecting providers via the service registry
+
+Phase C adds a registry so you can pick generators dynamically without importing
+individual adapters:
+
+```python
+from lunar_tools.image_gen import create_image_generators
+
+generators = create_image_generators(include_glif=False)
+
+dalle = generators.get("openai")
+result = dalle.generate("Minimalist pavilion bathed in sunrise light")
+result.image.save("outputs/pavilion.png")
+
+# Switch providers later in the same script
+flux = generators.get("flux")
+flux.generate("Posterised glitch art of a howling wolf").image.save("outputs/wolf.png")
+```
+
+Aliases such as `"openai"`/`"dalle"` and `"sdxl"`/`"replicate_lcm"` are
+available; call `generators.registry.available()` to inspect the list.
+
 ## Movie helpers (`video` extra)
 
 ### Stitching frames into a movie
