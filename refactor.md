@@ -10,7 +10,7 @@
 ## Status Snapshot
 
 - Phase A – Platform Foundation: completed; package layout, logging/config consolidation, and service contracts are in place.
-- Phase B – Audio Stack Pilot: initiated; adapters, services, and presentation wiring are the new focus.
+- Phase B – Audio Stack Pilot: completed; audio adapters/services, presentation wiring, docs, and examples now follow the service architecture.
 
 ---
 
@@ -87,7 +87,13 @@ Phase A established the foundational layout, centralized logging/config helpers,
    - Document new audio APIs and migration steps for downstream users.
    - [x] Added service-layer tests (`tests/test_audio_services.py`, `tests/test_audio_module.py`) leveraging the fake adapters.
    - [x] Introduced lightweight stubs/pytest markers so CI can exercise services without audio hardware or third-party SDKs.
-   - [ ] Publish user-facing guide for the audio conversation controller and bootstrap helper.
+   - [x] Publish user-facing guide for the audio conversation controller and bootstrap helper.
+
+Latest iteration:
+- Hardened adapters with lazy optional imports and playback integration hooks.
+- Added `SpeechToTextService`, playback-aware `TextToSpeechService`, and presentation helpers (`AudioStackConfig`, `AudioConversationController`, `RealTimeVoice`).
+- Reworked audio tests (with stubs for heavy deps) to exercise the new layering without requiring hardware access.
+- Published an audio stack guide plus migration notes, and refreshed the realtime voice example to showcase the controller workflow.
 
 ### Phase C – Communications & Vision
 
@@ -139,16 +145,10 @@ Phase A established the foundational layout, centralized logging/config helpers,
 
 ---
 
-## 5. Immediate Tasks (Phase B Kickoff)
+## 5. Immediate Tasks (Phase C Kickoff)
 
-1. Polish documentation for the audio bootstrap/controller APIs and publish a migration note for downstream users.
-2. Extend adapter coverage (Deepgram/OpenAI transcription) to align with the new service contracts and ensure graceful SDK handling.
-3. Update the realtime voice sample in `examples/` to demonstrate the new bootstrap + controller flow end-to-end.
-4. Enable optional extras (e.g., `lunar-tools[audio]`) in packaging metadata so users can install the full stack in one step.
+1. Sketch the communications message-bus contract under `services/comms/message_bus.py` and confirm adapter boundaries for OSC/ZMQ.
+2. Carve out ZeroMQ/OSC adapters with optional dependency guards, plus adapter-focused tests mirroring the audio fake strategy.
+3. Draft the `services/vision/image_service.py` interface and map existing `image_gen` providers into adapter stubs ready for migration.
 
-Latest iteration:
-- Hardened adapters with lazy optional imports and playback integration hooks.
-- Added `SpeechToTextService`, playback-aware `TextToSpeechService`, and presentation helpers (`AudioStackConfig`, `AudioConversationController`, `RealTimeVoice`).
-- Reworked audio tests (with stubs for heavy deps) to exercise the new layering without requiring hardware access.
-
-With Phase A complete, Phase B is now the proving ground for the architecture. Patterns from the audio stack will guide the remaining roadmap stages.
+With Phase A and Phase B complete, Phase C becomes the proving ground for the remaining capability slices. Patterns from the audio stack will guide the communications and vision migrations.

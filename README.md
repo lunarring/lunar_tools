@@ -56,18 +56,24 @@ python -m pip install lunar_tools[audio]
 ```
 
 ```python
-import time
-import lunar_tools as lt
+from lunar_tools.presentation.audio_stack import (
+    AudioStackConfig,
+    AudioConversationController,
+    bootstrap_audio_stack,
+)
 
-recorder = lt.AudioRecorder()
-player = lt.SoundPlayer()
+config = AudioStackConfig(enable_playback=True, blocking_playback=True)
+services, synthesiser = bootstrap_audio_stack(config)
+controller = AudioConversationController(services, synthesiser=synthesiser)
 
-recorder.start_recording("hello.mp3")
-time.sleep(3)
-recorder.stop_recording()
-
-player.play_sound("hello.mp3")
+transcript = controller.capture_transcript(max_time=3)
+if transcript:
+    controller.speak(f"You said: {transcript}")
 ```
+
+`services.realtime_transcription` exposes the Deepgram-backed streaming adapter
+when the dependency is available, and you can set custom playback adapters via
+`services.openai_tts.set_playback(...)`.
 
 ### Render a numpy frame stream
 Requires the `display` extra.

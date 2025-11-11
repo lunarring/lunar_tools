@@ -7,6 +7,7 @@ import time
 from datetime import datetime
 from typing import Optional
 
+from lunar_tools._optional import require_extra
 from lunar_tools.platform.config import read_api_key
 from lunar_tools.platform.logging import create_logger
 
@@ -47,9 +48,7 @@ class RealTimeTranscribe:
         ready_timeout: Optional[float] = None,
     ) -> None:
         if not _HAS_DEEPGRAM:
-            raise ImportError(
-                "Deepgram SDK not installed. Install 'deepgram-sdk' to use RealTimeTranscribe."
-            )
+            require_extra("RealTimeTranscribe", extras="audio")
 
         self.logger = logger if logger else create_logger(__name__)
         self.api_key = api_key or read_api_key("DEEPGRAM_API_KEY")
@@ -267,4 +266,3 @@ class RealTimeTranscribe:
         with self._chunk_events_lock:
             self._chunk_events.append(event)
             self._chunk_counter += 1
-

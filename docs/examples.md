@@ -4,7 +4,7 @@ Short descriptions of the runnable demos in [`examples/`](../examples). Use thes
 
 | Script | Required extras | What it shows |
 | --- | --- | --- |
-| [`realtime_voice_example.py`](../examples/realtime_voice_example.py) | `audio`, `llm` | Interactive CLI for `RealTimeVoice`: start/pause, inject messages, switch instructions, and observe callback usage. |
+| [`realtime_voice_example.py`](../examples/realtime_voice_example.py) | `audio`, `llm` | Bootstraps the audio stack, reuses `AudioConversationController`, and drives `RealTimeVoice` with realtime transcript polling and TTS playback. |
 | [`fps_tracker_example.py`](../examples/fps_tracker_example.py) | _none_ | Minimal `FPSTracker` usage with simulated workloads to visualise segment timings. |
 | [`simple_webcam_renderer.py`](../examples/simple_webcam_renderer.py) | `camera`, `display` | Smallest possible webcam→renderer loop; great for hardware smoke tests. |
 | [`webcam_renderer_example.py`](../examples/webcam_renderer_example.py) | `camera`, `display` | Adds error handling and FPS metrics to the webcam preview so you can benchmark capture latency. |
