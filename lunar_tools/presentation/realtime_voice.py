@@ -1,11 +1,12 @@
+import argparse
 import asyncio
 import base64
 import json
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Dict, List, Optional, Sequence
 
 from lunar_tools._optional import OptionalDependencyError
 from lunar_tools.presentation.audio_stack import (
@@ -13,6 +14,7 @@ from lunar_tools.presentation.audio_stack import (
     AudioStackConfig,
     bootstrap_audio_stack,
 )
+from lunar_tools.presentation.config_loader import load_config_file
 
 if TYPE_CHECKING:  # pragma: no cover - type hinting only
     from lunar_tools.audio import AudioServices
@@ -519,6 +521,7 @@ class RealTimeVoice:
         self.audio_player.stop()
         print("RealTimeVoice stopped.")
 
+
     def pause(self):
         print("Pausing RealTimeVoice...")
         self._pause_event.clear()
@@ -618,68 +621,176 @@ class RealTimeVoice:
                 else:
                     print("Event loop not running. Cannot execute on_ai_audio_complete callback.")
 
-# --------------------------
-# Example Usage
-# --------------------------
-if __name__ == "__main__":
-    if not OPENAI_REALTIME_AVAILABLE:
-        print("OpenAI realtime dependencies are not available. Cannot run example.")
-        exit(1)
-        
-    instructions = "Respond briefly and with a sarcastic attitude."
-    temperature = 0.9
-    voice = "echo"
-    mute_mic_while_ai_speaking = True
-    verbose = False  # Enable verbose prints
 
-    # Optional: callback for when the whisper transcription is done
-    async def on_user_transcript(transcript: str):
-        print(f"(on_user_transcript) User said: {transcript}")
+def _dataclass_kwargs(cls, data: Dict[str, Any]) -> Dict[str, Any]:
+    allowed = {field.name for field in fields(cls)}
+    return {key: value for key, value in data.items() if key in allowed}
 
-    # Optional: callback for when the transcript of the voice response is there
-    async def on_ai_transcript(transcript: str):
-        print(f"(on_ai_transcript) AI replied: {transcript}")
 
-    # Optional: callback for when the audio has been completely played
-    async def on_audio_complete():
-        print("(on_audio_complete) AI audio has been completely played.")
-
-    rtv = RealTimeVoice(
-        instructions=instructions,
-        on_user_transcript=on_user_transcript,
-        on_ai_transcript=on_ai_transcript,
-        on_audio_complete=on_audio_complete,
-        model="gpt-4o-mini-realtime-preview-2024-12-17",
-        temperature=temperature,
-        voice=voice,
-        mute_mic_while_ai_speaking=mute_mic_while_ai_speaking,
-        max_response_output_tokens="inf",
-        verbose=verbose,  # Pass verbose flag
+def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Run the RealTimeVoice controller using optional configuration."
     )
+    parser.add_argument(
+        "--config",
+        help="Path to a YAML or JSON configuration file defining realtime voice settings.",
+    )
+    parser.add_argument(
+        "--instructions",
+        help="Override the default instructions provided to the assistant.",
+    )
+    parser.add_argument("--model", help="OpenAI realtime model identifier.")
+    parser.add_argument("--voice", help="Voice preset to request from the model.")
+    parser.add_argument(
+        "--temperature",
+        type=float,
+        help="Sampling temperature override.",
+    )
+    parser.add_argument(
+        "--max-output-tokens",
+        help="Override for max_response_output_tokens (e.g. 1024 or 'inf').",
+    )
+    parser.add_argument(
+        "--no-mic-mute",
+        action="store_true",
+        help="Disable automatic microphone muting while the AI is speaking.",
+    )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Enable verbose logging while the session runs.",
+    )
+    parser.add_argument(
+        "--no-audio-stack",
+        action="store_true",
+        help="Skip bootstrapping the audio stack (useful for transcript-only runs).",
+    )
+    parser.add_argument(
+        "--enable-playback",
+        action="store_true",
+        help="Attach playback adapters when bootstrapping the audio stack.",
+    )
+    parser.add_argument(
+        "--blocking-playback",
+        action="store_true",
+        help="Configure playback adapters to block until audio completes.",
+    )
+    parser.add_argument(
+        "--preferred-tts",
+        help="Preferred TTS provider when multiple adapters are available (e.g. openai, elevenlabs).",
+    )
+    parser.add_argument(
+        "--no-elevenlabs",
+        action="store_true",
+        help="Disable ElevenLabs when configuring the audio stack.",
+    )
+    parser.add_argument(
+        "--no-realtime-transcription",
+        action="store_true",
+        help="Disable realtime transcription when configuring the audio stack.",
+    )
+    parser.add_argument(
+        "--run-seconds",
+        type=float,
+        default=None,
+        help="Optional duration to run before stopping automatically.",
+    )
+    return parser.parse_args(argv)
 
-    rtv.start()
-    rtv.inject_message("Hello AI, what's up?")
 
+def main(argv: Sequence[str] | None = None) -> int:
+    args = _parse_args(argv)
+
+    config: Dict[str, Any] = {}
+    if args.config:
+        config = load_config_file(args.config)
+
+    audio_config_data = dict(config.get("audio_stack", {}))
+    rv_config_data = dict(config.get("realtime_voice", {}))
+
+    if args.enable_playback:
+        audio_config_data["enable_playback"] = True
+    if args.blocking_playback:
+        audio_config_data["blocking_playback"] = True
+    if args.preferred_tts:
+        audio_config_data["preferred_tts"] = args.preferred_tts
+    if args.no_elevenlabs:
+        audio_config_data["include_elevenlabs"] = False
+    if args.no_realtime_transcription:
+        audio_config_data["include_realtime_transcription"] = False
+
+    audio_stack_config: Optional[AudioStackConfig] = None
+    audio_controller: Optional[AudioConversationController] = None
+    if not args.no_audio_stack:
+        try:
+            audio_kwargs = _dataclass_kwargs(AudioStackConfig, audio_config_data)
+            audio_stack_config = AudioStackConfig(**audio_kwargs)
+        except TypeError as exc:
+            raise SystemExit(f"Invalid audio stack configuration: {exc}") from exc
+        services, synthesiser = bootstrap_audio_stack(audio_stack_config)
+        audio_controller = AudioConversationController(services, synthesiser=synthesiser)
+
+    instructions = (
+        args.instructions
+        or rv_config_data.get("instructions")
+        or "You are a helpful realtime guide for Lunar Tools demos."
+    )
+    model = args.model or rv_config_data.get(
+        "model", "gpt-4o-mini-realtime-preview-2024-12-17"
+    )
+    temperature = (
+        args.temperature
+        if args.temperature is not None
+        else rv_config_data.get("temperature", 0.6)
+    )
+    max_tokens = args.max_output_tokens or rv_config_data.get(
+        "max_response_output_tokens", "inf"
+    )
+    voice = args.voice or rv_config_data.get("voice", "alloy")
+    mute_mic = rv_config_data.get("mute_mic_while_ai_speaking", True)
+    if args.no_mic_mute:
+        mute_mic = False
+    verbose = args.verbose or rv_config_data.get("verbose", False)
+
+    rtv_kwargs: Dict[str, Any] = {
+        "instructions": instructions,
+        "model": model,
+        "temperature": temperature,
+        "max_response_output_tokens": max_tokens,
+        "voice": voice,
+        "mute_mic_while_ai_speaking": mute_mic,
+        "verbose": verbose,
+    }
+
+    if audio_controller:
+        rtv_kwargs["audio_controller"] = audio_controller
+    elif audio_stack_config is not None:
+        rtv_kwargs["audio_stack_config"] = audio_stack_config
+
+    voice_runner = RealTimeVoice(**rtv_kwargs)
+
+    voice_runner.start()
     try:
-        while True:
-            cmd = input("Commands: (p) pause, (r) resume, (s) stop, (i) inject <msg>, (u) update_instructions <text>, (t) print_transcript\n> ").strip()
-            if cmd.lower() == "p":
-                rtv.pause()
-            elif cmd.lower() == "r":
-                rtv.resume()
-            elif cmd.lower() == "s":
-                rtv.stop()
-                break
-            elif cmd.lower().startswith("i "):
-                message = cmd[len("i "):].strip()
-                rtv.inject_message(message)
-            elif cmd.lower().startswith("u "):
-                new_instructions = cmd[len("u "):].strip()
-                rtv.update_instructions(new_instructions)
-            elif cmd.lower() == "t":
-                print("\n".join([f"{entry.timestamp} {entry.role}: {entry.message}" for entry in rtv.transcripts]))
-            else:
-                print("Unknown command.")
+        if args.run_seconds is not None:
+            deadline = time.monotonic() + max(args.run_seconds, 0.0)
+            while time.monotonic() < deadline:
+                thread = getattr(voice_runner, "_thread", None)
+                if not thread or not thread.is_alive():
+                    break
+                time.sleep(0.2)
+        else:
+            while True:
+                thread = getattr(voice_runner, "_thread", None)
+                if not thread or not thread.is_alive():
+                    break
+                time.sleep(0.5)
     except KeyboardInterrupt:
-        rtv.stop()
-        print("\nExiting.")
+        print("\nStopping RealTimeVoice...")
+    finally:
+        voice_runner.stop()
+
+    return 0
+
+
+if __name__ == "__main__":  # pragma: no cover - CLI entry point
+    raise SystemExit(main())

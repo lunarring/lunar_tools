@@ -2,34 +2,15 @@
 """
 Simple Webcam Renderer Example
 
-A minimal example showing how to capture webcam images and display them
-using the lunar_tools renderer.
+This script now delegates to the shared webcam display CLI so you can supply
+JSON/YAML configuration files or command-line overrides.
 
 Usage:
-    python simple_webcam_renderer.py
+    python simple_webcam_renderer.py --config examples/configs/webcam_display.yaml
 """
 
-import lunar_tools as lt
-
-
-def main():
-    # Initialize webcam and get initial image for dimensions
-    cam = lt.WebCam()
-    img = cam.get_img()
-    height, width = img.shape[:2]
-    
-    # Initialize renderer with webcam dimensions
-    renderer = lt.Renderer(width=width, height=height)
-    
-    # Main loop: capture and display
-    try:
-        while True:
-            img = cam.get_img()
-            if img is not None:
-                renderer.render(img)
-    except KeyboardInterrupt:
-        print("Exiting...")
+from lunar_tools.presentation.webcam_display import main
 
 
 if __name__ == "__main__":
-    main() 
+    raise SystemExit(main())

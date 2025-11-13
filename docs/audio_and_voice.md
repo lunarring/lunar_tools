@@ -134,6 +134,35 @@ mirror transcripts or trigger side effects. See
 [`examples/realtime_voice_example.py`](../examples/realtime_voice_example.py)
 for an interactive CLI walkthrough.
 
+### CLI quickstart
+
+Phase D adds a CLI wrapper so you can launch the realtime assistant with a
+single command and a config file:
+
+```bash
+python -m lunar_tools.presentation.realtime_voice \
+    --config examples/configs/realtime_voice.yaml
+```
+
+Configurations accept JSON or YAML. Top-level keys mirror the bootstrap
+arguments:
+
+```yaml
+audio_stack:
+  enable_playback: true
+  include_elevenlabs: false
+realtime_voice:
+  instructions: |
+    Keep answers short and invite the visitor to explore.
+  model: gpt-4o-mini-realtime-preview-2024-12-17
+  voice: alloy
+```
+
+Override settings on the command line—`--no-audio-stack`, `--enable-playback`,
+`--model`, and `--voice` are popular toggles. The CLI will prompt you to install
+`lunar_tools[presentation]` if YAML parsing (PyYAML) is missing. See
+[`configuration.md`](configuration.md) for the full schema reference.
+
 ## Language model selection (`llm` extra)
 
 Phase C introduced a selector that mirrors the audio and comms patterns. Build

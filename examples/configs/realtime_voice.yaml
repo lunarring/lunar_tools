@@ -1,0 +1,17 @@
+# Example configuration for `python -m lunar_tools.presentation.realtime_voice --config examples/configs/realtime_voice.yaml`
+
+audio_stack:
+  enable_playback: true
+  blocking_playback: true
+  include_elevenlabs: false
+  preferred_tts: openai
+
+realtime_voice:
+  instructions: |
+    You are a friendly gallery guide. Welcome visitors, ask short questions,
+    and keep responses under ten seconds unless they ask for more detail.
+  model: gpt-4o-mini-realtime-preview-2024-12-17
+  temperature: 0.6
+  voice: alloy
+  mute_mic_while_ai_speaking: true
+  verbose: false

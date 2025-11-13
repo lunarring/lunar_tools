@@ -286,13 +286,10 @@ def _register_package(name: str) -> types.ModuleType:
     return module
 
 
-if "openai" not in sys.modules:
-    openai_module = types.ModuleType("openai")
-    openai_module.AsyncOpenAI = _StubAsyncOpenAI
-    openai_module.__path__ = []  # type: ignore[attr-defined]
-    sys.modules["openai"] = openai_module
-else:
-    setattr(sys.modules["openai"], "AsyncOpenAI", _StubAsyncOpenAI)
+openai_module = types.ModuleType("openai")
+openai_module.AsyncOpenAI = _StubAsyncOpenAI
+openai_module.__path__ = []  # type: ignore[attr-defined]
+sys.modules["openai"] = openai_module
 
 for package_name in [
     "openai.types",

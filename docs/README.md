@@ -10,6 +10,7 @@ This folder breaks the monolithic README into smaller guides. Each page focuses 
 - [`logging_and_monitoring.md`](logging_and_monitoring.md) – FPS tracking, logging, and health reporting.
 - [`development.md`](development.md) – environment setup, tests, optional dependencies, and API keys.
 - [`examples.md`](examples.md) – narrative index for the runnable scripts in [`examples/`](../examples).
+- [`configuration.md`](configuration.md) – config file schemas and CLI entry points for presentation stacks.
 
 ## Suggested reading order
 1. Start with the main [README](../README.md) for installation instructions.

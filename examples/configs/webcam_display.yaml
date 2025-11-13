@@ -1,0 +1,17 @@
+# Example configuration for `python -m lunar_tools.presentation.webcam_display`
+
+camera:
+  cam_id: auto
+  mirror: true
+  shift_colors: true
+  do_digital_exposure_accumulation: false
+
+display_stack:
+  backend: gl
+  window_title: "Lunar Tools Webcam"
+  enable_playback: false
+  use_grid: false
+
+loop:
+  print_fps: true
+  fps_interval: 120

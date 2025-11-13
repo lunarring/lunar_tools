@@ -81,6 +81,12 @@ if transcript:
 when the dependency is available, and you can set custom playback adapters via
 `services.openai_tts.set_playback(...)`.
 
+Prefer the config-driven CLI for quick demos:
+
+```bash
+python -m lunar_tools.presentation.realtime_voice --config examples/configs/realtime_voice.yaml
+```
+
 ### Route OSC and ZeroMQ messages
 Install the `comms` extra and bootstrap the message bus.
 
@@ -117,6 +123,12 @@ renderer = lt.Renderer(width=640, height=480)
 while True:
     frame = (np.random.rand(480, 640, 4) * 255).astype("uint8")
     renderer.render(frame)
+```
+
+Prefer the shared webcam CLI when you just need a feed:
+
+```bash
+python -m lunar_tools.presentation.webcam_display --config examples/configs/webcam_display.yaml
 ```
 
 Find more ready-to-run scripts in [`examples/`](examples).

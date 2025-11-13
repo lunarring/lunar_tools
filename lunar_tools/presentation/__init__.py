@@ -24,6 +24,7 @@ __all__ = [
     "bootstrap_display_stack",
     "GridRenderer",
     "Renderer",
+    "webcam_display",
     "PopupInput",
     "add_text_to_image",
     "MovieReader",
@@ -49,6 +50,12 @@ _FEATURE_REGISTRY: Dict[str, FeatureInfo] = {
         "AudioConversationController",
         "audio presentation helpers",
         ("audio",),
+    ),
+    "webcam_display": (
+        "lunar_tools.presentation.webcam_display",
+        "main",
+        "webcam display cli",
+        ("presentation", "display"),
     ),
     "AudioStackConfig": (
         "lunar_tools.presentation.audio_stack",

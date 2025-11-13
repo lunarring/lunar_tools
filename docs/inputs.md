@@ -129,3 +129,15 @@ values = stack.poll_and_broadcast(
 
 `stack.communication` exposes the optional message bus, and `stack.close()` will
 stop any registered receivers.
+
+### Config-driven polling
+
+Use the example config with the CLI-aware script:
+
+```bash
+python examples/midi_meta_example.py --config examples/configs/midi_input.yaml
+```
+
+The file mirrors `ControlInputStackConfig` under `control_input:` and lists
+named control mappings under `controls:` so you can broadcast structured payloads
+without editing Python. See [`configuration.md`](configuration.md) for detailed notation.

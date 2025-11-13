@@ -1,0 +1,24 @@
+# Example configuration for `python midi_meta_example.py --config this_file`
+
+control_input:
+  use_meta: true
+  force_device: null
+  broadcast_address: "/lunar/controls"
+
+controls:
+  intensity:
+    akai_midimix: "B0"
+    val_min: 0.0
+    val_max: 1.0
+    val_default: 0.5
+  trigger:
+    akai_midimix: "A0"
+    button_mode: "toggle"
+  keyboard_slider:
+    keyboard: "z"
+    val_min: 0.0
+    val_max: 1.0
+    val_default: 0.5
+
+loop:
+  sleep: 0.1

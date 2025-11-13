@@ -43,3 +43,36 @@ def test_integration_on_ai_audio_complete():
 
     # Assert the callback was executed.
     assert flag["called"] == True, "Callback should have been executed"
+
+
+def test_realtime_voice_cli_main(monkeypatch, tmp_path):
+    import json
+    from lunar_tools.presentation import realtime_voice as rv
+
+    config_path = tmp_path / "config.json"
+    config_path.write_text(
+        json.dumps({"realtime_voice": {"instructions": "CLI test"}}),
+        encoding="utf-8",
+    )
+
+    created = {}
+
+    class DummyVoice:
+        def __init__(self, **kwargs):
+            created["kwargs"] = kwargs
+            self._thread = None
+
+        def start(self):
+            created["started"] = True
+
+        def stop(self):
+            created["stopped"] = True
+
+    monkeypatch.setattr(rv, "RealTimeVoice", DummyVoice)
+
+    result = rv.main(["--config", str(config_path), "--no-audio-stack"])
+
+    assert result == 0
+    assert created["started"] is True
+    assert created["stopped"] is True
+    assert created["kwargs"]["instructions"] == "CLI test"

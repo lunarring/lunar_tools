@@ -12,6 +12,7 @@
 - Phase A – Platform Foundation: completed; package layout, logging/config consolidation, and service contracts are in place.
 - Phase B – Audio Stack Pilot: completed; audio adapters/services, presentation wiring, docs, and examples now follow the service architecture.
 - Phase C – Communications & Vision: completed; message bus service, vision strategy selection, and LLM stack routing now mirror the audio architecture.
+- Phase D – Presentation & Tooling: completed; config-driven presentation CLIs, bootstrap factories, updated extras, and consolidated documentation are live.
 
 ---
 
@@ -118,16 +119,16 @@ Latest iteration:
 ### Phase D – Presentation & Tooling
 
 1. **Presentation layer cleanup**
-   - Move `display_window.py`, `control_input.py`, `realtime_voice.py`, `movie.py` orchestrations under `presentation/`.
-   - Replace module-level instantiation with dependency injection from a `bootstrap` module.
+   - [x] Move `display_window.py`, `control_input.py`, `realtime_voice.py`, `movie.py` orchestrations under `presentation/`.
+   - [x] Replace module-level instantiation with dependency injection from a `bootstrap` module.
 
 2. **CLI / Example consolidation**
-   - Provide sample scripts invoking services via config (YAML/CLI flags).
-   - Document entry points (e.g., `python -m lunar_tools.presentation.realtime_voice --config config.yml`).
+   - [x] Provide sample scripts invoking services via config (YAML/CLI flags).
+   - [x] Document entry points (e.g., `python -m lunar_tools.presentation.realtime_voice --config config.yml`).
 
 3. **Packaging extras**
-   - Update `pyproject.toml` or `setup.cfg` with extras: `audio`, `vision`, `llm`, `full`.
-   - Add installation guidance for each extra in README.
+   - [x] Update package metadata with extras grouped by capability (`audio`, `vision`, `llm`, `presentation`, `stacks`, etc.).
+   - [x] Add installation guidance for each extra in README.
 
 ### Phase E – Hardening & Deprecation
 
@@ -151,11 +152,14 @@ Latest iteration:
 - Refreshed documentation, README examples, and ZMQ demos to highlight the new communications workflow.
 - Added vision provider registry + selection hooks and mirrored the LLM stack so services can resolve models by name.
 - Presentation layer now offers bootstrap factories for displays, movie writing, and control inputs, each consuming the service registries to wire up message buses and vision providers. Examples and docs now lean on config-driven bootstrapping across audio and comms flows.
+- Updated extras bundles (`vision`, `presentation`, `stacks`) and README guidance to match the new presentation stacks; fixed `MovieReader` lifecycle and rewrote movie example around the movie stack bootstrap.
+- Shipped a config-driven CLI (`python -m lunar_tools.presentation.realtime_voice`) with JSON/YAML support, loader tests, and example configuration to prove the presentation stacks scale to command-line tooling.
+- Added the webcam display CLI, converted the movie/MIDI demos to shared config patterns, and published `docs/configuration.md` as the central reference for presentation stack wiring.
 
-## 5. Immediate Tasks (Phase D Kickoff)
+## 5. Immediate Tasks (Phase E Kickoff)
 
-1. Structure presentation-layer factories (display, movie, control input) to consume the new service registries.
-2. Consolidate CLI/example entry points around config-driven bootstrapping, starting with audio + comms flows.
-3. Update packaging metadata (`pyproject`/extras) to reflect the new service bundles ahead of the deprecation window.
+1. Maintain shims in `lunar_tools/__init__.py` and continue issuing deprecation warnings for legacy imports slated for removal.
+2. Tighten static analysis (ruff, optional mypy, coverage thresholds) and introduce `tox` environments across extras.
+3. Plan the release/deprecation cadence, including migration notes and removal of obsolete modules after the grace window.
 
-With Phases A through C complete, Phase D focuses on presentation tooling and CLI experience built on top of the harmonised services/adapters.
+With Phase D complete, the roadmap shifts to Phase E: hardening, deprecation, and quality gates on top of the modernised architecture.

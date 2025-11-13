@@ -80,6 +80,20 @@ generators = stack.generators          # present when include_image_generators=T
 
 `stack.close()` stops registered receivers/endpoints on shutdown.
 
+### Webcam CLI
+
+Run the shared CLI when you want a configurable webcam preview without writing
+Python glue:
+
+```bash
+python -m lunar_tools.presentation.webcam_display \
+    --config examples/configs/webcam_display.yaml
+```
+
+`camera` and `display_stack` sections mirror the dataclasses. Override settings on
+the command line (`--cam-id`, `--backend`, `--mirror`, `--print-fps`, etc.). See
+[`configuration.md`](configuration.md) for schema details.
+
 ## Generative imagery (`imaging` extra)
 
 ### OpenAI DALL·E 3

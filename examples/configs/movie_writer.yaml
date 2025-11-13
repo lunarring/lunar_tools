@@ -1,0 +1,12 @@
+# Configuration for `python examples/movie_example.py --config examples/configs/movie_writer.yaml`
+
+movie_stack:
+  output_path: renders/gallery_demo.mp4
+  fps: 24
+  threaded: false
+
+demo:
+  width: 1280
+  height: 720
+  seconds: 5
+  stars: 80
