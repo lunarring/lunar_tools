@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import tempfile
+from pathlib import Path
 from typing import Optional
 
 from lunar_tools.platform.config import read_api_key
@@ -41,6 +43,13 @@ class Text2SpeechOpenAI:
         self.voice_model = voice_model
         self.blocking_playback = blocking_playback
 
+    def _resolve_output_path(self, output_filename: Optional[str]) -> str:
+        if output_filename:
+            return output_filename
+        temp_file = tempfile.NamedTemporaryFile(prefix="lunar_tts_", suffix=".mp3", delete=False)
+        temp_file.close()
+        return temp_file.name
+
     def play(self, text: Optional[str] = None) -> None:
         output = self.generate(text)
         if self.sound_player is None:
@@ -65,9 +74,9 @@ class Text2SpeechOpenAI:
             input=text,
         )
 
-        self.output_filename = output_filename if output_filename else "output_speech.mp3"
+        self.output_filename = self._resolve_output_path(output_filename)
         response.stream_to_file(self.output_filename)
-        self.logger.info("Generated speech saved to %s", self.output_filename)
+        self.logger.info("Generated speech saved to %s", Path(self.output_filename).resolve())
         return self.output_filename
 
     def change_voice(self, new_voice: str) -> None:

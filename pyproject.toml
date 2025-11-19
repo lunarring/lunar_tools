@@ -10,6 +10,7 @@ source = ["lunar_tools"]
 
 [tool.coverage.report]
 show_missing = true
+fail_under = 60
 
 [tool.mypy]
 python_version = "3.11"

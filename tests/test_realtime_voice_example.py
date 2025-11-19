@@ -3,7 +3,7 @@ import threading
 import time
 import pytest
 
-from lunar_tools.realtime_voice import RealTimeVoice
+from lunar_tools.presentation.realtime_voice import RealTimeVoice
 
 def test_realtime_voice_audio_complete_callback():
     # Flag to verify callback invocation.

@@ -132,17 +132,17 @@ Latest iteration:
 
 ### Phase E – Hardening & Deprecation
 
-1. **Compatibility layer**
-   - Maintain shims in `lunar_tools/__init__.py` mapping old names to new constructors with `DeprecationWarning`.
-   - Provide migration guide (before/after snippets).
+1. **Compatibility layer** – ✅
+   - Shims in `lunar_tools/__init__.py` now emit explicit guidance pointing to the modern modules plus `docs/migration.md`.
+   - The migration guide documents before/after snippets and highlights CLI replacements.
 
-2. **Static analysis**
-   - Enforce `ruff`, `mypy` (optional), and coverage thresholds in CI.
-   - Introduce `tox` environments for extras to ensure optional dependency imports remain healthy.
+2. **Static analysis** – ✅
+   - `pyproject.toml` enforces coverage thresholds and centralises the lint/type-check configuration.
+   - `tox` includes lint + coverage targets and smoke-test environments for audio/llm/vision/presentation extras.
 
-3. **Cleanup**
-   - After a release cycle, remove deprecated symbols and obsolete files.
-   - Prune leftover generated assets (`output_speech.mp3`, etc.) from repository.
+3. **Cleanup** – ✅
+   - Removed the deprecated shim modules (`lunar_tools.movie`, `lunar_tools.control_input`, `lunar_tools.display_window`, `lunar_tools.realtime_voice`) now that presentation modules are stable.
+   - Audio adapters/tests default to temp-file outputs so no stray `output_speech.mp3` (or similar) gets checked in.
 
 ---
 
@@ -158,8 +158,8 @@ Latest iteration:
 
 ## 5. Immediate Tasks (Phase E Kickoff)
 
-1. Maintain shims in `lunar_tools/__init__.py` and continue issuing deprecation warnings for legacy imports slated for removal.
-2. Tighten static analysis (ruff, optional mypy, coverage thresholds) and introduce `tox` environments across extras.
-3. Plan the release/deprecation cadence, including migration notes and removal of obsolete modules after the grace window.
+1. ✅ Maintain shims in `lunar_tools/__init__.py` and continue issuing deprecation warnings for legacy imports slated for removal.
+2. ✅ Tighten static analysis (ruff, optional mypy, coverage thresholds) and introduce `tox` environments across extras.
+3. ✅ Plan the release/deprecation cadence, publish the migration guide, and remove obsolete modules/assets after the grace window.
 
 With Phase D complete, the roadmap shifts to Phase E: hardening, deprecation, and quality gates on top of the modernised architecture.

@@ -4,7 +4,7 @@ import builtins
 import threading
 
 import pytest
-from lunar_tools.realtime_voice import RealTimeVoice
+from lunar_tools.presentation.realtime_voice import RealTimeVoice
 
 from examples.realtime_voice_example import run_realtime_voice_example
 

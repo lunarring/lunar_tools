@@ -13,7 +13,7 @@ _EXPORTS: Dict[str, Tuple[str, str, str | None]] = {
     "Text2SpeechElevenlabs": ("lunar_tools.audio", "Text2SpeechElevenlabs", "audio"),
     "Text2SpeechOpenAI": ("lunar_tools.audio", "Text2SpeechOpenAI", "audio"),
     "RealTimeTranscribe": ("lunar_tools.audio", "RealTimeTranscribe", "audio"),
-    "RealTimeVoice": ("lunar_tools.realtime_voice", "RealTimeVoice", "audio"),
+    "RealTimeVoice": ("lunar_tools.presentation.realtime_voice", "RealTimeVoice", "audio"),
     "AudioStackConfig": ("lunar_tools.presentation", "AudioStackConfig", None),
     "AudioConversationController": ("lunar_tools.presentation", "AudioConversationController", None),
     "bootstrap_audio_stack": ("lunar_tools.presentation", "bootstrap_audio_stack", None),
@@ -89,7 +89,8 @@ _DEPRECATED_EXPORTS: Dict[str, str] = {
 
 _DEPRECATION_POSTFIX = (
     " This compatibility shim will be removed in a future release after the Phase E deprecation window. "
-    "Update imports to the modern modules listed in the message and consult docs/configuration.md for CLI usage."
+    "Update imports to the modern modules listed in the message, and review docs/migration.md plus "
+    "docs/configuration.md for the recommended stacks/CLIs."
 )
 
 

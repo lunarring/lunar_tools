@@ -1,22 +1,35 @@
-import unittest
 import os
-import time
-import sys
-import string
-
-import pytest
+import tempfile
+import unittest
+import wave
 
 import numpy as np
+import pytest
 
 if getattr(np, "__lunar_stub__", False) or not hasattr(np, "ndarray"):
     pytest.skip("Real numpy is required for movie tests.", allow_module_level=True)
 
-from pydub import AudioSegment
+from lunar_tools.presentation.movie import (
+    MovieReader,
+    MovieSaver,
+    add_sound,
+    add_subtitles_to_video,
+    concatenate_movies,
+    fill_up_frames_linear_interpolation,
+    interpolate_between_images,
+)
 
-sys.path.append(os.path.abspath('.'))
-sys.path.append(os.path.abspath('lunar_tools'))
-from movie import MovieSaver, concatenate_movies, add_sound, add_subtitles_to_video, MovieReader
-from lunar_tools.movie import interpolate_between_images, fill_up_frames_linear_interpolation
+
+def _write_test_audio(fp_sound: str, duration_s: float = 1.0, sample_rate: int = 16000) -> None:
+    """Create a simple mono sine wave to exercise add_sound without tracked assets."""
+    samples = np.linspace(0, duration_s, int(duration_s * sample_rate), endpoint=False)
+    waveform = (0.25 * np.sin(2 * np.pi * 440 * samples)).astype(np.float32)
+    pcm = (waveform * 32767).astype(np.int16)
+    with wave.open(fp_sound, "wb") as wav_file:
+        wav_file.setnchannels(1)
+        wav_file.setsampwidth(2)
+        wav_file.setframerate(sample_rate)
+        wav_file.writeframes(pcm.tobytes())
 
 def test_fill_frames_linear_interpolate():
     # Create a black and a white frame with smaller dimensions
@@ -134,8 +147,14 @@ def test_add_sound():
     ms.finalize()
     
     fp_final = "/tmp/movie_with_sound.mp4"
-    
-    add_sound(fp_final, "/tmp/my_ordered_movie.mp4", 'tests/myvoice.mp3')
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_audio:
+        fp_sound = tmp_audio.name
+    try:
+        _write_test_audio(fp_sound)
+        add_sound(fp_final, fp_movie, fp_sound)
+    finally:
+        if os.path.exists(fp_sound):
+            os.remove(fp_sound)
     
     assert os.path.exists(fp_final) and os.path.getsize(fp_final) > 0
 

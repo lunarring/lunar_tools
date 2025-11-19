@@ -140,6 +140,7 @@ Find more ready-to-run scripts in [`examples/`](examples).
 - [`docs/vision_and_display.md`](docs/vision_and_display.md) – rendering pipelines, movie helpers, image generation.
 - [`docs/communication.md`](docs/communication.md) – OSC/ZMQ messaging and remote streaming.
 - [`docs/logging_and_monitoring.md`](docs/logging_and_monitoring.md) – FPS tracking, logging, health reporting.
+- [`docs/migration.md`](docs/migration.md) – mapping legacy imports to the new services/adapters layout.
 - [`docs/development.md`](docs/development.md) – testing, optional dependencies, API keys.
 - [`docs/examples.md`](docs/examples.md) – overview of the Python example scripts.
 

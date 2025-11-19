@@ -2,7 +2,7 @@ import asyncio
 import time
 import threading
 
-from lunar_tools import realtime_voice
+from lunar_tools.presentation import realtime_voice
 
 def test_on_ai_audio_complete_existence():
     # Verify that the module does NOT expose 'onAudioComplete'

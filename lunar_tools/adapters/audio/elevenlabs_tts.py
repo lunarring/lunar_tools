@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import tempfile
+from pathlib import Path
 from typing import Optional
 
 from lunar_tools.platform.config import read_api_key
@@ -33,6 +35,13 @@ class Text2SpeechElevenlabs:
         self.default_voice_id = "EXAVITQu4vr4xnSDxMaL"
         self.voice_id = voice_id or self.default_voice_id
         self.blocking_playback = blocking_playback
+
+    def _resolve_output_path(self, output_filename: Optional[str]) -> str:
+        if output_filename:
+            return output_filename
+        temp_file = tempfile.NamedTemporaryFile(prefix="lunar_eleven_tts_", suffix=".mp3", delete=False)
+        temp_file.close()
+        return temp_file.name
 
     def play(
         self,
@@ -87,7 +96,7 @@ class Text2SpeechElevenlabs:
             ),
         )
 
-        self.output_filename = output_filename if output_filename else "output_speech.mp3"
+        self.output_filename = self._resolve_output_path(output_filename)
         save(audio, self.output_filename)
-        self.logger.info("Generated speech saved to %s", self.output_filename)
+        self.logger.info("Generated speech saved to %s", Path(self.output_filename).resolve())
         return self.output_filename

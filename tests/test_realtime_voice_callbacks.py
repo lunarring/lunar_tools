@@ -3,7 +3,7 @@ import threading
 import time
 import pytest
 
-from lunar_tools import realtime_voice
+from lunar_tools.presentation import realtime_voice
 
 def test_on_ai_audio_complete_callback_triggered():
     flag = {"called": False}

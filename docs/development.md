@@ -20,27 +20,25 @@ Install only what you need—for example `python -m pip install -e ".[audio,disp
 
 ## Testing & linting
 
-Pytest covers the pure-Python layers. Run it from the project root:
+Pytest now runs under coverage and will fail when coverage drops below the
+configured threshold (see `pyproject.toml`). Run it locally with:
 
 ```bash
-python -m pytest
+coverage run -m pytest && coverage report
 ```
 
-Phase E introduces `ruff` (lint), `mypy` (optional type checks), and `coverage` settings in `pyproject.toml`. Run the default lint pass with:
+Static analysis and test automation are wired through `tox`:
 
 ```bash
-python -m pip install ruff
-ruff check .
+tox -e lint      # ruff + mypy
+tox -e py311     # pytest with coverage
+tox -e extras-audio extras-llm extras-vision extras-presentation  # smoke optional extras
 ```
 
-Use `tox` to exercise the canonical test environment (installs key extras):
-
-```bash
-python -m pip install tox
-tox
-```
-
-Mark-specific suites are coming soon; for now skip hardware-dependent tests by setting environment variables or running inside CI.
+Each `extras-*` environment installs the matching optional dependency set and
+runs the `tests/extras_smoke.py` script to ensure the modules import cleanly.
+Mark-specific suites are coming soon; for now skip hardware-dependent tests by
+setting environment variables or running inside CI.
 
 ## Optional dependency errors
 

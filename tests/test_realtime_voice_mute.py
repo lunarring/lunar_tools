@@ -1,6 +1,6 @@
 import asyncio
 import pytest
-from lunar_tools.realtime_voice import RealTimeVoice
+from lunar_tools.presentation.realtime_voice import RealTimeVoice
 
 async def dummy_callback(*args, **kwargs):
     pass
