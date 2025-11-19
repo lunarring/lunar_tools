@@ -1,0 +1,19 @@
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+select = ["E", "F", "I"]
+ignore = ["E203", "E266", "E501"]
+
+[tool.coverage.run]
+branch = true
+source = ["lunar_tools"]
+
+[tool.coverage.report]
+show_missing = true
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unused_configs = true

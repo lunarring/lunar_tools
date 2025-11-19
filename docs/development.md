@@ -18,12 +18,26 @@ audio, camera, comms, display, imaging, inputs, llm, video, full
 
 Install only what you need—for example `python -m pip install -e ".[audio,display]"`.
 
-## Testing
+## Testing & linting
 
 Pytest covers the pure-Python layers. Run it from the project root:
 
 ```bash
 python -m pytest
+```
+
+Phase E introduces `ruff` (lint), `mypy` (optional type checks), and `coverage` settings in `pyproject.toml`. Run the default lint pass with:
+
+```bash
+python -m pip install ruff
+ruff check .
+```
+
+Use `tox` to exercise the canonical test environment (installs key extras):
+
+```bash
+python -m pip install tox
+tox
 ```
 
 Mark-specific suites are coming soon; for now skip hardware-dependent tests by setting environment variables or running inside CI.

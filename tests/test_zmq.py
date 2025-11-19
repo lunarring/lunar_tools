@@ -8,6 +8,16 @@ import numpy as np
 if getattr(np, "__lunar_stub__", False) or not hasattr(np, "ndarray"):
     pytest.skip("ZMQ tests require functional numpy.", allow_module_level=True)
 
+# Some CI sandboxes disallow opening loopback sockets; skip when binding fails.
+with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as _probe_sock:
+    try:
+        _probe_sock.bind(("127.0.0.1", 0))
+    except OSError as exc:  # pragma: no cover - environment-specific
+        pytest.skip(
+            f"ZMQ tests require binding to 127.0.0.1:0 (failed with {exc}).",
+            allow_module_level=True,
+        )
+
 from lunar_tools.comms import ZMQPairEndpoint
 
 

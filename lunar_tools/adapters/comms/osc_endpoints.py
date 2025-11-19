@@ -50,7 +50,7 @@ class OSCReceiver:
         self.ip_receiver = ip_receiver
         self.port_receiver = port_receiver
         self.rescale_all_input = rescale_all_input
-        self.thread_osc = Thread(target=self.runfunc_thread_osc)
+        self.thread_osc = threading.Thread(target=self.runfunc_thread_osc)
         self.running = False
 
         self.dict_messages: Dict[str, List[float]] = {}

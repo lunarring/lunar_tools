@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from importlib import import_module
 from typing import Any, Dict, Tuple
 
@@ -68,12 +69,39 @@ _EXPORTS: Dict[str, Tuple[str, str, str | None]] = {
 
 __all__ = list(_EXPORTS.keys())
 
+_DEPRECATED_EXPORTS: Dict[str, str] = {
+    "AudioRecorder": "Use presentation audio stacks (`lunar_tools.presentation.audio_stack`) or direct services instead of `lunar_tools.AudioRecorder`.",
+    "SoundPlayer": "Import playback adapters from `lunar_tools.presentation.audio_stack` or `lunar_tools.audio`.",
+    "Speech2Text": "Import from `lunar_tools.audio` or use `SpeechToTextService` via presentation stacks.",
+    "Text2SpeechElevenlabs": "Import from `lunar_tools.audio` or use `TextToSpeechService` via presentation stacks.",
+    "Text2SpeechOpenAI": "Import from `lunar_tools.audio` or use `TextToSpeechService` via presentation stacks.",
+    "RealTimeTranscribe": "Access realtime transcription via `bootstrap_audio_stack(...).realtime_transcription`.",
+    "RealTimeVoice": "Import from `lunar_tools.presentation.realtime_voice` or use the CLI (`python -m lunar_tools.presentation.realtime_voice`).",
+    "AudioStackConfig": "Import from `lunar_tools.presentation.audio_stack`.",
+    "AudioConversationController": "Import from `lunar_tools.presentation.audio_stack`.",
+    "bootstrap_audio_stack": "Import from `lunar_tools.presentation.audio_stack`.",
+    "KeyboardInput": "Import from `lunar_tools.presentation.control_input`; prefer control input stacks for new code.",
+    "MetaInput": "Import from `lunar_tools.presentation.control_input`; new projects should use `ControlInputStackConfig`.",
+    "MovieSaver": "Import from `lunar_tools.presentation.movie`; consider `bootstrap_movie_stack` for new pipelines.",
+    "MovieSaverThreaded": "Import from `lunar_tools.presentation.movie`.",
+    "WebCam": "Import from `lunar_tools.cam` or use `python -m lunar_tools.presentation.webcam_display`.",
+}
+
+_DEPRECATION_POSTFIX = (
+    " This compatibility shim will be removed in a future release after the Phase E deprecation window. "
+    "Update imports to the modern modules listed in the message and consult docs/configuration.md for CLI usage."
+)
+
 
 def __getattr__(name: str) -> Any:
     try:
         module_name, attribute, extra = _EXPORTS[name]
     except KeyError as exc:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from exc
+
+    message = _DEPRECATED_EXPORTS.get(name)
+    if message:
+        warnings.warn(f"{name} is deprecated. {message}{_DEPRECATION_POSTFIX}", DeprecationWarning, stacklevel=2)
 
     if extra is None:
         module = import_module(module_name)

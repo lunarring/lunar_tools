@@ -91,7 +91,9 @@ class _NumpyStub(types.ModuleType):
         return value
 
 
-if "numpy" not in sys.modules:
+try:  # Prefer the real numpy when it is available.
+    import numpy as _real_numpy  # noqa: F401
+except Exception:
     sys.modules["numpy"] = _NumpyStub()
 
 

@@ -8,17 +8,22 @@ import numpy as np
 
 if getattr(np, "__lunar_stub__", False) or not hasattr(np, "ndarray"):
     pytest.skip("Image generation tests require functional numpy.", allow_module_level=True)
+
 sys.path.append("../lunar_tools/")
-sys.path.append(os.path.join(os.getcwd(), 'lunar_tools'))
+sys.path.append(os.path.join(os.getcwd(), "lunar_tools"))
+
+# These imports require the optional imaging extras; skip the suite cleanly when missing.
+openai_module = pytest.importorskip("openai")
+if not hasattr(openai_module, "OpenAI"):
+    pytest.skip("Image generation tests require the OpenAI client.", allow_module_level=True)
+OpenAI = openai_module.OpenAI
+replicate = pytest.importorskip("replicate")
+
 import unittest
 from unittest.mock import patch, MagicMock
-from image_gen import Dalle3ImageGenerator
-from image_gen import SDXL_LCM
+from image_gen import Dalle3ImageGenerator, SDXL_LCM
 from utils import read_api_key
 from PIL import Image
-
-OpenAI = pytest.importorskip("openai").OpenAI
-replicate = pytest.importorskip("replicate")
 
 # class TestDalle3ImageGenerator(unittest.TestCase):
 #     def test_openai_client_initialization(self):

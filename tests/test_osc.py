@@ -3,8 +3,18 @@ import os
 import time
 import sys
 import string
+import socket
 
 import pytest
+
+try:
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as _probe_socket:
+        _probe_socket.bind(("127.0.0.1", 0))
+except OSError as exc:  # pragma: no cover - environment-specific
+    pytest.skip(
+        f"OSC tests require binding to 127.0.0.1:0 (failed with {exc}).",
+        allow_module_level=True,
+    )
 
 import numpy as np
 
