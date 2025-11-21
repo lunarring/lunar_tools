@@ -1,22 +1,27 @@
 #!/usr/bin/env python3
 """
-WebRTC data-channel sender example.
+Communications example – WebRTC data-channel sender.
 
-This script publishes animated numpy frames plus accompanying JSON metadata and
-optional JPEG byte streams over a WebRTC data channel. It pairs with
-`webrtc_receiver.py` or any other peer that understands the Lunar Tools message
-bus envelope format.
+🎯 What it does
+    Streams animated numpy frames, periodic JPEG snapshots, and status packets
+    over a WebRTC data channel by wiring `MessageBusConfig` to `WebRTCConfig`.
+    Pair it with `examples/webrtc_receiver.py` (role=answer) to see the data
+    land, or point any other peer that understands Lunar Tools message envelopes
+    at the signaling URL this script hosts.
 
-Steps:
-1. Start this sender (role=offer). It boots an embedded REST signaling server on
-   `--signaling-host`/`--signaling-port` so other peers can fetch the SDP offer.
-2. Launch a receiver (role=answer) with the same session ID/host/port to complete
-   the handshake.
-3. Optionally disable the embedded server via `--no-embedded-signaling` when
-   reusing an external signaling service.
-
-Requirements:
+▶️ How to run (humans and coding agents)
     python -m pip install lunar_tools[comms]
+    python -m examples.webrtc_sender --session demo-session
+
+    Start the sender first so its embedded REST signaling server is ready,
+    then boot a receiver (role=answer) with the same host/port/session combo.
+    Pass `--no-embedded-signaling` if you already have an external signaling
+    service and only want to publish frames.
+
+Inputs & outputs
+    • Inputs: None (frames are generated in-process).
+    • Outputs: numpy RGBA frames at `address="frames"`, optional JPEG bytes at
+      `address="frames/jpeg"`, and JSON/text status packets on `status/*`.
 """
 
 from __future__ import annotations

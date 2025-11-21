@@ -8,6 +8,23 @@ Lunar Tools is a modular toolbox for building interactive exhibitions that react
 - Realtime-friendly building blocks: render loops, telemetry, logging, and health reporting.
 - Battle-tested scripts in `examples/` that you can copy, extend, or run as-is.
 
+## Example browser
+Every runnable example ships with a top-level docstring that explains what it
+does, the extras it needs, and exactly how to launch it. List them straight
+from the source code:
+
+```bash
+python -m examples
+python -m examples --full --filter comms  # show only communications demos
+```
+
+Featured communications example:
+- [`examples/webrtc_sender.py`](examples/webrtc_sender.py) – streams numpy frames,
+  JPEG snapshots, and JSON status packets over a WebRTC data channel. Pair it
+  with [`examples/webrtc_receiver.py`](examples/webrtc_receiver.py) after
+  installing `lunar_tools[comms]`, or hook up your own peer that understands the
+  message bus envelope format.
+
 ## Installation
 
 ### Base install
