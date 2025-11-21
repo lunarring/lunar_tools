@@ -10,7 +10,7 @@ import re
 import socket
 import subprocess
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any, Optional, Sequence
 
 from lunar_tools._optional import optional_import_attr
 from lunar_tools.services.comms.message_bus import MessageBusService
@@ -19,6 +19,10 @@ _OPTIONAL_EXPORTS = {
     "OSCSender": ("lunar_tools.adapters.comms.osc_endpoints", "OSCSender"),
     "OSCReceiver": ("lunar_tools.adapters.comms.osc_endpoints", "OSCReceiver"),
     "ZMQPairEndpoint": ("lunar_tools.adapters.comms.zmq_pair", "ZMQPairEndpoint"),
+    "WebRTCDataChannelEndpoint": (
+        "lunar_tools.adapters.comms.webrtc_endpoint",
+        "WebRTCDataChannelEndpoint",
+    ),
 }
 
 
@@ -72,6 +76,22 @@ def get_local_ip() -> str | None:
 
 
 @dataclass
+class WebRTCConfig:
+    """Configuration for bootstrapping a WebRTC data channel endpoint."""
+
+    session_id: str = "lunar"
+    role: str = "offer"
+    signaling_url: str = "http://127.0.0.1:8787"
+    channel_label: str = "lunar-data"
+    default_address: Optional[str] = None
+    connect_timeout: float = 30.0
+    send_timeout: float = 10.0
+    reconnect_delay: float = 2.0
+    request_timeout: float = 5.0
+    ice_servers: Optional[Sequence[dict[str, Any]]] = None
+
+
+@dataclass
 class MessageBusConfig:
     """
     Configuration for bootstrapping the communications message bus.
@@ -96,6 +116,8 @@ class MessageBusConfig:
     zmq_port: int = 5556
     zmq_default_address: Optional[str] = None
 
+    webrtc: Optional[WebRTCConfig] = None
+
 
 @dataclass
 class CommunicationServices:
@@ -103,6 +125,7 @@ class CommunicationServices:
     osc_sender: Optional[object] = None
     osc_receiver: Optional[object] = None
     zmq_endpoint: Optional[object] = None
+    webrtc_endpoint: Optional[object] = None
 
 
 def create_message_bus(config: Optional[MessageBusConfig] = None) -> CommunicationServices:
@@ -111,7 +134,7 @@ def create_message_bus(config: Optional[MessageBusConfig] = None) -> Communicati
     """
     config = config or MessageBusConfig()
     bus = MessageBusService()
-    osc_sender = osc_receiver = zmq_endpoint = None
+    osc_sender = osc_receiver = zmq_endpoint = webrtc_endpoint = None
 
     if config.osc_host:
         OSCMessageSender = optional_import_attr(
@@ -158,11 +181,62 @@ def create_message_bus(config: Optional[MessageBusConfig] = None) -> Communicati
             auto_start=True,
         )
 
+    if config.webrtc is not None:
+        WebRTCDataChannelEndpoint = optional_import_attr(  # noqa: N806 - matching existing pattern
+            "lunar_tools.adapters.comms.webrtc_endpoint",
+            "WebRTCDataChannelEndpoint",
+            feature="WebRTCDataChannelEndpoint",
+            extras="comms",
+        )
+        WebRTCIceServer = optional_import_attr(
+            "lunar_tools.adapters.comms.webrtc_endpoint",
+            "WebRTCIceServer",
+            feature="WebRTCIceServer",
+            extras="comms",
+        )
+        RestSignalingClient = optional_import_attr(
+            "lunar_tools.adapters.comms.webrtc_signaling",
+            "RestSignalingClient",
+            feature="RestSignalingClient",
+            extras="comms",
+        )
+
+        webrtc_config = config.webrtc
+        signaling = RestSignalingClient(
+            base_url=webrtc_config.signaling_url,
+            session_id=webrtc_config.session_id,
+            role=webrtc_config.role,
+            request_timeout=webrtc_config.request_timeout,
+        )
+
+        ice_servers = None
+        if webrtc_config.ice_servers:
+            ice_servers = [WebRTCIceServer(**server) for server in webrtc_config.ice_servers]
+
+        webrtc_endpoint = WebRTCDataChannelEndpoint(
+            role=webrtc_config.role,
+            signaling=signaling,
+            channel_label=webrtc_config.channel_label,
+            connect_timeout=webrtc_config.connect_timeout,
+            send_timeout=webrtc_config.send_timeout,
+            reconnect_delay=webrtc_config.reconnect_delay,
+            ice_servers=ice_servers,
+        )
+        default_address = webrtc_config.default_address or webrtc_config.channel_label
+        bus.register_sender("webrtc", webrtc_endpoint, default_address=default_address)
+        bus.register_receiver(
+            "webrtc",
+            webrtc_endpoint,
+            default_address=default_address,
+            auto_start=True,
+        )
+
     return CommunicationServices(
         message_bus=bus,
         osc_sender=osc_sender,
         osc_receiver=osc_receiver,
         zmq_endpoint=zmq_endpoint,
+        webrtc_endpoint=webrtc_endpoint,
     )
 
 
@@ -171,8 +245,10 @@ __all__ = [
     "OSCSender",
     "OSCReceiver",
     "ZMQPairEndpoint",
+    "WebRTCDataChannelEndpoint",
     "CommunicationServices",
     "MessageBusConfig",
+    "WebRTCConfig",
     "MessageBusService",
     "create_message_bus",
 ]

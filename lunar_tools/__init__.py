@@ -22,6 +22,12 @@ _EXPORTS: Dict[str, Tuple[str, str, str | None]] = {
     "OSCSender": ("lunar_tools.comms", "OSCSender", "comms"),
     "ZMQPairEndpoint": ("lunar_tools.comms", "ZMQPairEndpoint", "comms"),
     "MessageBusConfig": ("lunar_tools.comms", "MessageBusConfig", None),
+    "WebRTCConfig": ("lunar_tools.comms", "WebRTCConfig", None),
+    "WebRTCDataChannelEndpoint": (
+        "lunar_tools.comms",
+        "WebRTCDataChannelEndpoint",
+        "comms",
+    ),
     "CommunicationServices": ("lunar_tools.comms", "CommunicationServices", None),
     "MessageBusService": ("lunar_tools.comms", "MessageBusService", None),
     "create_message_bus": ("lunar_tools.comms", "create_message_bus", None),

@@ -1,7 +1,7 @@
 # Communication
 
 Install the `comms` extra (`python -m pip install lunar_tools[comms]`) to enable
-OSC and ZeroMQ adapters. Phase C introduces a service-layer message bus so
+OSC, ZeroMQ, and WebRTC adapters. Phase C introduces a service-layer message bus so
 presentation code can stay ignorant of socket details.
 
 ## Message bus quickstart
@@ -64,6 +64,48 @@ receiver = OSCMessageReceiver("0.0.0.0", 9100)
 bus.register_sender("osc", sender)
 bus.register_receiver("osc", receiver, auto_start=True)
 ```
+
+## WebRTC data channels
+
+`aiortc` powers the new WebRTC transport, giving you an encrypted, low-latency
+way to ship JSON blobs, raw image tensors, `numpy` arrays, or pre-encoded bytes
+directly to browsers or other peers. The sender example (and
+`SimpleRestSignalingServer`) hosts a tiny REST endpoint so peers can trade SDP
+offers/answers before the peer connection comes online. Point both peers at the
+same URL by configuring `WebRTCConfig.signaling_url`:
+
+```python
+from lunar_tools import MessageBusConfig, WebRTCConfig, create_message_bus
+
+services = create_message_bus(
+    MessageBusConfig(
+        webrtc=WebRTCConfig(
+            session_id="demo-session",
+            role="offer",  # sender side
+            signaling_url="http://192.168.4.10:8787",
+            channel_label="lunar-data",
+            default_address="frames",
+        )
+    )
+)
+
+bus = services.message_bus
+bus.send("webrtc", frame_array, address="frames")
+bus.send("webrtc", {"scene": "sunrise"}, address="control")
+message = bus.wait_for("webrtc", timeout=5.0)
+if message:
+    kind = message.get("kind")  # "json", "text", "bytes", or "ndarray"
+    payload = message["payload"]
+```
+
+Receivers call the same bus APIs; the adapter tags each envelope with a `kind`
+field so you can branch on payload type quickly. See
+[`examples/webrtc_sender.py`](../examples/webrtc_sender.py) and
+[`examples/webrtc_receiver.py`](../examples/webrtc_receiver.py) for end-to-end
+scripts that stream numpy frames plus JPEG bytes and print what arrives on the
+other side. Run the sender (role `offer`) first so its embedded signaling server
+is listening, then launch receivers with `role="answer"` pointing to the same
+host/port.
 
 ## ZeroMQ and OSC adapters (legacy API)
 

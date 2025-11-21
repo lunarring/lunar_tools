@@ -29,7 +29,7 @@ Install the extras you need to pull in optional dependencies. Combine extras wit
 | `display` | OpenGL/SDL/pygame, CUDA runtime, torch | `Renderer`, `GridRenderer`, font rendering, torch image utils |
 | `video` | ffmpeg/ffmpeg-python, moviepy, tqdm | `MovieSaver`, video composition helpers |
 | `inputs` | pynput, pyusb, pygame, PyYAML | `KeyboardInput`, `MetaInput`, `MidiInput` |
-| `comms` | python-osc, pyzmq, OpenCV | OSC/ZMQ endpoints (`OSCSender`, `ZMQPairEndpoint`) |
+| `comms` | python-osc, pyzmq, OpenCV, aiortc | OSC/ZMQ endpoints + WebRTC data channels |
 | `vision` | imaging + display extras | Image generator registry + renderers (`DisplayStack`) |
 | `presentation` | display, video, inputs, comms extras | Presentation-layer stacks (display/movie/control input) |
 | `stacks` | audio, llm, presentation extras | Complete service+presentation stack bundle |
@@ -111,6 +111,40 @@ bus.send("osc", {"scene": "sunrise"}, address="/lighting/state")
 message = bus.wait_for("zmq", timeout=2.0)
 print("Inbound:", message)
 ```
+
+### Stream over WebRTC data channels
+
+Install the same `comms` extra to pull in `aiortc`. The sender example spins up a
+tiny REST signaling server on `--signaling-host/--signaling-port`, so a matching
+receiver (or browser client) can fetch the SDP offer/answer handshake before the
+data channel goes live.
+
+```python
+from lunar_tools import MessageBusConfig, WebRTCConfig, create_message_bus
+
+services = create_message_bus(
+    MessageBusConfig(
+        webrtc=WebRTCConfig(
+            session_id="demo-session",
+            role="offer",  # run as "answer" on the other peer
+            signaling_url="http://127.0.0.1:8787",
+            channel_label="lunar-data",
+        )
+    )
+)
+
+bus = services.message_bus
+bus.send("webrtc", frame_array, address="frames")
+status = bus.wait_for("webrtc", timeout=5.0)
+print(status)
+```
+
+See [`examples/webrtc_sender.py`](examples/webrtc_sender.py) and
+[`examples/webrtc_receiver.py`](examples/webrtc_receiver.py) for ready-to-run
+peers that stream numpy frames, JPEG bytes, and JSON status packets. Start the
+sender first (role `offer`) so the embedded signaling server is available, then
+launch the receiver (role `answer`) pointing to the same host/port.
+
 
 ### Render a numpy frame stream
 Requires the `display` extra.

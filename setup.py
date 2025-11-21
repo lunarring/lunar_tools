@@ -65,6 +65,7 @@ def build_extras() -> dict[str, list[str]]:
             "python-osc",
             "zmq",
             "opencv-python",
+            "aiortc",
         },
     }
 
