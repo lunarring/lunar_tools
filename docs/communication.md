@@ -100,12 +100,26 @@ if message:
 
 Receivers call the same bus APIs; the adapter tags each envelope with a `kind`
 field so you can branch on payload type quickly. See
-[`examples/webrtc_sender.py`](../examples/webrtc_sender.py) and
-[`examples/webrtc_receiver.py`](../examples/webrtc_receiver.py) for end-to-end
+[`examples/comms/webrtc_sender.py`](../examples/comms/webrtc_sender.py) and
+[`examples/comms/webrtc_receiver.py`](../examples/comms/webrtc_receiver.py) for end-to-end
 scripts that stream numpy frames plus JPEG bytes and print what arrives on the
 other side. Run the sender (role `offer`) first so its embedded signaling server
 is listening, then launch receivers with `role="answer"` pointing to the same
 host/port.
+
+## Hands-on examples
+
+### WebRTC sender/receiver
+- `examples/comms/webrtc_sender.py` streams numpy frames, JPEG snapshots, and status packets over a data channel with an embedded REST signaling server. Run it with `python examples/comms/webrtc_sender.py --session demo-session`.
+- `examples/comms/webrtc_receiver.py` connects with `--role answer`, logs every inbound payload, and previews JPEG sizes to confirm throughput. Run `python examples/comms/webrtc_receiver.py --session demo-session --role answer`.
+
+### ZeroMQ remote renderer pair
+- `examples/comms/zmq_remote_renderer_sender.py` generates animated RGB frames and pushes them over a ZeroMQ PAIR socket: `python examples/comms/zmq_remote_renderer_sender.py --port 5557 --fps 30`.
+- `examples/comms/zmq_remote_renderer_receiver.py` boots the display stack, subscribes to the socket, and paints the stream. Run `python examples/comms/zmq_remote_renderer_receiver.py --endpoint 127.0.0.1 --port 5557`.
+
+### OSC loopback
+- `examples/comms/osc_sender.py` emits a sine-wave value to any OSC address: `python examples/comms/osc_sender.py --address /lunar/demo`.
+- `examples/comms/osc_receiver.py` binds the OSC adapter through the message bus and prints inbound addresses/payloads: `python examples/comms/osc_receiver.py --address /lunar/demo`.
 
 ## ZeroMQ and OSC adapters (legacy API)
 

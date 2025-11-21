@@ -72,6 +72,12 @@ Lunar Tools only checks `os.environ`; managing any local key files is up to your
 - Add detailed walkthroughs to an appropriate page inside `docs/`.
 - Provide a runnable snippet or add a new file under [`examples/`](../examples) if the feature requires multiple moving parts.
 
+## Adding communications examples
+
+- Put every comms demo under [`examples/comms/`](../examples/comms) with a short docstring that explains the scenario and lists the required extras.
+- When you add or rename a comms script, update the tables in the root [`README`](../README.md), [`docs/communication.md`](communication.md), and [`examples/comms/README.md`](../examples/comms/README.md) so humans and agents can discover it easily.
+- Prefer inline Python defaults over external config files for these demos to keep the run instructions copy/paste-friendly.
+
 ## Useful tools
 
 - `pipreqs . --force` regenerates `requirements.txt` from imports.

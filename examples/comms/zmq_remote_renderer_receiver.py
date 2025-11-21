@@ -10,9 +10,9 @@ Requirements:
     python -m pip install lunar_tools[comms,display]
 
 Usage:
-    python zmq_remote_renderer_receiver.py --endpoint 192.168.1.10 --port 5557 --width 1280 --height 720
+    python examples/comms/zmq_remote_renderer_receiver.py --endpoint 192.168.1.10 --port 5557 --width 1280 --height 720
 
-Run the matching sender (`zmq_remote_renderer_sender.py`) on the rendering
+Run the matching sender (`examples/comms/zmq_remote_renderer_sender.py`) on the rendering
 machine to push frames. The receiver bootstraps its renderer and message bus via
 ``DisplayStackConfig``.
 """

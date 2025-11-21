@@ -11,9 +11,9 @@ Requirements:
     python -m pip install lunar_tools[comms]
 
 Usage:
-    python zmq_remote_renderer_sender.py --port 5557 --fps 30
+    python examples/comms/zmq_remote_renderer_sender.py --port 5557 --fps 30
 
-Run the matching receiver (`zmq_remote_renderer_receiver.py`) on the display
+Run the matching receiver (`examples/comms/zmq_remote_renderer_receiver.py`) on the display
 machine to view the stream.
 """
 

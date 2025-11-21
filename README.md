@@ -8,23 +8,6 @@ Lunar Tools is a modular toolbox for building interactive exhibitions that react
 - Realtime-friendly building blocks: render loops, telemetry, logging, and health reporting.
 - Battle-tested scripts in `examples/` that you can copy, extend, or run as-is.
 
-## Example browser
-Every runnable example ships with a top-level docstring that explains what it
-does, the extras it needs, and exactly how to launch it. List them straight
-from the source code:
-
-```bash
-python -m examples
-python -m examples --full --filter comms  # show only communications demos
-```
-
-Featured communications example:
-- [`examples/webrtc_sender.py`](examples/webrtc_sender.py) – streams numpy frames,
-  JPEG snapshots, and JSON status packets over a WebRTC data channel. Pair it
-  with [`examples/webrtc_receiver.py`](examples/webrtc_receiver.py) after
-  installing `lunar_tools[comms]`, or hook up your own peer that understands the
-  message bus envelope format.
-
 ## Installation
 
 ### Base install
@@ -156,8 +139,8 @@ status = bus.wait_for("webrtc", timeout=5.0)
 print(status)
 ```
 
-See [`examples/webrtc_sender.py`](examples/webrtc_sender.py) and
-[`examples/webrtc_receiver.py`](examples/webrtc_receiver.py) for ready-to-run
+See [`examples/comms/webrtc_sender.py`](examples/comms/webrtc_sender.py) and
+[`examples/comms/webrtc_receiver.py`](examples/comms/webrtc_receiver.py) for ready-to-run
 peers that stream numpy frames, JPEG bytes, JSON status packets, and text heartbeats. Start the
 sender first (role `offer`) so the embedded signaling server is available, then
 launch the receiver (role `answer`) pointing to the same host/port.
@@ -183,6 +166,19 @@ python -m lunar_tools.presentation.webcam_display --config examples/configs/webc
 ```
 
 Find more ready-to-run scripts in [`examples/`](examples).
+
+## Communications examples
+All comms-focused demos live under [`examples/comms/`](examples/comms). Copy them
+as-is or adapt the pattern to your own installations.
+
+| Example | What it shows | Run | Needs |
+| --- | --- | --- | --- |
+| WebRTC sender (`examples/comms/webrtc_sender.py`) | Generates numpy frames, JPEG snapshots, and status packets, then streams them over a WebRTC data channel with an embedded REST signaling server. | `python examples/comms/webrtc_sender.py --session demo-session` | `lunar_tools[comms]` |
+| WebRTC receiver (`examples/comms/webrtc_receiver.py`) | Connects to the sender's signaling server and logs inbound frames, JPEG bytes, JSON payloads, and text heartbeats. | `python examples/comms/webrtc_receiver.py --session demo-session --role answer` | `lunar_tools[comms]` |
+| ZMQ remote renderer sender (`examples/comms/zmq_remote_renderer_sender.py`) | Pushes animated RGB frames over a ZeroMQ PAIR socket for remote display. | `python examples/comms/zmq_remote_renderer_sender.py --port 5557 --fps 30` | `lunar_tools[comms]` |
+| ZMQ remote renderer receiver (`examples/comms/zmq_remote_renderer_receiver.py`) | Connects to the sender, decodes frames, and paints them via the display stack with optional FPS logging. | `python examples/comms/zmq_remote_renderer_receiver.py --endpoint 127.0.0.1 --port 5557` | `lunar_tools[comms,display]` |
+| OSC sender (`examples/comms/osc_sender.py`) | Emits a sine-wave payload to a configurable OSC address for quick device smoke tests. | `python examples/comms/osc_sender.py --address /lunar/demo` | `lunar_tools[comms]` |
+| OSC receiver (`examples/comms/osc_receiver.py`) | Binds an OSC server, listens via the message bus, and prints each inbound address/payload pair. | `python examples/comms/osc_receiver.py --address /lunar/demo` | `lunar_tools[comms]` |
 
 ## Documentation Map
 - [`docs/README.md`](docs/README.md) – navigation hub.
