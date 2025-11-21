@@ -141,7 +141,7 @@ print(status)
 
 See [`examples/webrtc_sender.py`](examples/webrtc_sender.py) and
 [`examples/webrtc_receiver.py`](examples/webrtc_receiver.py) for ready-to-run
-peers that stream numpy frames, JPEG bytes, and JSON status packets. Start the
+peers that stream numpy frames, JPEG bytes, JSON status packets, and text heartbeats. Start the
 sender first (role `offer`) so the embedded signaling server is available, then
 launch the receiver (role `answer`) pointing to the same host/port.
 

@@ -186,6 +186,11 @@ def main(argv: Tuple[str, ...] | None = None) -> int:
                     },
                     address="status",
                 )
+                bus.send(
+                    "webrtc",
+                    f"frame {frame_id} sent at {time.strftime('%H:%M:%S')}",
+                    address="status/text",
+                )
                 last_status = now
 
             frame_id += 1
