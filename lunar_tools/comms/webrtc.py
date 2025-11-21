@@ -32,6 +32,7 @@ class WebRTCDataChannel:
         connect_timeout: float = 30.0,
         request_timeout: float = 30.0,
         ice_gathering_timeout: float = 5.0,
+        reconnect_delay: float = 2.0,
         logger: Optional[logging.Logger] = None,
     ) -> None:
         if role not in {"offer", "answer"}:
@@ -50,45 +51,57 @@ class WebRTCDataChannel:
         )
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._thread: Optional[threading.Thread] = None
+        self._worker_future: Optional[asyncio.Future] = None
         self._pc = None
         self._channel = None
         self._messages: "Queue[Dict[str, Any]]" = Queue()
         self._ready_event = threading.Event()
         self._channel_open_event: Optional[asyncio.Event] = None
         self._ice_gathering_timeout = max(1.0, ice_gathering_timeout)
+        self._reconnect_delay = max(0.0, reconnect_delay)
+        self._stopped = threading.Event()
+        self._disconnect_event: Optional[asyncio.Event] = None
 
     # Lifecycle ------------------------------------------------------
     def connect(self, timeout: Optional[float] = None) -> None:
-        """Establish the WebRTC connection and wait for the data channel to open."""
-        if self._loop is not None:
-            if not self._ready_event.wait(timeout or self._connect_timeout):
-                raise TimeoutError("Existing WebRTC data channel has not opened yet")
-            return
-        self._start_loop()
+        """Ensure the WebRTC worker is running and wait for the channel to open."""
         wait_timeout = timeout or self._connect_timeout
-        self._logger.info(
-            "WebRTC connect start (role=%s session=%s channel=%s)",
-            self._role,
-            self._session_id,
-            self._channel_label,
-        )
-        future = asyncio.run_coroutine_threadsafe(self._connect_once(), self._loop)
-        try:
-            future.result(timeout=wait_timeout)
-        except Exception:
-            self.close()
-            raise
+        if self._loop is None:
+            self._start_loop()
+        if self._worker_future is not None and self._worker_future.done():
+            self._worker_future = None
+        if self._worker_future is None:
+            self._stopped.clear()
+            self._logger.info(
+                "WebRTC connect start (role=%s session=%s channel=%s)",
+                self._role,
+                self._session_id,
+                self._channel_label,
+            )
+            self._worker_future = asyncio.run_coroutine_threadsafe(self._connection_worker(), self._loop)
+        if not self._ready_event.wait(wait_timeout):
+            raise TimeoutError("Timed out waiting for WebRTC data channel to open")
         self._logger.info("WebRTC data channel ready (role=%s)", self._role)
 
     def close(self) -> None:
         """Tear down the peer connection and background loop."""
         if self._loop is None:
             return
+        self._logger.info("Closing WebRTC connection for session %s", self._session_id)
+        self._stopped.set()
+        if self._disconnect_event is not None:
+            self._loop.call_soon_threadsafe(self._disconnect_event.set)
+        if self._worker_future is not None:
+            self._worker_future.cancel()
+            try:
+                self._worker_future.result(timeout=5.0)
+            except Exception:
+                pass
+            self._worker_future = None
         future = asyncio.run_coroutine_threadsafe(self._shutdown(), self._loop)
         try:
             future.result(timeout=5.0)
         finally:
-            self._logger.info("Closing WebRTC connection for session %s", self._session_id)
             self._loop.call_soon_threadsafe(self._loop.stop)
             if self._thread and self._thread.is_alive():
                 self._thread.join(timeout=1.0)
@@ -109,7 +122,7 @@ class WebRTCDataChannel:
     # Public API -----------------------------------------------------
     def send(self, payload: Any, address: str = "data") -> None:
         """Send a payload over the data channel."""
-        if not self._ready_event.is_set():
+        if not self._ready_event.wait(self._connect_timeout):
             raise RuntimeError("WebRTC data channel is not open")
         if self._loop is None or self._channel is None:
             raise RuntimeError("WebRTC data channel is not running")
@@ -143,6 +156,45 @@ class WebRTCDataChannel:
             self._loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
         self._loop.close()
 
+    async def _connection_worker(self) -> None:
+        while not self._stopped.is_set():
+            self._disconnect_event = asyncio.Event()
+            try:
+                await self._connect_once()
+                await self._wait_for_disconnect()
+            except asyncio.CancelledError:
+                break
+            except Exception as exc:
+                self._logger.warning("WebRTC connection loop error: %s", exc)
+            finally:
+                try:
+                    await self._shutdown()
+                except Exception:
+                    self._logger.debug("WebRTC shutdown error", exc_info=True)
+                self._pc = None
+                self._channel = None
+                self._ready_event.clear()
+                self._channel_open_event = None
+            if self._stopped.is_set():
+                break
+            if self._reconnect_delay > 0:
+                try:
+                    await asyncio.sleep(self._reconnect_delay)
+                except asyncio.CancelledError:
+                    break
+        self._disconnect_event = None
+
+    async def _wait_for_disconnect(self) -> None:
+        event = self._disconnect_event
+        if event is None:
+            return
+        while not self._stopped.is_set():
+            try:
+                await asyncio.wait_for(event.wait(), timeout=1.0)
+                return
+            except asyncio.TimeoutError:
+                continue
+
     async def _connect_once(self) -> None:
         RTCConfiguration, RTCIceServer, RTCPeerConnection, RTCSessionDescription = _load_aiortc()
         configuration = RTCConfiguration(
@@ -158,6 +210,8 @@ class WebRTCDataChannel:
             self._logger.info("WebRTC connection state: %s", pc.connectionState)
             if pc.connectionState in {"failed", "closed"}:
                 self._ready_event.clear()
+                if self._disconnect_event is not None and not self._disconnect_event.is_set():
+                    self._disconnect_event.set()
 
         if self._role == "offer":
             self._logger.info("Creating offer and local data channel")
@@ -238,6 +292,9 @@ class WebRTCDataChannel:
         def _on_close():  # pragma: no cover - callback wiring
             self._logger.info("Data channel '%s' closed", channel.label)
             self._ready_event.clear()
+            # signal disconnect loop
+            if self._disconnect_event is not None and not self._disconnect_event.is_set():
+                self._disconnect_event.set()
 
         @channel.on("message")
         def _on_message(message):  # pragma: no cover - callback wiring
