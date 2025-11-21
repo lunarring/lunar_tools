@@ -29,6 +29,12 @@ def parse_args():
     parser.add_argument("--height", type=int, default=360, help="Array height in elements.")
     parser.add_argument("--fps", type=float, default=20.0, help="Target frames per second.")
     parser.add_argument("--no-server", action="store_true", help="Do not start the embedded signaling server.")
+    parser.add_argument(
+        "--buffer-size",
+        type=int,
+        default=None,
+        help="Maximum number of pending inbound messages to retain before dropping the oldest.",
+    )
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable debug logging.")
     return parser.parse_args()
 
@@ -52,6 +58,7 @@ def main():
         session_id=args.session,
         signaling_url=signaling_url,
         channel_label=args.channel,
+        max_pending_messages=args.buffer_size,
     )
     print("Waiting for receiver to answer the WebRTC offer...")
     channel.connect()

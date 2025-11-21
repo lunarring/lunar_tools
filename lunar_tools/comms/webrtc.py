@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import threading
-from queue import Empty, Queue
+from queue import Empty, Full, Queue
 from typing import Any, Dict, Iterable, Optional
 
 from .webrtc_codec import EncodedMessage, decode_message, encode_message
@@ -19,7 +19,16 @@ def _load_aiortc():
 
 
 class WebRTCDataChannel:
-    """Minimal helper around a WebRTC data channel for numpy/JSON/text payloads."""
+    """Minimal helper around a WebRTC data channel for numpy/JSON/text payloads.
+
+    Parameters
+    ----------
+    max_pending_messages:
+        Optional cap on the internal receive queue. Smaller values help keep latency
+        low when the consumer cannot drain the queue fast enough.
+    drop_oldest_on_overflow:
+        When the receive queue is full, drop the oldest message (True) or the new one (False).
+    """
 
     def __init__(
         self,
@@ -33,6 +42,8 @@ class WebRTCDataChannel:
         request_timeout: float = 30.0,
         ice_gathering_timeout: float = 5.0,
         reconnect_delay: float = 2.0,
+        max_pending_messages: Optional[int] = None,
+        drop_oldest_on_overflow: bool = True,
         logger: Optional[logging.Logger] = None,
     ) -> None:
         if role not in {"offer", "answer"}:
@@ -54,7 +65,10 @@ class WebRTCDataChannel:
         self._worker_future: Optional[asyncio.Future] = None
         self._pc = None
         self._channel = None
-        self._messages: "Queue[Dict[str, Any]]" = Queue()
+        queue_size = 0 if not max_pending_messages or max_pending_messages <= 0 else int(max_pending_messages)
+        self._messages: "Queue[Dict[str, Any]]" = Queue(maxsize=queue_size)
+        self._max_pending_messages = queue_size
+        self._drop_oldest_on_overflow = drop_oldest_on_overflow
         self._ready_event = threading.Event()
         self._channel_open_event: Optional[asyncio.Event] = None
         self._ice_gathering_timeout = max(1.0, ice_gathering_timeout)
@@ -277,6 +291,29 @@ class WebRTCDataChannel:
         deadline = loop.time() + self._ice_gathering_timeout
         while pc.iceGatheringState != "complete" and loop.time() < deadline:
             await asyncio.sleep(0.1)
+ 
+    def _enqueue_message(self, envelope: Dict[str, Any]) -> None:
+        if not self._max_pending_messages:
+            self._messages.put(envelope)
+            return
+        try:
+            self._messages.put_nowait(envelope)
+            return
+        except Full:
+            if self._drop_oldest_on_overflow:
+                try:
+                    self._messages.get_nowait()
+                except Empty:
+                    pass
+                try:
+                    self._messages.put_nowait(envelope)
+                    return
+                except Full:
+                    pass
+            self._logger.warning(
+                "Dropping incoming WebRTC payload: receive buffer full (max=%s)",
+                self._max_pending_messages,
+            )
 
     def _setup_channel(self, channel, loop: asyncio.AbstractEventLoop) -> None:
         self._channel = channel
@@ -307,7 +344,7 @@ class WebRTCDataChannel:
                 envelope.get("address"),
                 envelope.get("kind"),
             )
-            self._messages.put(envelope)
+            self._enqueue_message(envelope)
 
         # If the channel already opened before handlers were registered, trigger the open path.
         if channel.readyState == "open":

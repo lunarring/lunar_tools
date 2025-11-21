@@ -18,6 +18,12 @@ def parse_args():
     parser.add_argument("--session", default="demo-session", help="Session identifier shared with the sender.")
     parser.add_argument("--channel", default="lunar-data", help="Expected WebRTC data-channel label.")
     parser.add_argument("--timeout", type=float, default=2.0, help="Seconds to wait before printing a heartbeat.")
+    parser.add_argument(
+        "--buffer-size",
+        type=int,
+        default=None,
+        help="Maximum number of pending inbound messages to retain before dropping the oldest.",
+    )
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable debug logging.")
     return parser.parse_args()
 
@@ -52,6 +58,7 @@ def main():
         session_id=args.session,
         signaling_url=signaling_url,
         channel_label=args.channel,
+        max_pending_messages=args.buffer_size,
     )
     print(f"Connecting to session '{args.session}' via {signaling_url} ...")
     channel.connect()
