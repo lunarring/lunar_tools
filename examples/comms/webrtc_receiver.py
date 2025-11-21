@@ -22,17 +22,21 @@ def parse_args():
     return parser.parse_args()
 
 
-def describe(message):
+def describe(message, last_mean):
     address = message.get("address", "")
     kind = message.get("kind")
     payload = message.get("payload")
     if kind == "ndarray":
         shape = getattr(payload, "shape", None)
         dtype = getattr(payload, "dtype", None)
-        return f"{address}: ndarray shape={shape} dtype={dtype}"
+        mean = float(payload.mean()) if hasattr(payload, "mean") else float("nan")
+        warning = ""
+        if last_mean is not None and not (mean == last_mean + 1):
+            warning = " <-- WARNING: mean jump unexpected"
+        return f"{address}: ndarray shape={shape} dtype={dtype} mean={mean:.2f}{warning}", mean
     if kind == "bytes":
-        return f"{address}: {len(payload)} bytes"
-    return f"{address}: {payload}"
+        return f"{address}: {len(payload)} bytes", last_mean
+    return f"{address}: {payload}", last_mean
 
 
 def main():
@@ -53,6 +57,7 @@ def main():
     channel.connect()
     print("Connected. Waiting for frames — press Ctrl+C to stop.")
     count = 0
+    last_mean = None
     try:
         while True:
             message = channel.receive(timeout=args.timeout)
@@ -60,7 +65,8 @@ def main():
                 print(f"[{time.strftime('%H:%M:%S')}] waiting for data...")
                 continue
             count += 1
-            print(f"[{count}] {describe(message)}")
+            description, last_mean = describe(message, last_mean)
+            print(f"[{count}] {description}")
     except KeyboardInterrupt:
         print("\nStopping receiver...")
     finally:

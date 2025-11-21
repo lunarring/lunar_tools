@@ -1,6 +1,5 @@
 import argparse
 import logging
-import math
 import os
 import sys
 import time
@@ -15,15 +14,9 @@ from lunar_tools.comms import SimpleWebRTCSignalingServer, WebRTCDataChannel
 
 
 def generate_frame(frame_id: int, width: int, height: int) -> np.ndarray:
-    t = frame_id / 60.0
-    y = np.linspace(0, 1, height, dtype=np.float32)
-    x = np.linspace(0, 1, width, dtype=np.float32)
-    xv, yv = np.meshgrid(x, y)
-    red = 0.5 + 0.5 * np.sin(2 * math.pi * (xv + 0.2 * t))
-    green = 0.5 + 0.5 * np.sin(2 * math.pi * (yv + 0.3 * t))
-    blue = 0.5 + 0.5 * np.sin(2 * math.pi * (xv * 0.4 + yv * 0.6 + 0.5 * t))
-    frame = np.stack([red, green, blue], axis=-1)
-    return np.clip(frame * 255.0, 0, 255).astype("uint8")
+    """Send a constant array whose value equals the current iteration."""
+    value = float(frame_id)
+    return np.ones((height, width), dtype=np.float32) * value
 
 
 def parse_args():
@@ -32,8 +25,8 @@ def parse_args():
     parser.add_argument("--signaling-port", type=int, default=8787, help="Port for the embedded signaling server.")
     parser.add_argument("--session", default="demo-session", help="Session identifier shared with the receiver.")
     parser.add_argument("--channel", default="lunar-data", help="WebRTC data-channel label.")
-    parser.add_argument("--width", type=int, default=640, help="Frame width in pixels.")
-    parser.add_argument("--height", type=int, default=360, help="Frame height in pixels.")
+    parser.add_argument("--width", type=int, default=640, help="Array width in elements.")
+    parser.add_argument("--height", type=int, default=360, help="Array height in elements.")
     parser.add_argument("--fps", type=float, default=20.0, help="Target frames per second.")
     parser.add_argument("--no-server", action="store_true", help="Do not start the embedded signaling server.")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable debug logging.")
