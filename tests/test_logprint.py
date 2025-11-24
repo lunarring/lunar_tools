@@ -17,11 +17,10 @@ class TestLogPrint(unittest.TestCase):
         self.assertTrue(os.path.exists(specific_filename))
 
     def test_log_creation_with_default_filename(self):
-        """Test if a log file is created with the default filename."""
+        """When no filename is provided, LogPrint should avoid file logging."""
         logger = LogPrint()
         logger.print("Test log with default filename.")
-        # Extract the filename from the logger
-        self.assertTrue(os.path.exists(logger.filename))
+        self.assertIsNone(logger.filename)
 
     def test_log_file_content(self):
         """Test if the log file contains the expected content."""
