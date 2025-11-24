@@ -457,15 +457,12 @@ class SoundPlayer:
         )
         self._playback_object.wait_done()  # Wait until sound has finished playing
 
-    def play_sound(self, file_path, pan_value=0):
+    def _start_playback(self, sound: AudioSegment, pan_value=0) -> None:
         # Stop any currently playing sound
         self.stop_sound()
 
-        # Load the sound file
-        sound = AudioSegment.from_file(file_path)
-        
         # play sound from left/right speaker
-        if pan_value != 0 and pan_value > -1 and pan_value < 1:
+        if pan_value != 0 and -1 < pan_value < 1:
             sound = sound.pan(pan_value)
 
         # Start a new thread for playing the sound
@@ -473,6 +470,17 @@ class SoundPlayer:
         self._play_thread.start()
         if self.blocking_playback:
             self._play_thread.join()
+
+    def play_sound(self, file_path, pan_value=0):
+        """Play a sound file located on disk."""
+        sound = AudioSegment.from_file(file_path)
+        self._start_playback(sound, pan_value=pan_value)
+
+    def play_audiosegment(self, sound: AudioSegment, pan_value=0):
+        """Play an in-memory AudioSegment without saving it to disk."""
+        if not isinstance(sound, AudioSegment):
+            raise TypeError("sound must be an instance of pydub.AudioSegment")
+        self._start_playback(sound, pan_value=pan_value)
 
     def stop_sound(self):
         if self._play_thread and self._play_thread.is_alive():

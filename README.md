@@ -29,7 +29,7 @@ export REPLICATE_API_TOKEN="XXX"
 export ELEVEN_API_KEY="XXX"
 ```
 
-# Inputs
+# Input Examples
 Runnable input snippets live in `examples/inputs`. Launch them from the repo root
 to validate your hardware and copy/paste the relevant code into your own project.
 
@@ -59,29 +59,19 @@ button so you can confirm your mappings on the spot.
 python examples/inputs/meta_input_inspector.py
 ```
 
-# Outputs
-## Play sounds
-```python
-import lunar_tools as lt
-player = lt.SoundPlayer()
-player.play_sound("myvoice.mp3")
-```
+# Output Examples
+Runnable output demos live in `examples/output`. Each script is a ready-to-run
+showcase that you can copy into your own pipeline or execute as-is.
 
-## Real-time display (Torch, PIL, numpy)
-Allows to fast render images from torch, numpy or PIL in a window. Can be directly from the GPU, without need to copy. Works with np arrays, PIL.Image and torch tensors (just uncomment from below).
-```python
-import lunar_tools as lt
-import torch
-from PIL import Image
-import numpy as np
-sz = (1080, 1920)
-renderer = lt.Renderer(width=sz[1], height=sz[0])
-while True:
-    # image = np.random.rand(sz[0],sz[1],4) * 255 # numpy array
-    # image = Image.fromarray(np.uint8(np.random.rand(sz[0],sz[1],4) * 255)) # PIL array
-    image = torch.rand((sz[0],sz[1],4)) * 255 # Torch tensors
-    renderer.render(image)
-```
+## Play Sounds
+`examples/output/sound_playback_generated_sine.py` demonstrates `lt.SoundPlayer`
+by first writing a generated 440 Hz sine to disk, then streaming a 660 Hz tone
+directly from memory via `play_audiosegment`.
+
+## Real-time Display
+`examples/output/display_multi_backend_example.py` spins up `lt.Renderer` and
+cycles through NumPy, Pillow, and Torch backends (whichever are installed)
+to render random RGBA frames in one looping window.
 
 note you can speed-up opengl render calls by upto a factor of 3 by disabling
 VSYNC on your system
@@ -89,21 +79,12 @@ On Ubuntu do: Run nvidia-settings 2. Screen 0 > OpenGl > Sync to VBLank ->
 off
 
 ## FPS Tracker
-Track frame rates and segment timings with color-coded console output.
+`examples/output/fps_tracker_example.py` uses `lt.FPSTracker` to emit color-coded
+segment timings so you can profile render + process loops in real time.
 
-```python
-import lunar_tools as lt
-
-fps = lt.FPSTracker()
-while True:
-    fps.start_segment("process")
-    # Your processing code here
-    
-    fps.start_segment("render")
-    # Your rendering code here
-    
-    fps.print_fps()  # Output: FPS: 60.0 | process: 8.3ms | render: 5.2ms
-```
+## Log Printer
+`examples/output/logprint_example.py` showcases `lt.LogPrint` formatting,
+highlighting how to stream colored, timestamped console output.
 
 
 
