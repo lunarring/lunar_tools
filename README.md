@@ -121,32 +121,6 @@ while True:
 ```
 
 
-## WebRTC Data Channels
-
-Install the optional WebRTC dependencies with:
-
-```bash
-python -m pip install "lunar_tools[webrtc]"
-```
-
-Run the example pair from the repo root:
-
-Sender (hosts signaling + streams frames, telemetry JSON, PNG previews, and log text):
-
-```bash
-python examples/comms/webrtc_sender.py --session demo
-```
-
-Receiver (auto-discovers the sender session and prints payloads):
-
-```bash
-python examples/comms/webrtc_receiver.py --session demo
-```
-
-- `--sender-ip` defaults to the detected local address (via `lunar_tools.comms.utils.get_local_ip`).
-- When the sender hosts the embedded signaling server it stores the endpoint details per session in `~/.lunar_tools/webrtc_sessions.json`. Receivers can omit `--sender-ip` to reuse the most recent entry for the requested session, which keeps the bootstrap process simple.
-- If you prefer using your own signaling server, start it separately (or pass `--no-server` in the sender example) and point both peers to the same `http://<sender-ip>:<port>` URL.
-
 
 # Language
 
@@ -306,6 +280,25 @@ for _ in range(mr.nmb_frames):
 ```
 
 # Communication
+## WebRTC Data Channels
+Low-latency data channel built on WebRTC for streaming numpy arrays, JSON blobs, PNG previews, and log text. Requires the optional `aiortc` extra (`python -m pip install "lunar_tools[webrtc]"`).
+
+Sender (hosts an embedded signaling server and streams mixed payloads):
+
+```bash
+python examples/comms/webrtc_sender.py --session demo
+```
+
+Receiver (auto-discovers the sender session via the cached signaling endpoint):
+
+```bash
+python examples/comms/webrtc_receiver.py --session demo
+```
+
+- `--sender-ip` defaults to the detected local address (via `lunar_tools.comms.utils.get_local_ip`).
+- When the sender hosts the embedded signaling server it stores the endpoint details per session in `~/.lunar_tools/webrtc_sessions.json`. Receivers can omit `--sender-ip` to reuse the most recent entry for the requested session, which keeps the bootstrap process simple.
+- If you prefer using your own signaling server, start it separately (or pass `--no-server` in the sender example) and point both peers to the same `http://<sender-ip>:<port>` URL.
+
 ## OSC
 High-level OSC helper built on python-osc. The receiver example spawns the live grid visualizer, and the sender emits demo sine/triangle waves.
 
