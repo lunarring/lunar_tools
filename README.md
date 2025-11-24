@@ -30,49 +30,39 @@ export ELEVEN_API_KEY="XXX"
 ```
 
 # Inputs
-## AudioRecorder
-```python
-import lunar_tools as lt
-import time
-audio_recorder = lt.AudioRecorder()
-audio_recorder.start_recording("myvoice.mp3")
-time.sleep(3)
-audio_recorder.stop_recording()    
+Runnable input snippets live in `examples/inputs`. Launch them from the repo root
+to validate your hardware and copy/paste the relevant code into your own project.
+
+## Audio Recorder
+`examples/inputs/audio_recorder_example.py` exposes `lt.AudioRecorder` through two
+CLI flags so you can verify your microphone pipeline without touching code.
+
+```bash
+python examples/inputs/audio_recorder_example.py --seconds 5 --output myvoice.mp3
 ```
 
-## Get image from webcam
-```python
-import lunar_tools as lt
-cam = lt.WebCam()
-img = cam.get_img()
+## Webcam + Renderer
+`examples/inputs/webcam_live_renderer.py` pairs `lt.WebCam` with `lt.Renderer`
+and displays a live preview window for whichever camera ID (or auto-probed
+device) you pass in.
+
+```bash
+python examples/inputs/webcam_live_renderer.py --cam-id auto
 ```
 
-## Midi Inputs
-Allow real-time change of variables, ideal for changing variables on the fly during a infinete *while True* loop.. The logic is that buttons can change boolean variables and sliders can change numerical values. 
-For buttons, we support the following modes:
-* **toggle**: button activation toggles the state, like a light switch.
-* **held_down**: returns if the button is currently, at this moment, being pressed down.
-* **pressed_once**: checks if the button has been pressed since the last time we checked, returning a single time "True" if the button is held down (at the beginning). 
-* **released_once**: checks if the button has been released since the last time we checked, returning a single time "True" if the button is held down (at the end). 
+## Meta Inputs
+`examples/inputs/meta_input_inspector.py` uses `lt.MetaInput` to detect a MIDI
+controller (or keyboard fallback) and continuously prints one slider + one
+button so you can confirm your mappings on the spot.
 
-For sliders, the default is a range between 0.0 and 1.0. The default return value is the middle point between your supplied val_min and val_max, e.g. 0.5.
-  
-We currently support akai lpd8 and akai midimix devices. However, in principle all midi devices can be added, you just need to specify it in the midi_configs/your_device.yml. In depth how-to coming soon!
-We think of the midi device as a grid, where we name the colums with letters ("A", "B", "C", ...) and the rows with numbers (0, 1 , 2, ...). This allows us to identify the buttons/sliders, e.g. "A0" is the most upper left button/slider, and "A1" is the one below it. 
-
-
-```python
-import lunar_tools as lt
-akai_lpd8 = lt.MidiInput(device_name="akai_lpd8")
-
-while True:
-    time.sleep(0.1)
-    a0 = akai_lpd8.get("A0", button_mode='toggle') # toggle switches the state with every press between on and off
-    b0 = akai_lpd8.get("B0", button_mode='held_down') # is_held checks if the button is pressed down at the moment
-    c0 = akai_lpd8.get("C0", button_mode='released_once') # down_once checks if the button was pressed since we checked last time
-    e0 = akai_lpd8.get("E0", val_min=3, val_max=6) # e0 is a slider float between val_min and val_max
-    print(f"a0: {a0}, b0: {b0}, c0: {c0}, e0: {e0}")
+```bash
+python examples/inputs/meta_input_inspector.py
 ```
+
+### More Ideas
+- MIDI mapper that prints every pad/slider once to make labeling hardware easier.
+- Keyboard-only slider demo that teaches the arrow-key virtual faders.
+- OSC input bridge that shows how to remap network messages into MetaInput-style controls.
 
 # Outputs
 ## Play sounds
