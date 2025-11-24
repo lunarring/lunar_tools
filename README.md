@@ -280,97 +280,56 @@ for _ in range(mr.nmb_frames):
 ```
 
 # Communication
-## ZMQ
-We have a unified client-server setup in this example, which demonstrates bidirectional communication using ZMQPairEndpoints.
-```python
-# Create server and client
-server = lt.ZMQPairEndpoint(is_server=True, ip='127.0.0.1', port='5556')
-client = lt.ZMQPairEndpoint(is_server=False, ip='127.0.0.1', port='5556')
+## WebRTC Data Channels
+Low-latency data channel built on WebRTC for streaming numpy arrays, JSON blobs, PNG previews, and log text. Requires the optional `aiortc` extra (`python -m pip install "lunar_tools[webrtc]"`).
 
-# Client: Send JSON to Server
-client.send_json({"message": "Hello from Client!"})
-time.sleep(0.01)
-# Server: Check for received messages
-server_msgs = server.get_messages()
-print("Messages received by server:", server_msgs)
+Sender (hosts an embedded signaling server and streams mixed payloads):
 
-# Server: Send JSON to Client
-server.send_json({"response": "Hello from Server!"})
-time.sleep(0.01)
-
-# Client: Check for received messages
-client_msgs = client.get_messages()
-print("Messages received by client:", client_msgs)
-
-# Bidirectional Image Sending
-sz = (800, 800)
-client_image = np.random.randint(0, 256, (sz[0], sz[1], 3), dtype=np.uint8)
-server_image = np.random.randint(0, 256, (sz[0], sz[1], 3), dtype=np.uint8)
-
-# Client sends image to Server
-client.send_img(client_image)
-time.sleep(0.01)
-server_received_image = server.get_img()
-if server_received_image is not None:
-    print("Server received image from Client")
-
-# Server sends image to Client
-server.send_img(server_image)
-time.sleep(0.01)
-client_received_image = client.get_img()
-if client_received_image is not None:
-    print("Client received image from Server")
+```bash
+python examples/comms/webrtc_sender.py --session demo
 ```
 
-### Real-time display example with remote streaming
-Remote streaming allows to generate images on one PC, typically with a beefy GPU, and to show them on another one, which may not have a GPU. The streaming is handled via ZMQ and automatically compresses the images using jpeg compression.
+Receiver (auto-discovers the sender session via the cached signaling endpoint):
 
-Sender code example: generates an image and sends it to receiver. This is your backend server with GPU and we are emulating the image creation process by generating random arrays.
-```python
-import lunar_tools as lt
-import numpy as np
-sz = (800, 800)
-ip = '127.0.0.1'
-
-server = lt.ZMQPairEndpoint(is_server=True, ip='127.0.0.1', port='5556')
-
-while True:
-    test_image = np.random.randint(0, 256, (sz[0], sz[1], 3), dtype=np.uint8)
-    img_reply = server.send_img(test_image)
+```bash
+python examples/comms/webrtc_receiver.py --session demo
 ```
 
-
-Reveiver code example: receives the image and renders it, this would be the frontend client e.g. a macbook.
-```python
-import lunar_tools as lt
-sz = (800, 800)
-ip = '127.0.0.1'
-
-client = lt.ZMQPairEndpoint(is_server=False, ip='127.0.0.1', port='5556')
-renderer = lt.Renderer(width=sz[1], height=sz[0])
-while True:
-    image = client.get_img()
-    if image is not None:
-        renderer.render(image)
-```
-
+- `--sender-ip` defaults to the detected local address (via `lunar_tools.comms.utils.get_local_ip`).
+- When the sender hosts the embedded signaling server it stores the endpoint details per session in `~/.lunar_tools/webrtc_sessions.json`. Receivers can omit `--sender-ip` to reuse the most recent entry for the requested session, which keeps the bootstrap process simple.
+- If you prefer using your own signaling server, start it separately (or pass `--no-server` in the sender example) and point both peers to the same `http://<sender-ip>:<port>` URL.
 
 ## OSC
-```python
-import lunar_tools as lt
-import numpy as np
-import time
-sender = lt.OSCSender('127.0.0.1')
-receiver = lt.OSCReceiver('127.0.0.1')
-    
-for i in range(10):
-    time.sleep(0.1)
-    # sends two sinewaves to the respective osc variables
-    val1 = (np.sin(0.5*time.time())+1)*0.5
-    sender.send_message("/env1", val1)
+High-level OSC helper built on python-osc. The receiver example spawns the live grid visualizer, and the sender emits demo sine/triangle waves.
 
-receiver.get_all_values("/env1")
+Receiver:
+
+```bash
+python examples/comms/osc_receiver.py --ip 0.0.0.0 --port 8003
 ```
+
+Sender:
+
+```bash
+python examples/comms/osc_sender.py --ip 127.0.0.1 --port 8003 --channels /env1 /env2 /env3
+```
+
+## ZMQ Pair Endpoint
+One-to-one ZeroMQ stream that carries JSON blobs, compressed images, and raw PCM audio. Start the receiver first on the same machine (or pass `--ip 0.0.0.0` if you want to accept remote peers), then launch the sender.
+
+Receiver (binds locally):
+
+```bash
+python examples/comms/zmq_receiver.py --port 5556
+```
+
+Sender (connects to the receiver):
+
+```bash
+python examples/comms/zmq_sender.py --ip 127.0.0.1 --port 5556
+```
+
+`ZMQPairEndpoint` uses ZeroMQ's `PAIR` pattern, which is strictly one-to-one: exactly one sender and one receiver must be connected, and neither side can reconnect while the other is running. If you need fan-out/fan-in or resilient reconnection, prefer `REQ/REP`, `PUB/SUB`, or `ROUTER/DEALER` and stitch together the behavior you need on top of the raw `zmq` library.
 
 # Logging and terminal printing
 ```python
@@ -422,4 +381,3 @@ python -m pytest lunar_tools/tests/
 ```python
 pipreqs . --force
 ```
-

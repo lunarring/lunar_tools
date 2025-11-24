@@ -8,6 +8,8 @@ from .realtime_voice import RealTimeVoice
 from .cam import WebCam
 from .comms import OSCReceiver
 from .comms import OSCSender
+from .comms import SimpleWebRTCSignalingServer
+from .comms import WebRTCDataChannel
 from .comms import ZMQPairEndpoint
 from .comms import get_local_ip
 from .control_input import KeyboardInput
