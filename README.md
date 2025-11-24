@@ -59,6 +59,15 @@ button so you can confirm your mappings on the spot.
 python examples/inputs/meta_input_inspector.py
 ```
 
+## Movie Reader
+[examples/inputs/movie_reader_example.py](examples/inputs/movie_reader_example.py) wraps `lt.MovieReader`
+with a CLI so you can inspect frame shapes, counts, and FPS before embedding
+any mp4 into your pipeline.
+
+```bash
+python examples/inputs/movie_reader_example.py my_movie.mp4 --max-frames 10
+```
+
 # Outputs
 Runnable output demos live in [examples/outputs](examples/outputs). Each script is a ready-to-run
 showcase that you can copy into your own pipeline or execute as-is.
@@ -100,6 +109,14 @@ highlighting how to stream colored, timestamped console output.
 
 ```bash
 python examples/outputs/logprint_example.py
+```
+
+## Movie Saver
+[examples/outputs/movie_saver_example.py](examples/outputs/movie_saver_example.py) creates a short mp4 using
+random RGB frames so you can validate codec support and file permissions.
+
+```bash
+python examples/outputs/movie_saver_example.py --output my_movie.mp4 --frames 10 --fps 24
 ```
 
 
@@ -241,25 +258,6 @@ sdxl_turbo = lt.SDXL_TURBO()
 image, img_url = sdxl_turbo.generate("An astronaut riding a rainbow unicorn", "cartoon")
 ```
 
-
-# Movie handling
-## Saving a series of images as movie
-```python
-import lunar_tools as lt
-ms = lt.MovieSaver("my_movie.mp4", fps=24)
-for _ in range(10):
-    img = (np.random.rand(512, 1024, 3) * 255).astype(np.uint8)
-    ms.write_frame(img)
-ms.finalize()
-```
-
-## Loading movie and retrieving frames
-```python
-import lunar_tools as lt
-mr = lt.MovieReader("my_movie.mp4")
-for _ in range(mr.nmb_frames):
-    img = mr.get_next_frame()
-```
 
 # Communication
 ## WebRTC Data Channels
