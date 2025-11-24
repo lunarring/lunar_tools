@@ -139,6 +139,7 @@ python examples/comms/webrtc_receiver.py --session demo
 - `--sender-ip` defaults to the detected local address (via `lunar_tools.comms.utils.get_local_ip`).
 - When the sender hosts the embedded signaling server it stores the endpoint details per session in `~/.lunar_tools/webrtc_sessions.json`. Receivers can omit `--sender-ip` to reuse the most recent entry for the requested session, which keeps the bootstrap process simple.
 - If you prefer using your own signaling server, start it separately (or pass `--no-server` in the sender example) and point both peers to the same `http://<sender-ip>:<port>` URL.
+- The sender script emits float32 frames, JSON telemetry, PNG previews, and text logs to showcase how different payloads flow through the WebRTC data channel.
 
 
 
@@ -401,6 +402,9 @@ python examples/comms/osc_receiver.py --ip 0.0.0.0 --port 8003
 # Terminal 2: emit demo sine/triangle waves towards the receiver
 python examples/comms/osc_sender.py --ip 127.0.0.1 --port 8003 --channels /env1 /env2 /env3
 ```
+
+## ZMQ Pair Endpoint
+`ZMQPairEndpoint` uses ZeroMQ's `PAIR` pattern, which is strictly one-to-one: exactly one sender and one receiver must be connected, and neither side can reconnect while the other is running. If you need fan-out/fan-in or resilient reconnection, prefer `REQ/REP`, `PUB/SUB`, or `ROUTER/DEALER` and stitch together the behavior you need on top of the raw `zmq` library.
 
 # Logging and terminal printing
 ```python

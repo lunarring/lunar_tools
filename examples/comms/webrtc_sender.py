@@ -1,10 +1,12 @@
 import argparse
+import io
 import logging
 import os
 import sys
 import time
 
 import numpy as np
+from PIL import Image
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 if REPO_ROOT not in sys.path:
@@ -19,9 +21,26 @@ from lunar_tools.comms.utils import (
 
 
 def generate_frame(frame_id: int, width: int, height: int) -> np.ndarray:
-    """Send a constant array whose value equals the current iteration."""
-    value = float(frame_id)
-    return np.ones((height, width), dtype=np.float32) * value
+    """Create a colorful float32 pattern that animates smoothly over time."""
+    t = frame_id * 0.05
+    x = np.linspace(0.0, 1.0, width, dtype=np.float32)
+    y = np.linspace(0.0, 1.0, height, dtype=np.float32)
+    xv, yv = np.meshgrid(x, y)
+    r = 0.5 + 0.5 * np.sin(2 * np.pi * (xv + t))
+    g = 0.5 + 0.5 * np.sin(2 * np.pi * (yv - 0.5 * t))
+    b = 0.5 + 0.5 * np.sin(2 * np.pi * (xv + yv + t * 0.25))
+    frame = np.stack([r, g, b], axis=-1).astype(np.float32)
+    return frame
+
+
+def encode_preview_png(frame: np.ndarray) -> bytes:
+    """Convert a float32 RGB frame in [0,1] to a small PNG preview."""
+    preview = np.clip(frame, 0.0, 1.0)
+    preview = (preview * 255).astype(np.uint8)
+    image = Image.fromarray(preview, mode="RGB")
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG", optimize=True)
+    return buffer.getvalue()
 
 
 def resolve_sender_ip(cli_value: str | None) -> str:
@@ -95,10 +114,27 @@ def main():
             start = time.perf_counter()
             frame = generate_frame(frame_id, args.width, args.height)
             channel.send(frame, address="frames")
-            if frame_id % 30 == 0:
+            telemetry = {
+                "frame": frame_id,
+                "timestamp": time.time(),
+                "shape": frame.shape,
+                "mean_rgb": [float(frame[..., idx].mean()) for idx in range(frame.shape[-1])],
+            }
+            channel.send(telemetry, address="telemetry")
+            if frame_id % 45 == 0:
+                preview = encode_preview_png(frame)
+                channel.send(preview, address="preview")
+                channel.send(f"Frame {frame_id} preview ready ({len(preview)} bytes)", address="log")
+            if frame_id % 90 == 0:
                 channel.send(
-                    {"frame": frame_id, "timestamp": time.time(), "shape": frame.shape},
-                    address="status",
+                    {
+                        "event": "metrics",
+                        "frame": frame_id,
+                        "max": float(frame.max()),
+                        "min": float(frame.min()),
+                        "std": float(frame.std()),
+                    },
+                    address="telemetry",
                 )
             frame_id += 1
             elapsed = time.perf_counter() - start

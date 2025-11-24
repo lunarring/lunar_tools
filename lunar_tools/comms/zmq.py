@@ -15,6 +15,8 @@ class ZMQPairEndpoint:
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.PAIR)
         self.messages = Queue()
+        self._img_queue = Queue()
+        self._audio_queue = Queue()
         self.last_image = None
         self.last_audio = None
         self.logger = logger if logger else LogPrint()
@@ -53,7 +55,8 @@ class ZMQPairEndpoint:
                     if message.startswith(b'img:'):
                         nparr = np.frombuffer(message[4:], np.uint8)
                         self.last_image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-                        self.messages.put(('img', self.last_image))
+                        self._img_queue.put(self.last_image)
+                        continue
                     elif message.startswith(b'audio:'):
                         header_end = message.find(b':', 6)  # Find end of sample_rate
                         if header_end == -1:
@@ -82,10 +85,15 @@ class ZMQPairEndpoint:
                             'channels': channels,
                             'dtype': dtype_str
                         }
-                        self.messages.put(('audio', self.last_audio))
-                    else:
+                        self._audio_queue.put(self.last_audio)
+                        continue
+                    try:
                         json_data = json.loads(message.decode('utf-8'))
                         self.messages.put(('json', json_data))
+                    except json.JSONDecodeError:
+                        if self.logger:
+                            self.logger.error("Received malformed JSON payload; ignoring.")
+                        continue
 
                 except zmq.Again:
                     continue
@@ -98,6 +106,7 @@ class ZMQPairEndpoint:
         if self.thread.is_alive():
             self.thread.join()
         self.socket.close()
+        self.context.term()
 
     def get_messages(self):
         messages = []
@@ -108,20 +117,16 @@ class ZMQPairEndpoint:
         return messages
 
     def get_img(self):
-        while not self.messages.empty():
-            message_type, message_data = self.messages.get()
-            if message_type == 'img':
-                return message_data
+        while not self._img_queue.empty():
+            return self._img_queue.get()
         return None
 
     def get_audio(self):
         """
         Retrieve the most recent audio data from the message queue.
         """
-        while not self.messages.empty():
-            message_type, message_data = self.messages.get()
-            if message_type == 'audio':
-                return message_data
+        while not self._audio_queue.empty():
+            return self._audio_queue.get()
         return None
 
     def configure_image_encoding(self, format='.jpg', **params):
