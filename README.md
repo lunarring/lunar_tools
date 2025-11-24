@@ -129,13 +129,17 @@ Install the optional WebRTC dependencies with:
 python -m pip install "lunar_tools[webrtc]"
 ```
 
-Once `aiortc` is available you can run the example pair in `examples/comms/` to stream numpy arrays, PNG previews, telemetry JSON, and log strings between peers on the same network:
+Run the example pair from the repo root:
+
+Sender (hosts signaling + streams frames, telemetry JSON, PNG previews, and log text):
 
 ```bash
-# Terminal 1 – sender + embedded signaling server
 python examples/comms/webrtc_sender.py --session demo
+```
 
-# Terminal 2 – receiver (auto-discovers the sender session)
+Receiver (auto-discovers the sender session and prints payloads):
+
+```bash
 python examples/comms/webrtc_receiver.py --session demo
 ```
 
@@ -378,20 +382,28 @@ while True:
 
 
 ## OSC
-```bash
-# Terminal 1: visualize incoming OSC data
-python examples/comms/osc_receiver.py --ip 0.0.0.0 --port 8003
+Receiver (visualizer UI):
 
-# Terminal 2: emit demo sine/triangle waves towards the receiver
+```bash
+python examples/comms/osc_receiver.py --ip 0.0.0.0 --port 8003
+```
+
+Sender (demo sine/triangle waves):
+
+```bash
 python examples/comms/osc_sender.py --ip 127.0.0.1 --port 8003 --channels /env1 /env2 /env3
 ```
 
 ## ZMQ Pair Endpoint
-```bash
-# Terminal 1: receive JSON/image/audio payloads
-python examples/comms/zmq_receiver.py --ip 0.0.0.0 --port 5556
+Receiver (binds once; PAIR allows only one peer):
 
-# Terminal 2: send sample payload batches
+```bash
+python examples/comms/zmq_receiver.py --ip 0.0.0.0 --port 5556
+```
+
+Sender (sends JSON + image + audio batches):
+
+```bash
 python examples/comms/zmq_sender.py --ip 127.0.0.1 --port 5556
 ```
 
