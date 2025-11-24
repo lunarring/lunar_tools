@@ -30,11 +30,11 @@ export ELEVEN_API_KEY="XXX"
 ```
 
 # Inputs
-Runnable input snippets live in `examples/inputs`. Launch them from the repo root
+Runnable input snippets live in [examples/inputs](examples/inputs). Launch them from the repo root
 to validate your hardware and copy/paste the relevant code into your own project.
 
 ## Audio Recorder
-`examples/inputs/audio_recorder_example.py` exposes `lt.AudioRecorder` through two
+[examples/inputs/audio_recorder_example.py](examples/inputs/audio_recorder_example.py) exposes `lt.AudioRecorder` through two
 CLI flags so you can verify your microphone pipeline without touching code.
 
 ```bash
@@ -42,7 +42,7 @@ python examples/inputs/audio_recorder_example.py --seconds 5 --output myvoice.mp
 ```
 
 ## Webcam + Renderer
-`examples/inputs/webcam_live_renderer.py` pairs `lt.WebCam` with `lt.Renderer`
+[examples/inputs/webcam_live_renderer.py](examples/inputs/webcam_live_renderer.py) pairs `lt.WebCam` with `lt.Renderer`
 and displays a live preview window for whichever camera ID (or auto-probed
 device) you pass in.
 
@@ -51,7 +51,7 @@ python examples/inputs/webcam_live_renderer.py --cam-id auto
 ```
 
 ## Meta Inputs
-`examples/inputs/meta_input_inspector.py` uses `lt.MetaInput` to detect a MIDI
+[examples/inputs/meta_input_inspector.py](examples/inputs/meta_input_inspector.py) uses `lt.MetaInput` to detect a MIDI
 controller (or keyboard fallback) and continuously prints one slider + one
 button so you can confirm your mappings on the spot.
 
@@ -60,11 +60,11 @@ python examples/inputs/meta_input_inspector.py
 ```
 
 # Outputs
-Runnable output demos live in `examples/outputs`. Each script is a ready-to-run
+Runnable output demos live in [examples/outputs](examples/outputs). Each script is a ready-to-run
 showcase that you can copy into your own pipeline or execute as-is.
 
 ## Play Sounds
-`examples/outputs/sound_playback_generated_sine.py` demonstrates `lt.SoundPlayer`
+[examples/outputs/sound_playback_generated_sine.py](examples/outputs/sound_playback_generated_sine.py) demonstrates `lt.SoundPlayer`
 by first writing a generated 440 Hz sine to disk, then streaming a 660 Hz tone
 directly from memory via `play_audiosegment`.
 
@@ -73,7 +73,7 @@ python examples/outputs/sound_playback_generated_sine.py
 ```
 
 ## Real-time Display
-`examples/outputs/display_multi_backend_example.py` spins up `lt.Renderer` and
+[examples/outputs/display_multi_backend_example.py](examples/outputs/display_multi_backend_example.py) spins up `lt.Renderer` and
 cycles through NumPy, Pillow, and Torch backends (whichever are installed)
 to render random RGBA frames in one looping window.
 
@@ -87,7 +87,7 @@ On Ubuntu do: Run nvidia-settings 2. Screen 0 > OpenGl > Sync to VBLank ->
 off
 
 ## FPS Tracker
-`examples/outputs/fps_tracker_example.py` uses `lt.FPSTracker` to emit color-coded
+[examples/outputs/fps_tracker_example.py](examples/outputs/fps_tracker_example.py) uses `lt.FPSTracker` to emit color-coded
 segment timings so you can profile render + process loops in real time.
 
 ```bash
@@ -95,7 +95,7 @@ python examples/outputs/fps_tracker_example.py
 ```
 
 ## Log Printer
-`examples/outputs/logprint_example.py` showcases `lt.LogPrint` formatting,
+[examples/outputs/logprint_example.py](examples/outputs/logprint_example.py) showcases `lt.LogPrint` formatting,
 highlighting how to stream colored, timestamped console output.
 
 ```bash
