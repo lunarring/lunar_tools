@@ -33,7 +33,7 @@ export ELEVEN_API_KEY="XXX"
 Runnable input snippets live in [examples/inputs](examples/inputs). Launch them from the repo root
 to validate your hardware and copy/paste the relevant code into your own project.
 
-## Audio Recorder
+## 🎙️ Audio Recorder
 [examples/inputs/audio_recorder_example.py](examples/inputs/audio_recorder_example.py) exposes `lt.AudioRecorder` through two
 CLI flags so you can verify your microphone pipeline without touching code.
 
@@ -41,7 +41,7 @@ CLI flags so you can verify your microphone pipeline without touching code.
 python examples/inputs/audio_recorder_example.py --seconds 5 --output myvoice.mp3
 ```
 
-## Webcam + Renderer
+## 📸 Webcam + Renderer
 [examples/inputs/webcam_live_renderer.py](examples/inputs/webcam_live_renderer.py) pairs `lt.WebCam` with `lt.Renderer`
 and displays a live preview window for whichever camera ID (or auto-probed
 device) you pass in.
@@ -50,7 +50,7 @@ device) you pass in.
 python examples/inputs/webcam_live_renderer.py --cam-id auto
 ```
 
-## Meta Inputs
+## 🎚️ Meta Inputs
 [examples/inputs/meta_input_inspector.py](examples/inputs/meta_input_inspector.py) uses `lt.MetaInput` to detect a MIDI
 controller (or keyboard fallback) and continuously prints one slider + one
 button so you can confirm your mappings on the spot.
@@ -59,7 +59,7 @@ button so you can confirm your mappings on the spot.
 python examples/inputs/meta_input_inspector.py
 ```
 
-## Movie Reader
+## 🎞️ Movie Reader
 [examples/inputs/movie_reader_example.py](examples/inputs/movie_reader_example.py) wraps `lt.MovieReader`
 with a CLI so you can inspect frame shapes, counts, and FPS before embedding
 any mp4 into your pipeline.
@@ -72,7 +72,7 @@ python examples/inputs/movie_reader_example.py my_movie.mp4 --max-frames 10
 Runnable output demos live in [examples/outputs](examples/outputs). Each script is a ready-to-run
 showcase that you can copy into your own pipeline or execute as-is.
 
-## Play Sounds
+## 🔊 Play Sounds
 [examples/outputs/sound_playback_generated_sine.py](examples/outputs/sound_playback_generated_sine.py) demonstrates `lt.SoundPlayer`
 by first writing a generated 440 Hz sine to disk, then streaming a 660 Hz tone
 directly from memory via `play_audiosegment`.
@@ -81,7 +81,7 @@ directly from memory via `play_audiosegment`.
 python examples/outputs/sound_playback_generated_sine.py
 ```
 
-## Real-time Display
+## 🖥️ Real-time Display
 [examples/outputs/display_multi_backend_example.py](examples/outputs/display_multi_backend_example.py) spins up `lt.Renderer` and
 cycles through NumPy, Pillow, and Torch backends (whichever are installed)
 to render random RGBA frames in one looping window.
@@ -95,7 +95,7 @@ VSYNC on your system
 On Ubuntu do: Run nvidia-settings 2. Screen 0 > OpenGl > Sync to VBLank ->
 off
 
-## FPS Tracker
+## ⏱️ FPS Tracker
 [examples/outputs/fps_tracker_example.py](examples/outputs/fps_tracker_example.py) uses `lt.FPSTracker` to emit color-coded
 segment timings so you can profile render + process loops in real time.
 
@@ -103,7 +103,7 @@ segment timings so you can profile render + process loops in real time.
 python examples/outputs/fps_tracker_example.py
 ```
 
-## Log Printer
+## 🧾 Log Printer
 [examples/outputs/logprint_example.py](examples/outputs/logprint_example.py) showcases `lt.LogPrint` formatting,
 highlighting how to stream colored, timestamped console output.
 
@@ -111,13 +111,66 @@ highlighting how to stream colored, timestamped console output.
 python examples/outputs/logprint_example.py
 ```
 
-## Movie Saver
+## 🎬 Movie Saver
 [examples/outputs/movie_saver_example.py](examples/outputs/movie_saver_example.py) creates a short mp4 using
 random RGB frames so you can validate codec support and file permissions.
 
 ```bash
 python examples/outputs/movie_saver_example.py --output my_movie.mp4 --frames 10 --fps 24
 ```
+
+# 📡 Communication
+
+## 🌐 WebRTC Data Channels
+Low-latency data channel built on WebRTC for streaming numpy arrays, JSON blobs, PNG previews, and log text. Requires the optional `aiortc` extra (`python -m pip install "lunar_tools[webrtc]"`).
+
+Sender (hosts an embedded signaling server and streams mixed payloads):
+
+```bash
+python examples/comms/webrtc_sender.py --session demo
+```
+
+Receiver (auto-discovers the sender session via the cached signaling endpoint):
+
+```bash
+python examples/comms/webrtc_receiver.py --session demo
+```
+
+- `--sender-ip` defaults to the detected local address (via `lunar_tools.comms.utils.get_local_ip`).
+- When the sender hosts the embedded signaling server it stores the endpoint details per session in `~/.lunar_tools/webrtc_sessions.json`. Receivers can omit `--sender-ip` to reuse the most recent entry for the requested session, which keeps the bootstrap process simple.
+- If you prefer using your own signaling server, start it separately (or pass `--no-server` in the sender example) and point both peers to the same `http://<sender-ip>:<port>` URL.
+
+## 🎛️ OSC
+High-level OSC helper built on python-osc. The receiver example spawns the live grid visualizer, and the sender emits demo sine/triangle waves.
+
+Receiver:
+
+```bash
+python examples/comms/osc_receiver.py --ip 0.0.0.0 --port 8003
+```
+
+Sender:
+
+```bash
+python examples/comms/osc_sender.py --ip 127.0.0.1 --port 8003 --channels /env1 /env2 /env3
+```
+
+## 🔁 ZMQ Pair Endpoint
+One-to-one ZeroMQ stream that carries JSON blobs, compressed images, and raw PCM audio. Start the receiver first on the same machine (or pass `--ip 0.0.0.0` if you want to accept remote peers), then launch the sender.
+
+Receiver (binds locally):
+
+```bash
+python examples/comms/zmq_receiver.py --port 5556
+```
+
+Sender (connects to the receiver):
+
+```bash
+python examples/comms/zmq_sender.py --ip 127.0.0.1 --port 5556
+```
+
+`ZMQPairEndpoint` uses ZeroMQ's `PAIR` pattern, which is strictly one-to-one: exactly one sender and one receiver must be connected, and neither side can reconnect while the other is running. If you need fan-out/fan-in or resilient reconnection, prefer `REQ/REP`, `PUB/SUB`, or `ROUTER/DEALER` and stitch together the behavior you need on top of the raw `zmq` library.
 
 
 
@@ -258,58 +311,6 @@ sdxl_turbo = lt.SDXL_TURBO()
 image, img_url = sdxl_turbo.generate("An astronaut riding a rainbow unicorn", "cartoon")
 ```
 
-
-# Communication
-## WebRTC Data Channels
-Low-latency data channel built on WebRTC for streaming numpy arrays, JSON blobs, PNG previews, and log text. Requires the optional `aiortc` extra (`python -m pip install "lunar_tools[webrtc]"`).
-
-Sender (hosts an embedded signaling server and streams mixed payloads):
-
-```bash
-python examples/comms/webrtc_sender.py --session demo
-```
-
-Receiver (auto-discovers the sender session via the cached signaling endpoint):
-
-```bash
-python examples/comms/webrtc_receiver.py --session demo
-```
-
-- `--sender-ip` defaults to the detected local address (via `lunar_tools.comms.utils.get_local_ip`).
-- When the sender hosts the embedded signaling server it stores the endpoint details per session in `~/.lunar_tools/webrtc_sessions.json`. Receivers can omit `--sender-ip` to reuse the most recent entry for the requested session, which keeps the bootstrap process simple.
-- If you prefer using your own signaling server, start it separately (or pass `--no-server` in the sender example) and point both peers to the same `http://<sender-ip>:<port>` URL.
-
-## OSC
-High-level OSC helper built on python-osc. The receiver example spawns the live grid visualizer, and the sender emits demo sine/triangle waves.
-
-Receiver:
-
-```bash
-python examples/comms/osc_receiver.py --ip 0.0.0.0 --port 8003
-```
-
-Sender:
-
-```bash
-python examples/comms/osc_sender.py --ip 127.0.0.1 --port 8003 --channels /env1 /env2 /env3
-```
-
-## ZMQ Pair Endpoint
-One-to-one ZeroMQ stream that carries JSON blobs, compressed images, and raw PCM audio. Start the receiver first on the same machine (or pass `--ip 0.0.0.0` if you want to accept remote peers), then launch the sender.
-
-Receiver (binds locally):
-
-```bash
-python examples/comms/zmq_receiver.py --port 5556
-```
-
-Sender (connects to the receiver):
-
-```bash
-python examples/comms/zmq_sender.py --ip 127.0.0.1 --port 5556
-```
-
-`ZMQPairEndpoint` uses ZeroMQ's `PAIR` pattern, which is strictly one-to-one: exactly one sender and one receiver must be connected, and neither side can reconnect while the other is running. If you need fan-out/fan-in or resilient reconnection, prefer `REQ/REP`, `PUB/SUB`, or `ROUTER/DEALER` and stitch together the behavior you need on top of the raw `zmq` library.
 
 # Logging and terminal printing
 ```python
