@@ -315,15 +315,15 @@ python examples/comms/osc_sender.py --ip 127.0.0.1 --port 8003 --channels /env1 
 ```
 
 ## ZMQ Pair Endpoint
-One-to-one ZeroMQ stream that can carry JSON blobs, compressed images, and raw PCM audio. Bind the receiver first, then connect the sender.
+One-to-one ZeroMQ stream that carries JSON blobs, compressed images, and raw PCM audio. Start the receiver first on the same machine (or pass `--ip 0.0.0.0` if you want to accept remote peers), then launch the sender.
 
-Receiver:
+Receiver (binds locally):
 
 ```bash
-python examples/comms/zmq_receiver.py --ip 0.0.0.0 --port 5556
+python examples/comms/zmq_receiver.py --port 5556
 ```
 
-Sender (sends JSON + image + audio batches):
+Sender (connects to the receiver):
 
 ```bash
 python examples/comms/zmq_sender.py --ip 127.0.0.1 --port 5556
