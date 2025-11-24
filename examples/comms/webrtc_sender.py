@@ -11,6 +11,8 @@ if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
 from lunar_tools.comms import SimpleWebRTCSignalingServer, WebRTCDataChannel
+from lunar_tools.comms.utils import get_local_ip
+from signaling_store import SESSION_CACHE_PATH, remember_session_endpoint
 
 
 def generate_frame(frame_id: int, width: int, height: int) -> np.ndarray:
@@ -19,9 +21,20 @@ def generate_frame(frame_id: int, width: int, height: int) -> np.ndarray:
     return np.ones((height, width), dtype=np.float32) * value
 
 
+def resolve_sender_ip(cli_value: str | None) -> str:
+    if cli_value:
+        return cli_value
+    detected = get_local_ip()
+    return detected or "127.0.0.1"
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Stream animated numpy frames over WebRTC.")
-    parser.add_argument("--signaling-host", default="127.0.0.1", help="Host for the embedded signaling server.")
+    parser.add_argument(
+        "--sender-ip",
+        default=None,
+        help="IP/host that peers should use to reach this sender (defaults to an autodetected local address).",
+    )
     parser.add_argument("--signaling-port", type=int, default=8787, help="Port for the embedded signaling server.")
     parser.add_argument("--session", default="demo-session", help="Session identifier shared with the receiver.")
     parser.add_argument("--channel", default="lunar-data", help="WebRTC data-channel label.")
@@ -46,12 +59,20 @@ def main():
             level=logging.INFO,
             format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         )
-    signaling_url = f"http://{args.signaling_host}:{args.signaling_port}"
+    sender_ip = resolve_sender_ip(args.sender_ip)
+    signaling_port = args.signaling_port
+    signaling_url = f"http://{sender_ip}:{signaling_port}"
     server = None
     if not args.no_server:
-        server = SimpleWebRTCSignalingServer(host=args.signaling_host, port=args.signaling_port)
+        server = SimpleWebRTCSignalingServer(host="0.0.0.0", port=signaling_port)
         server.start()
+        bound = server.address()
+        if bound is not None:
+            signaling_port = bound[1]
+            signaling_url = f"http://{sender_ip}:{signaling_port}"
+        remember_session_endpoint(args.session, sender_ip, signaling_port)
         print(f"Signaling server listening on {signaling_url}/session/{args.session}/<offer|answer>")
+        print(f"Session info cached in {SESSION_CACHE_PATH} for receivers to reuse.")
 
     channel = WebRTCDataChannel(
         role="offer",

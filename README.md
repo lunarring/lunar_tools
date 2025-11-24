@@ -121,6 +121,26 @@ while True:
 ```
 
 
+## WebRTC Data Channels
+
+Install the optional WebRTC dependencies with:
+
+```bash
+python -m pip install "lunar_tools[webrtc]"
+```
+
+Once `aiortc` is available you can run the example pair in `examples/comms/` to stream numpy arrays and JSON payloads between machines on the same network:
+
+```bash
+python examples/comms/webrtc_sender.py --session demo
+python examples/comms/webrtc_receiver.py --session demo
+```
+
+- `--sender-ip` defaults to the detected local address (via `lunar_tools.comms.utils.get_local_ip`).
+- When the sender hosts the embedded signaling server it stores the endpoint details per session in `~/.lunar_tools/webrtc_sessions.json`. Receivers can omit `--sender-ip` to reuse the most recent entry for the requested session, which keeps the bootstrap process simple.
+- If you prefer using your own signaling server, start it separately (or pass `--no-server` in the sender example) and point both peers to the same `http://<sender-ip>:<port>` URL.
+
+
 
 # Language
 
@@ -422,4 +442,3 @@ python -m pytest lunar_tools/tests/
 ```python
 pipreqs . --force
 ```
-

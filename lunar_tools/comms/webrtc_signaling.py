@@ -3,12 +3,16 @@ import logging
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 from urllib.parse import parse_qs, urlparse
 
 import requests
 
 logger = logging.getLogger(__name__)
+
+
+class _ReusableThreadingHTTPServer(ThreadingHTTPServer):
+    allow_reuse_address = True
 
 
 class RestSignalingClient:
@@ -79,8 +83,8 @@ class SimpleWebRTCSignalingServer:
         self._port = port
         self._sessions: Dict[str, Dict[str, Dict[str, str]]] = {}
         self._condition = threading.Condition()
-        handler = self._build_handler()
-        self._server = ThreadingHTTPServer((self._host, self._port), handler)
+        self._handler_class = self._build_handler()
+        self._server: Optional[_ReusableThreadingHTTPServer] = None
         self._thread: Optional[threading.Thread] = None
 
     def _build_handler(self):
@@ -101,17 +105,34 @@ class SimpleWebRTCSignalingServer:
     def start(self) -> None:
         if self._thread and self._thread.is_alive():
             return
+        self._server = _ReusableThreadingHTTPServer((self._host, self._port), self._handler_class)
         self._thread = threading.Thread(target=self._server.serve_forever, name="WebRTCSignalingServer", daemon=True)
         self._thread.start()
-        logger.info("WebRTC signaling server listening on http://%s:%s", self._host, self._port)
+        bound = self.address()
+        logger.info(
+            "WebRTC signaling server listening on http://%s:%s",
+            bound[0] if bound else self._host,
+            bound[1] if bound else self._port,
+        )
 
     def stop(self) -> None:
-        if not self._thread:
+        if not self._server:
             return
         self._server.shutdown()
-        if self._thread.is_alive():
+        if self._thread and self._thread.is_alive():
             self._thread.join(timeout=1.0)
+        self._server.server_close()
         self._thread = None
+        self._server = None
+
+    def address(self) -> Optional[Tuple[str, int]]:
+        if self._server is None:
+            return None
+        host, port = self._server.server_address
+        # When bound to 0.0.0.0 expose the configured host which is usually what peers need.
+        if host == "0.0.0.0":
+            host = self._host
+        return host, port
 
     def _handle_post(self, handler: BaseHTTPRequestHandler) -> None:
         length = int(handler.headers.get("Content-Length", "0"))

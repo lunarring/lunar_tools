@@ -9,12 +9,25 @@ if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
 from lunar_tools.comms import WebRTCDataChannel
+from signaling_store import SESSION_CACHE_PATH, lookup_session_endpoint
+
+
+DEFAULT_PORT = 8787
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Receive WebRTC numpy frames and metadata.")
-    parser.add_argument("--signaling-host", default="127.0.0.1", help="Host where the sender's signaling server runs.")
-    parser.add_argument("--signaling-port", type=int, default=8787, help="Port of the signaling server.")
+    parser.add_argument(
+        "--sender-ip",
+        default=None,
+        help="IP/host of the sender's signaling server (defaults to cached session info or localhost).",
+    )
+    parser.add_argument(
+        "--signaling-port",
+        type=int,
+        default=None,
+        help=f"Port of the signaling server (defaults to cached session info or {DEFAULT_PORT}).",
+    )
     parser.add_argument("--session", default="demo-session", help="Session identifier shared with the sender.")
     parser.add_argument("--channel", default="lunar-data", help="Expected WebRTC data-channel label.")
     parser.add_argument("--timeout", type=float, default=2.0, help="Seconds to wait before printing a heartbeat.")
@@ -52,7 +65,23 @@ def main():
             level=logging.INFO,
             format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         )
-    signaling_url = f"http://{args.signaling_host}:{args.signaling_port}"
+    signaling_port = args.signaling_port if args.signaling_port is not None else DEFAULT_PORT
+    sender_ip = args.sender_ip
+    cache_entry = lookup_session_endpoint(args.session)
+    cache_used = False
+    if cache_entry is not None:
+        cache_host, cache_port = cache_entry
+        if sender_ip is None:
+            sender_ip = cache_host
+            cache_used = True
+        if args.signaling_port is None:
+            signaling_port = cache_port
+            cache_used = True
+    if sender_ip is None:
+        sender_ip = "127.0.0.1"
+    signaling_url = f"http://{sender_ip}:{signaling_port}"
+    if cache_used:
+        print(f"Cached signaling endpoint found in {SESSION_CACHE_PATH}.")
     channel = WebRTCDataChannel(
         role="answer",
         session_id=args.session,

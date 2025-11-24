@@ -15,6 +15,9 @@ setup(
     description='Lunar Ring auxiliary tools and modules',
     long_description=open('README.md').read(),
     install_requires=required,  # Use the list from requirements.txt here
+    extras_require={
+        'webrtc': ['aiortc>=1.7.0'],
+    },
     dependency_links=[],
     include_package_data=True,
 )

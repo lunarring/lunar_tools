@@ -13,7 +13,8 @@ def _load_aiortc():
         from aiortc import RTCConfiguration, RTCIceServer, RTCPeerConnection, RTCSessionDescription
     except ImportError as exc:  # pragma: no cover - optional dependency
         raise ImportError(
-            "WebRTC support requires the 'aiortc' package. Install it via 'pip install aiortc'."
+            "WebRTC support requires the 'aiortc' package. Install it via 'pip install aiortc' "
+            "or 'pip install lunar_tools[webrtc]'."
         ) from exc
     return RTCConfiguration, RTCIceServer, RTCPeerConnection, RTCSessionDescription
 
