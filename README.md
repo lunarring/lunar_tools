@@ -59,11 +59,6 @@ button so you can confirm your mappings on the spot.
 python examples/inputs/meta_input_inspector.py
 ```
 
-### More Ideas
-- MIDI mapper that prints every pad/slider once to make labeling hardware easier.
-- Keyboard-only slider demo that teaches the arrow-key virtual faders.
-- OSC input bridge that shows how to remap network messages into MetaInput-style controls.
-
 # Outputs
 ## Play sounds
 ```python
