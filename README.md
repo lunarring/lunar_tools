@@ -306,96 +306,25 @@ for _ in range(mr.nmb_frames):
 ```
 
 # Communication
-## ZMQ
-We have a unified client-server setup in this example, which demonstrates bidirectional communication using ZMQPairEndpoints.
-```python
-# Create server and client
-server = lt.ZMQPairEndpoint(is_server=True, ip='127.0.0.1', port='5556')
-client = lt.ZMQPairEndpoint(is_server=False, ip='127.0.0.1', port='5556')
-
-# Client: Send JSON to Server
-client.send_json({"message": "Hello from Client!"})
-time.sleep(0.01)
-# Server: Check for received messages
-server_msgs = server.get_messages()
-print("Messages received by server:", server_msgs)
-
-# Server: Send JSON to Client
-server.send_json({"response": "Hello from Server!"})
-time.sleep(0.01)
-
-# Client: Check for received messages
-client_msgs = client.get_messages()
-print("Messages received by client:", client_msgs)
-
-# Bidirectional Image Sending
-sz = (800, 800)
-client_image = np.random.randint(0, 256, (sz[0], sz[1], 3), dtype=np.uint8)
-server_image = np.random.randint(0, 256, (sz[0], sz[1], 3), dtype=np.uint8)
-
-# Client sends image to Server
-client.send_img(client_image)
-time.sleep(0.01)
-server_received_image = server.get_img()
-if server_received_image is not None:
-    print("Server received image from Client")
-
-# Server sends image to Client
-server.send_img(server_image)
-time.sleep(0.01)
-client_received_image = client.get_img()
-if client_received_image is not None:
-    print("Client received image from Server")
-```
-
-### Real-time display example with remote streaming
-Remote streaming allows to generate images on one PC, typically with a beefy GPU, and to show them on another one, which may not have a GPU. The streaming is handled via ZMQ and automatically compresses the images using jpeg compression.
-
-Sender code example: generates an image and sends it to receiver. This is your backend server with GPU and we are emulating the image creation process by generating random arrays.
-```python
-import lunar_tools as lt
-import numpy as np
-sz = (800, 800)
-ip = '127.0.0.1'
-
-server = lt.ZMQPairEndpoint(is_server=True, ip='127.0.0.1', port='5556')
-
-while True:
-    test_image = np.random.randint(0, 256, (sz[0], sz[1], 3), dtype=np.uint8)
-    img_reply = server.send_img(test_image)
-```
-
-
-Reveiver code example: receives the image and renders it, this would be the frontend client e.g. a macbook.
-```python
-import lunar_tools as lt
-sz = (800, 800)
-ip = '127.0.0.1'
-
-client = lt.ZMQPairEndpoint(is_server=False, ip='127.0.0.1', port='5556')
-renderer = lt.Renderer(width=sz[1], height=sz[0])
-while True:
-    image = client.get_img()
-    if image is not None:
-        renderer.render(image)
-```
-
-
 ## OSC
-Receiver (visualizer UI):
+High-level OSC helper built on python-osc. The receiver example spawns the live grid visualizer, and the sender emits demo sine/triangle waves.
+
+Receiver:
 
 ```bash
 python examples/comms/osc_receiver.py --ip 0.0.0.0 --port 8003
 ```
 
-Sender (demo sine/triangle waves):
+Sender:
 
 ```bash
 python examples/comms/osc_sender.py --ip 127.0.0.1 --port 8003 --channels /env1 /env2 /env3
 ```
 
 ## ZMQ Pair Endpoint
-Receiver (binds once; PAIR allows only one peer):
+One-to-one ZeroMQ stream that can carry JSON blobs, compressed images, and raw PCM audio. Bind the receiver first, then connect the sender.
+
+Receiver:
 
 ```bash
 python examples/comms/zmq_receiver.py --ip 0.0.0.0 --port 5556
