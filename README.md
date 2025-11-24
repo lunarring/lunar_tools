@@ -29,7 +29,7 @@ export REPLICATE_API_TOKEN="XXX"
 export ELEVEN_API_KEY="XXX"
 ```
 
-# Input Examples
+# Inputs
 Runnable input snippets live in `examples/inputs`. Launch them from the repo root
 to validate your hardware and copy/paste the relevant code into your own project.
 
@@ -59,19 +59,27 @@ button so you can confirm your mappings on the spot.
 python examples/inputs/meta_input_inspector.py
 ```
 
-# Output Examples
-Runnable output demos live in `examples/output`. Each script is a ready-to-run
+# Outputs
+Runnable output demos live in `examples/outputs`. Each script is a ready-to-run
 showcase that you can copy into your own pipeline or execute as-is.
 
 ## Play Sounds
-`examples/output/sound_playback_generated_sine.py` demonstrates `lt.SoundPlayer`
+`examples/outputs/sound_playback_generated_sine.py` demonstrates `lt.SoundPlayer`
 by first writing a generated 440 Hz sine to disk, then streaming a 660 Hz tone
 directly from memory via `play_audiosegment`.
 
+```bash
+python examples/outputs/sound_playback_generated_sine.py
+```
+
 ## Real-time Display
-`examples/output/display_multi_backend_example.py` spins up `lt.Renderer` and
+`examples/outputs/display_multi_backend_example.py` spins up `lt.Renderer` and
 cycles through NumPy, Pillow, and Torch backends (whichever are installed)
 to render random RGBA frames in one looping window.
+
+```bash
+python examples/outputs/display_multi_backend_example.py
+```
 
 note you can speed-up opengl render calls by upto a factor of 3 by disabling
 VSYNC on your system
@@ -79,12 +87,20 @@ On Ubuntu do: Run nvidia-settings 2. Screen 0 > OpenGl > Sync to VBLank ->
 off
 
 ## FPS Tracker
-`examples/output/fps_tracker_example.py` uses `lt.FPSTracker` to emit color-coded
+`examples/outputs/fps_tracker_example.py` uses `lt.FPSTracker` to emit color-coded
 segment timings so you can profile render + process loops in real time.
 
+```bash
+python examples/outputs/fps_tracker_example.py
+```
+
 ## Log Printer
-`examples/output/logprint_example.py` showcases `lt.LogPrint` formatting,
+`examples/outputs/logprint_example.py` showcases `lt.LogPrint` formatting,
 highlighting how to stream colored, timestamped console output.
+
+```bash
+python examples/outputs/logprint_example.py
+```
 
 
 
