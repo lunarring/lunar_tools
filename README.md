@@ -95,12 +95,13 @@ VSYNC on your system
 On Ubuntu do: Run nvidia-settings 2. Screen 0 > OpenGl > Sync to VBLank ->
 off
 
-## ⏱️ FPS Tracker
-[examples/outputs/fps_tracker_example.py](examples/outputs/fps_tracker_example.py) uses `lt.FPSTracker` to emit color-coded
-segment timings so you can profile render + process loops in real time.
+## ⏱️ Realtime Console Updates
+[examples/outputs/realtime_console_updates_example.py](examples/outputs/realtime_console_updates_example.py) combines
+`lt.FPSTracker`, `lt.LogPrint`, and `dynamic_print` to stream live progress
+messages while measuring per-segment timings.
 
 ```bash
-python examples/outputs/fps_tracker_example.py
+python examples/outputs/realtime_console_updates_example.py
 ```
 
 ## 🧾 Log Printer

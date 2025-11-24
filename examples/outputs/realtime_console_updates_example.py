@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Demo showcasing dynamic printing and FPSTracker logging."""
+"""Demo showcasing dynamic console updates and FPSTracker logging."""
 
 import random
 import sys
