@@ -19,36 +19,59 @@ try:
 except ImportError:  # pragma: no cover - shutil is part of stdlib but keep fallback
     shutil = None
 
+DEFAULT_TERMINAL_WIDTH = 80
 
-def dynamic_print(message):
+
+def _get_terminal_width():
+    """Return current terminal width or a sensible default."""
+    if shutil is None:
+        return DEFAULT_TERMINAL_WIDTH
+    get_size = getattr(shutil, "get_terminal_size", None)
+    if get_size is None:
+        return DEFAULT_TERMINAL_WIDTH
+    try:
+        return get_size(fallback=(DEFAULT_TERMINAL_WIDTH, 0)).columns
+    except OSError:
+        return DEFAULT_TERMINAL_WIDTH
+
+
+def dynamic_print(message, *, stream=None, persist=False):
     """
     Dynamically prints a message to the console, replacing the previous message.
     Handles messages that are longer than the terminal width by clearing the line first
     and truncating the message if necessary. Also handles multi-line messages by
     converting them to a single line.
+
+    Args:
+        message: Text to display.
+        stream: Optional stream to write to (defaults to sys.stdout).
+        persist: When True the message is followed by a newline so it remains on screen.
     """
-    if shutil is not None:
-        try:
-            terminal_width = shutil.get_terminal_size().columns
-        except OSError:
-            terminal_width = 80
-    else:
-        terminal_width = 80
-    
-    # Remove any newlines from the message to keep it on a single line
-    message = message.replace('\n', ' ').replace('\r', '')
-    
+    stream = stream or sys.stdout
+    text = str(message).replace("\n", " ").replace("\r", "")
+    is_tty = bool(getattr(stream, "isatty", lambda: False)())
+
+    if not is_tty:
+        stream.write(f"{text}\n")
+        stream.flush()
+        return
+
+    terminal_width = max(_get_terminal_width(), 1)
+
+    if terminal_width > 3 and len(text) > terminal_width - 3:
+        text = text[: terminal_width - 3] + "..."
+    elif len(text) > terminal_width:
+        text = text[:terminal_width]
+
     # Clear the current line completely
-    sys.stdout.write('\r' + ' ' * terminal_width)
-    sys.stdout.flush()  # Ensure the clearing is displayed
-    
-    # Truncate message if it's too long for the terminal
-    if len(message) > terminal_width - 3:  # Leave room for ellipsis
-        message = message[:terminal_width - 3] + "..."
-    
+    stream.write("\r" + " " * terminal_width)
+    stream.flush()
+
     # Return to the beginning of the line and write the new message
-    sys.stdout.write('\r' + message)
-    sys.stdout.flush()
+    stream.write("\r" + text)
+    if persist:
+        stream.write("\n")
+    stream.flush()
 
 class LogPrint:
     """Light-weight console logger with optional file logging and ANSI colours."""
