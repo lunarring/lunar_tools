@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import sys
-sys.path.append("../lunar_tools/")
 import unittest
 import os
-from logprint import LogPrint  # Replace 'your_module_name' with the actual name of your module
+from lunar_tools.logprint import LogPrint
 
 class TestLogPrint(unittest.TestCase):
 
