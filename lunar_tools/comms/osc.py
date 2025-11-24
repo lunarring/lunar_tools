@@ -5,16 +5,21 @@ import numpy as np
 from pythonosc import osc_server, udp_client
 from pythonosc.dispatcher import Dispatcher
 
-from lunar_tools.fontrender import add_text_to_image
-
-
 class OSCSender:
-    def __init__(self, ip_receiver=None, port_receiver=8003, start_thread=False, verbose_high=False):
+    def __init__(self, ip_receiver="127.0.0.1", port_receiver=8003, start_thread=False, verbose_high=False):
+        if ip_receiver is None:
+            raise ValueError("OSCSender requires a valid ip_receiver")
+        if port_receiver is None:
+            raise ValueError("OSCSender requires a valid port_receiver")
         self.ip_receiver = ip_receiver
         self.port_receiver = port_receiver
-        self.client = udp_client.SimpleUDPClient(self.ip_receiver, self.port_receiver)
+        try:
+            self.client = udp_client.SimpleUDPClient(self.ip_receiver, self.port_receiver)
+        except OSError as exc:
+            raise OSError(f"Could not create OSC client for {self.ip_receiver}:{self.port_receiver}") from exc
         self.DELIM = " "
         self.verbose_high = verbose_high
+        self._unused_start_thread = start_thread
 
     def send_message(self, identifier, message):
         self.client.send_message(identifier, message)
@@ -38,6 +43,11 @@ class OSCReceiver:
         self.rescale_all_input = rescale_all_input
         self.thread_osc = Thread(target=self.runfunc_thread_osc)
         self.running = False
+        self.running_vis = False
+        self.thread_vis = None
+        self.renderer = None
+        self.server = None
+        self._add_text_to_image = None
 
         self.dict_messages = {}
         self.dict_time = {}
@@ -61,24 +71,27 @@ class OSCReceiver:
         self.thread_osc.start()
 
     def process_incoming(self, *args):
+        if len(args) < 2:
+            if self.verbose_high:
+                print("OSCReceiver: ignoring message without payload")
+            return
         identifier = args[0]
         message = args[1]
 
-        if identifier not in self.dict_messages.keys():
+        try:
+            message = float(message)
+        except (ValueError, TypeError):
+            if self.verbose_high:
+                print(f"Received non-numerical message on {identifier}: {message!r}")
+            return
+        if identifier not in self.dict_messages:
             self.dict_messages[identifier] = []
-
-        if identifier not in self.dict_time.keys():
+        if identifier not in self.dict_time:
             self.dict_time[identifier] = []
 
         if len(self.dict_messages[identifier]) >= self.BUFFER_SIZE:
             self.dict_messages[identifier].pop(0)
             self.dict_time[identifier].pop(0)
-
-        try:
-            message = float(message)
-        except ValueError:
-            print(f"Received non-numerical message: {message}")
-            return
         self.dict_messages[identifier].append(message)
         self.dict_time[identifier].append(time.time())
 
@@ -87,7 +100,10 @@ class OSCReceiver:
 
     def start_visualization(self, shape_hw_vis=(200, 300), nmb_cols_vis=3, nmb_rows_vis=3, backend=None):
         from lunar_tools.display_window import GridRenderer
+        from lunar_tools.fontrender import add_text_to_image
 
+        if self.running_vis:
+            return
         self.shape_hw_vis = shape_hw_vis
         self.nmb_cols_vis = nmb_cols_vis
         self.nmb_rows_vis = nmb_rows_vis
@@ -104,6 +120,7 @@ class OSCReceiver:
         self.running_vis = True
         self.thread_vis = Thread(target=self.runfunc_thread_vis)
         self.thread_vis.start()
+        self._add_text_to_image = add_text_to_image
 
     def runfunc_thread_vis(self):
         while self.running_vis:
@@ -145,9 +162,12 @@ class OSCReceiver:
                 else:
                     dt = 0
                 text = f"{identifier} {dt}ms"
-                image = add_text_to_image(curve_array, text, y_pos=0.01, font_color=(255, 255, 255))
-                image = add_text_to_image(image, f"{max_val:.2e}", y_pos=0.01, align='left', font_color=(0, 255, 0), font_size=15)
-                image = add_text_to_image(image, f"{min_val:.2e}", y_pos=0.99, align='left', font_color=(0, 255, 0), font_size=15)
+                add_text = self._add_text_to_image
+                if add_text is None:
+                    raise RuntimeError("Visualization support requires lunar_tools.fontrender.")
+                image = add_text(curve_array, text, y_pos=0.01, font_color=(255, 255, 255))
+                image = add_text(image, f"{max_val:.2e}", y_pos=0.01, align='left', font_color=(0, 255, 0), font_size=15)
+                image = add_text(image, f"{min_val:.2e}", y_pos=0.99, align='left', font_color=(0, 255, 0), font_size=15)
 
                 image = np.copy(np.asarray(image))
 
@@ -164,11 +184,23 @@ class OSCReceiver:
             return
 
     def stop(self):
-        if self.running:
+        if self.running and self.server is not None:
             self.server.shutdown()
             self.server.server_close()
-            print("OSC server stopped")
             self.running = False
+            if self.thread_osc.is_alive():
+                self.thread_osc.join(timeout=1.0)
+            print("OSC server stopped")
+            self.server = None
+        if self.running_vis:
+            self.running_vis = False
+            if self.thread_vis and self.thread_vis.is_alive():
+                self.thread_vis.join(timeout=1.0)
+            if self.renderer:
+                try:
+                    self.renderer.close()
+                except AttributeError:
+                    pass
 
     def get_last_value(self, identifier, val_min=0, val_max=1, val_default=None, rescale_this_input=False):
         if val_default is None:

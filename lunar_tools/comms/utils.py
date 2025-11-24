@@ -1,6 +1,10 @@
+import json
 import re
 import socket
 import subprocess
+import time
+from pathlib import Path
+from typing import Dict, Optional, Tuple
 
 
 def get_local_ip():
@@ -75,4 +79,49 @@ def get_local_ip():
     return None
 
 
-__all__ = ["get_local_ip"]
+WEBRTC_SESSION_CACHE_PATH = Path.home() / ".lunar_tools" / "webrtc_sessions.json"
+
+
+def _load_session_cache() -> Dict[str, Dict[str, object]]:
+    if not WEBRTC_SESSION_CACHE_PATH.exists():
+        return {}
+    try:
+        data = json.loads(WEBRTC_SESSION_CACHE_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    return data  # type: ignore[return-value]
+
+
+def cache_webrtc_session_endpoint(session_id: str, host: str, port: int) -> Path:
+    cache = _load_session_cache()
+    cache[session_id] = {"host": host, "port": int(port), "updated": time.time()}
+    WEBRTC_SESSION_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    WEBRTC_SESSION_CACHE_PATH.write_text(json.dumps(cache, indent=2), encoding="utf-8")
+    return WEBRTC_SESSION_CACHE_PATH
+
+
+def get_cached_webrtc_session_endpoint(session_id: str) -> Optional[Tuple[str, int]]:
+    cache = _load_session_cache()
+    entry = cache.get(session_id)
+    if not isinstance(entry, dict):
+        return None
+    host = entry.get("host")
+    port = entry.get("port")
+    if not isinstance(host, str):
+        return None
+    if not isinstance(port, int):
+        try:
+            port = int(port)  # type: ignore[assignment]
+        except (TypeError, ValueError):
+            return None
+    return host, int(port)
+
+
+__all__ = [
+    "get_local_ip",
+    "WEBRTC_SESSION_CACHE_PATH",
+    "cache_webrtc_session_endpoint",
+    "get_cached_webrtc_session_endpoint",
+]

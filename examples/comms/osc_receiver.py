@@ -3,14 +3,14 @@ import os
 import sys
 import time
 
-REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
 from lunar_tools.comms import OSCReceiver
 
 
-def main():
+def parse_args():
     parser = argparse.ArgumentParser(description="Visualize incoming OSC values.")
     parser.add_argument("--ip", default="127.0.0.1", help="IP address to bind the OSC receiver to.")
     parser.add_argument("--port", type=int, default=8003, help="Port for the OSC receiver.")
@@ -28,8 +28,11 @@ def main():
         default=500,
         help="Width of each visualization panel (pixels). Height is derived from rows.",
     )
-    args = parser.parse_args()
+    return parser.parse_args()
 
+
+def main():
+    args = parse_args()
     receiver = OSCReceiver(ip_receiver=args.ip, port_receiver=args.port)
     receiver.start_visualization(shape_hw_vis=(args.height, args.width), nmb_cols_vis=args.cols, nmb_rows_vis=args.rows)
 

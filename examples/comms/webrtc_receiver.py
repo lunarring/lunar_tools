@@ -9,7 +9,10 @@ if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
 from lunar_tools.comms import WebRTCDataChannel
-from signaling_store import SESSION_CACHE_PATH, lookup_session_endpoint
+from lunar_tools.comms.utils import (
+    WEBRTC_SESSION_CACHE_PATH,
+    get_cached_webrtc_session_endpoint,
+)
 
 
 DEFAULT_PORT = 8787
@@ -67,7 +70,7 @@ def main():
         )
     signaling_port = args.signaling_port if args.signaling_port is not None else DEFAULT_PORT
     sender_ip = args.sender_ip
-    cache_entry = lookup_session_endpoint(args.session)
+    cache_entry = get_cached_webrtc_session_endpoint(args.session)
     cache_used = False
     if cache_entry is not None:
         cache_host, cache_port = cache_entry
@@ -81,7 +84,7 @@ def main():
         sender_ip = "127.0.0.1"
     signaling_url = f"http://{sender_ip}:{signaling_port}"
     if cache_used:
-        print(f"Cached signaling endpoint found in {SESSION_CACHE_PATH}.")
+        print(f"Cached signaling endpoint found in {WEBRTC_SESSION_CACHE_PATH}.")
     channel = WebRTCDataChannel(
         role="answer",
         session_id=args.session,

@@ -392,6 +392,16 @@ for i in range(10):
 receiver.get_all_values("/env1")
 ```
 
+For a quick CLI demo:
+
+```bash
+# Terminal 1: visualize incoming OSC data
+python examples/comms/osc_receiver.py --ip 0.0.0.0 --port 8003
+
+# Terminal 2: emit demo sine/triangle waves towards the receiver
+python examples/comms/osc_sender.py --ip 127.0.0.1 --port 8003 --channels /env1 /env2 /env3
+```
+
 # Logging and terminal printing
 ```python
 import lunar_tools as lt

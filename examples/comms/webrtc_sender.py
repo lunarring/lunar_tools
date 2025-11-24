@@ -11,8 +11,11 @@ if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
 from lunar_tools.comms import SimpleWebRTCSignalingServer, WebRTCDataChannel
-from lunar_tools.comms.utils import get_local_ip
-from signaling_store import SESSION_CACHE_PATH, remember_session_endpoint
+from lunar_tools.comms.utils import (
+    WEBRTC_SESSION_CACHE_PATH,
+    cache_webrtc_session_endpoint,
+    get_local_ip,
+)
 
 
 def generate_frame(frame_id: int, width: int, height: int) -> np.ndarray:
@@ -70,9 +73,9 @@ def main():
         if bound is not None:
             signaling_port = bound[1]
             signaling_url = f"http://{sender_ip}:{signaling_port}"
-        remember_session_endpoint(args.session, sender_ip, signaling_port)
+        cache_webrtc_session_endpoint(args.session, sender_ip, signaling_port)
         print(f"Signaling server listening on {signaling_url}/session/{args.session}/<offer|answer>")
-        print(f"Session info cached in {SESSION_CACHE_PATH} for receivers to reuse.")
+        print(f"Session info cached in {WEBRTC_SESSION_CACHE_PATH} for receivers to reuse.")
 
     channel = WebRTCDataChannel(
         role="offer",
