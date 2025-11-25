@@ -188,80 +188,6 @@ instructions on the fly.
 python examples/voice/realtime_voice_example.py
 ```
 
-### Simple Example
-```python
-instructions = "Respond briefly and with a sarcastic attitude."
-rtv = RealTimeVoice(instructions=instructions)
-rtv.start()
-try:
-    while True:
-        time.sleep(0.1)
-except KeyboardInterrupt:
-    rtv.stop()
-    print("\nExiting.")
-```
-
-### Advanced Example
-```python
-instructions = "Respond briefly and with a sarcastic attitude."
-temperature = 0.6
-voice = "echo"
-mute_mic_while_ai_speaking = True # that's the default already, just FYI
-
-# Optional: callback for when the whisper transcription is done
-async def on_user_transcript(transcript: str):
-    print(f"(on_user_transcript) User said: {transcript}")
-
-# Optional: callback for when the transcript of the voice response is there
-async def on_ai_transcript(transcript: str):
-    print(f"(on_ai_transcript) AI replied: {transcript}")
-
-# Optional: callback for when the audio has been completely played
-async def on_audio_complete():
-    print("(on_audio_complete) AI audio has been completely played.")
-
-rtv = RealTimeVoice(
-    instructions=instructions,
-    on_user_transcript=on_user_transcript,
-    on_ai_transcript=on_ai_transcript,
-    on_audio_complete=on_audio_complete,
-    model="gpt-4o-mini-realtime-preview-2024-12-17",
-    temperature=temperature,
-    voice=voice,
-    mute_mic_while_ai_speaking=mute_mic_while_ai_speaking,
-    max_response_output_tokens="inf",
-)
-
-rtv.start()
-
-# Let's inject an initial message so we have a conversation started. We can do this at any point!
-rtv.inject_message("Hello AI, what's up?")
-
-try:
-    while True:
-        cmd = input("Commands: (p) pause, (r) resume, (s) stop, (i) inject <msg>, (u) update_instructions <text>, (t) print_transcript\n> ").strip()
-        if cmd.lower() == "p":
-            rtv.pause()
-        elif cmd.lower() == "r":
-            rtv.resume()
-        elif cmd.lower() == "s":
-            rtv.stop()
-            break
-        elif cmd.lower().startswith("i "):
-            message = cmd[len("i "):].strip()
-            rtv.inject_message(message)
-        elif cmd.lower().startswith("u "):
-            new_instructions = cmd[len("u "):].strip()
-            rtv.update_instructions(new_instructions)
-        elif cmd.lower() == "t":
-            print("\n".join([f"{entry.timestamp} {entry.role}: {entry.message}" for entry in rtv.transcripts]))
-        else:
-            print("Unknown command.")
-except KeyboardInterrupt:
-    rtv.stop()
-    print("\nExiting.")
-```
-
 ## 🎤 Deepgram Realtime Transcribe
 [examples/voice/deepgram_realtime_transcribe_example.py](examples/voice/deepgram_realtime_transcribe_example.py) uses
 `lt.RealTimeTranscribe` (Deepgram SDK) to stream microphone audio and print live transcripts.
@@ -280,16 +206,6 @@ to save the text to disk.
 python examples/voice/openai_speech_to_text_example.py --seconds 5 --output transcript.txt
 ```
 
-```python
-import lunar_tools as lt
-import time
-speech_detector = lt.Speech2Text()
-speech_detector.start_recording()
-time.sleep(3)
-translation = speech_detector.stop_recording()
-print(f"translation: {translation}")
-```
-
 ## 🔈 Text-to-Speech (OpenAI)
 [examples/voice/openai_text_to_speech_example.py](examples/voice/openai_text_to_speech_example.py)
 converts text to speech, saves it to an mp3, and can optionally stream the audio
@@ -299,45 +215,39 @@ immediately with `--play-inline`.
 python examples/voice/openai_text_to_speech_example.py --text "Testing 1 2 3" --voice nova --play-inline
 ```
 
-```python
-import lunar_tools as lt
-text2speech = lt.Text2SpeechOpenAI()
-text2speech.change_voice("nova")
-text2speech.generate("hey there can you hear me?", "hervoice.mp3")
-text2speech.play("hey there can you hear me?")
-```
-
 ## 🎶 Text-to-Speech (ElevenLabs)
-```python
-import lunar_tools as lt
-text2speech = lt.Text2SpeechElevenlabs()
-text2speech.change_voice("FU5JW1L0DwfWILWkNpW6")
-text2speech.play("hey there can you hear me?")
+[examples/voice/elevenlabs_text_to_speech_example.py](examples/voice/elevenlabs_text_to_speech_example.py)
+targets the ElevenLabs API with inline playback plus flags for stability, similarity,
+style, and speaker boost.
+
+```bash
+python examples/voice/elevenlabs_text_to_speech_example.py --text "Hi from ElevenLabs" --voice-id EXAVITQu4vr4xnSDxMaL --play-inline
 ```
 
-# Image generation APIs
-## Generate Images with Dall-e-3
-```python
-import lunar_tools as lt
-dalle3 = lt.Dalle3ImageGenerator()
-image, revised_prompt = dalle3.generate("a beautiful red house with snow on the roof, a chimney with smoke")
+# 🎨 Image Generation
+
+## 🖼️ DALL·E 3
+[examples/ai/dalle3_generate_example.py](examples/ai/dalle3_generate_example.py) calls
+`lt.Dalle3ImageGenerator`, saves the resulting PNG, and prints the revised prompt.
+
+```bash
+python examples/ai/dalle3_generate_example.py --prompt "A red house with snow and a chimney"
 ```
 
-## Generate Images with SDXL Turbo
-```python
-import lunar_tools as lt
-sdxl_turbo = lt.SDXL_TURBO()
-image, img_url = sdxl_turbo.generate("An astronaut riding a rainbow unicorn", "cartoon")
+## 🚀 SDXL Turbo
+[examples/ai/sdxl_turbo_example.py](examples/ai/sdxl_turbo_example.py) uses the Replicate-powered
+`lt.SDXL_TURBO` helper and stores the PNG plus source URL for reference.
+
+```bash
+python examples/ai/sdxl_turbo_example.py --prompt "An astronaut riding a rainbow unicorn" --width 768 --height 512
 ```
 
+# 🧾 Logging and Terminal Printing
+See [examples/outputs/logprint_example.py](examples/outputs/logprint_example.py) (already
+listed under Outputs) for colorized console streaming:
 
-# Logging and terminal printing
-```python
-import lunar_tools as lt
-logger = lt.LogPrint()  # No filename provided, will use default current_dir/logs/%y%m%d_%H%M
-logger.print("white")
-logger.print("red", "red")
-logger.print("green", "green")
+```bash
+python examples/outputs/logprint_example.py
 ```
 
 # Health status reporting via telegram
@@ -350,22 +260,11 @@ export TELEGRAM_BOT_TOKEN='XXX'
 export TELEGRAM_CHAT_ID='XXX'
 ```
 
-See the below example for the basic supported features
-```python
-health_reporter = lt.HealthReporter("Name of exhibit")
-    
-# in while loop, always report that exhibit is alive. This happens in a thread already.
-for i in range(100): #while lopp
-        health_reporter.report_alive()
-    
-# we can also just throw exceptions in there!
-try: 
-    x = y
-except Exception as e:
-    health_reporter.report_exception(e)
-    
-# or send something friendly!
-health_reporter.report_message("friendly manual message")
+See [examples/health/telegram_health_reporter_example.py](examples/health/telegram_health_reporter_example.py)
+for a runnable heartbeat + alert demo (requires the env vars above):
+
+```bash
+python examples/health/telegram_health_reporter_example.py --name "My Exhibit" --interval 2 --count 5
 ```
 
 # Devinfos
