@@ -242,6 +242,14 @@ python examples/ai/dalle3_generate_example.py --prompt "A red house with snow an
 python examples/ai/sdxl_turbo_example.py --prompt "An astronaut riding a rainbow unicorn" --width 768 --height 512
 ```
 
+## 🍌 Nano Banana Edit (Gradio)
+[examples/ai/nano_banana_edit_gradio.py](examples/ai/nano_banana_edit_gradio.py) launches a Gradio UI
+for interactive Flux/Nano Banana edits—drop in prompts, tweak sliders, and preview changes.
+
+```bash
+python examples/ai/nano_banana_edit_gradio.py
+```
+
 # Health status reporting via telegram
 Obtain a bot here: https://docs.tracardi.com/qa/how_can_i_get_telegram_bot/
 Next you will need to update your bashrc or bash_profile with the telegram bot env variables.
