@@ -7,7 +7,7 @@ Requirements:
 - DEEPGRAM_API_KEY in environment or configured via lunar_tools.utils.read_api_key
 
 Run:
-  python examples/deepgram_realtime_transcribe_example.py
+  python examples/voice/deepgram_realtime_transcribe_example.py
 """
 
 import time
@@ -52,4 +52,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

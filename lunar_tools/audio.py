@@ -913,4 +913,4 @@ class RealTimeTranscribe:
             self._chunk_counter += 1
 
     
-# Example usage moved to examples/deepgram_realtime_transcribe_example.py
+# Example usage moved to examples/voice/deepgram_realtime_transcribe_example.py

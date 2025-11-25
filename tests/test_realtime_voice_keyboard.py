@@ -6,7 +6,7 @@ import threading
 import pytest
 from lunar_tools.realtime_voice import RealTimeVoice
 
-from examples.realtime_voice_example import run_realtime_voice_example
+from examples.voice.realtime_voice_example import run_realtime_voice_example
 
 class DummyRTV(RealTimeVoice):
     def __init__(self, *args, **kwargs):
@@ -44,7 +44,7 @@ def test_realtime_voice_keyboard_interactive(monkeypatch, capsys):
     ])
     monkeypatch.setattr(builtins, "input", lambda prompt="": next(inputs))
 
-    import examples.realtime_voice_example as rve
+    import examples.voice.realtime_voice_example as rve
     original_rtv = rve.RealTimeVoice
     rve.RealTimeVoice = DummyRTV
 

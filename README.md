@@ -175,9 +175,18 @@ python examples/comms/zmq_sender.py --ip 127.0.0.1 --port 5556
 
 
 
-# Language
+# 🔊 Voice & Speech
+Voice-focused demos live in [examples/voice](examples/voice). Each script below can be
+run directly from the repo root and pairs with the API snippets that follow.
 
-## RealtimeVoice OpenAI
+## 🗣️ RealTimeVoice (OpenAI)
+[examples/voice/realtime_voice_example.py](examples/voice/realtime_voice_example.py) is an interactive CLI
+that lets you start/pause/mute a RealTimeVoice session, inject messages, and update
+instructions on the fly.
+
+```bash
+python examples/voice/realtime_voice_example.py
+```
 
 ### Simple Example
 ```python
@@ -253,15 +262,24 @@ except KeyboardInterrupt:
     print("\nExiting.")
 ```
 
+## 🎤 Deepgram Realtime Transcribe
+[examples/voice/deepgram_realtime_transcribe_example.py](examples/voice/deepgram_realtime_transcribe_example.py) uses
+`lt.RealTimeTranscribe` (Deepgram SDK) to stream microphone audio and print live transcripts.
+Set `DEEPGRAM_API_KEY` before running.
 
-## OpenAI
-```python
-import lunar_tools as lt
-openai = lt.OpenAIWrapper()
-msg = openai.generate("tell me about yourself")
+```bash
+python examples/voice/deepgram_realtime_transcribe_example.py
 ```
 
-## Speech2Text
+## 📝 Speech-to-Text (OpenAI)
+[examples/voice/openai_speech_to_text_example.py](examples/voice/openai_speech_to_text_example.py)
+records a short microphone clip and prints the transcript, with an optional flag
+to save the text to disk.
+
+```bash
+python examples/voice/openai_speech_to_text_example.py --seconds 5 --output transcript.txt
+```
+
 ```python
 import lunar_tools as lt
 import time
@@ -272,27 +290,27 @@ translation = speech_detector.stop_recording()
 print(f"translation: {translation}")
 ```
 
-The playback is threaded and does not block the main application. You can stop the playback via: 
-```python
-player.stop_sound()
+## 🔈 Text-to-Speech (OpenAI)
+[examples/voice/openai_text_to_speech_example.py](examples/voice/openai_text_to_speech_example.py)
+converts text to speech, saves it to an mp3, and can optionally stream the audio
+immediately with `--play-inline`.
+
+```bash
+python examples/voice/openai_text_to_speech_example.py --text "Testing 1 2 3" --voice nova --play-inline
 ```
 
-## Text2Speech OpenAI
 ```python
 import lunar_tools as lt
 text2speech = lt.Text2SpeechOpenAI()
 text2speech.change_voice("nova")
 text2speech.generate("hey there can you hear me?", "hervoice.mp3")
-```
-
-The Text2Speech can also directly generate and play back the sound via: 
-```python
 text2speech.play("hey there can you hear me?")
 ```
 
-## Text2Speech elevenlabs
+## 🎶 Text-to-Speech (ElevenLabs)
 ```python
-text2speech = Text2SpeechElevenlabs()
+import lunar_tools as lt
+text2speech = lt.Text2SpeechElevenlabs()
 text2speech.change_voice("FU5JW1L0DwfWILWkNpW6")
 text2speech.play("hey there can you hear me?")
 ```
