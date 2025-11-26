@@ -6,7 +6,7 @@ with open('requirements.txt') as f:
 
 setup(
     name='lunar_tools',
-    version='0.0.11',
+    version='0.0.12',
     packages=find_packages(),
     package_data={
     'lunar_tools': ['midi_configs/*.yml'],
