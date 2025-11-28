@@ -122,6 +122,13 @@ python examples/outputs/movie_saver_example.py --output my_movie.mp4 --frames 10
 
 # 📡 Communication
 
+## 📍 Local IP Detection
+`lunar_tools.comms.get_local_ip` inspects network interfaces to determine the best IP to share with peers. Run the example below to print the detected address or see a friendly warning if one cannot be determined (for example, on air-gapped machines).
+
+```bash
+python examples/comms/get_local_ip_example.py
+```
+
 ## 🌐 WebRTC Data Channels
 Low-latency data channel built on WebRTC for streaming numpy arrays, JSON blobs, PNG previews, and log text. Requires the optional `aiortc` extra (`python -m pip install "lunar_tools[webrtc]"`).
 
