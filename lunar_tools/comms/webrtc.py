@@ -46,6 +46,9 @@ class WebRTCDataChannel:
         max_pending_messages: Optional[int] = None,
         drop_oldest_on_overflow: bool = True,
         logger: Optional[logging.Logger] = None,
+        ordered: bool = True,
+        max_retransmits: Optional[int] = None,
+        max_packet_life_time: Optional[int] = None,
     ) -> None:
         if role not in {"offer", "answer"}:
             raise ValueError("role must be 'offer' or 'answer'")
@@ -76,6 +79,9 @@ class WebRTCDataChannel:
         self._reconnect_delay = max(0.0, reconnect_delay)
         self._stopped = threading.Event()
         self._disconnect_event: Optional[asyncio.Event] = None
+        self._ordered = ordered
+        self._max_retransmits = max_retransmits
+        self._max_packet_life_time = max_packet_life_time
 
     # Lifecycle ------------------------------------------------------
     def connect(self, timeout: Optional[float] = None) -> None:
@@ -229,8 +235,18 @@ class WebRTCDataChannel:
                     self._disconnect_event.set()
 
         if self._role == "offer":
-            self._logger.info("Creating offer and local data channel")
-            channel = pc.createDataChannel(self._channel_label)
+            self._logger.info(
+                "Creating offer and local data channel (ordered=%s, maxRetransmits=%s, maxPacketLifeTime=%s)",
+                self._ordered,
+                self._max_retransmits,
+                self._max_packet_life_time,
+            )
+            channel = pc.createDataChannel(
+                self._channel_label,
+                ordered=self._ordered,
+                maxRetransmits=self._max_retransmits,
+                maxPacketLifeTime=self._max_packet_life_time,
+            )
             self._setup_channel(channel, loop)
             offer = await pc.createOffer()
             await pc.setLocalDescription(offer)
