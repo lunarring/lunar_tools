@@ -60,9 +60,15 @@ def parse_args():
     parser.add_argument("--signaling-port", type=int, default=8787, help="Port for the embedded signaling server.")
     parser.add_argument("--session", default="demo-session", help="Session identifier shared with the receiver.")
     parser.add_argument("--channel", default="lunar-data", help="WebRTC data-channel label.")
-    parser.add_argument("--width", type=int, default=640, help="Array width in elements.")
-    parser.add_argument("--height", type=int, default=360, help="Array height in elements.")
+    parser.add_argument("--width", type=int, default=None, help="Array width in elements.")
+    parser.add_argument("--height", type=int, default=None, help="Array height in elements.")
     parser.add_argument("--fps", type=float, default=20.0, help="Target frames per second.")
+    parser.add_argument(
+        "--mbps",
+        type=float,
+        default=None,
+        help="Target stream throughput in MiB/s (used to pick frame size when width/height are unset).",
+    )
     parser.add_argument("--no-server", action="store_true", help="Do not start the embedded signaling server.")
     parser.add_argument(
         "--buffer-size",
@@ -72,6 +78,16 @@ def parse_args():
     )
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable debug logging.")
     return parser.parse_args()
+
+
+def pick_dimensions(fps: float, mbps: float) -> tuple[int, int]:
+    bytes_per_sec = max(1.0, mbps * 1024.0 * 1024.0)
+    bytes_per_frame = max(1.0, bytes_per_sec / max(fps, 0.001))
+    pixels = max(1, int(bytes_per_frame / 12.0))  # float32 RGB => 12 bytes per pixel
+    side = max(1, int(np.sqrt(pixels)))
+    width = side
+    height = max(1, int(np.ceil(pixels / width)))
+    return int(width), int(height)
 
 
 def main():
@@ -96,6 +112,14 @@ def main():
         print(f"Signaling server listening on {signaling_url}/session/{args.session}/<offer|answer>")
         print(f"Session info cached in {WEBRTC_SESSION_CACHE_PATH} for receivers to reuse.")
 
+    if args.width is None or args.height is None:
+        if args.mbps is not None:
+            width, height = pick_dimensions(args.fps, args.mbps)
+        else:
+            width, height = 640, 360
+    else:
+        width, height = args.width, args.height
+
     channel = WebRTCDataChannel(
         role="offer",
         session_id=args.session,
@@ -112,13 +136,14 @@ def main():
     try:
         while True:
             start = time.perf_counter()
-            frame = generate_frame(frame_id, args.width, args.height)
+            frame = generate_frame(frame_id, width, height)
             channel.send(frame, address="frames")
             telemetry = {
                 "frame": frame_id,
                 "timestamp": time.time(),
                 "shape": frame.shape,
                 "mean_rgb": [float(frame[..., idx].mean()) for idx in range(frame.shape[-1])],
+                "fps": args.fps,
             }
             channel.send(telemetry, address="telemetry")
             if frame_id % 45 == 0:
