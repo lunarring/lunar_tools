@@ -350,6 +350,8 @@ class FrequencyFilter:
         high_pass_filter[mask_area] = 0
         self.high_pass_filter = high_pass_filter
         self.low_pass_filter = 1 - high_pass_filter
+        self.high_pass_filter_unshifted = torch.fft.ifftshift(high_pass_filter)
+        self.low_pass_filter_unshifted = torch.fft.ifftshift(self.low_pass_filter)
 
 
     def apply_highpass(self, image):
@@ -367,7 +369,7 @@ class FrequencyFilter:
         Returns:
             torch.Tensor: The filtered image. The image is a 4D tensor with shape (batch_size, channels, height, width).
         """
-        filter_torch = self.high_pass_filter
+        filter_torch = self.high_pass_filter_unshifted
         return self._apply_filter(image, filter_torch)
 
     def apply_lowpass(self, image):
@@ -385,21 +387,20 @@ class FrequencyFilter:
         Returns:
             torch.Tensor: The filtered image. The image is a 4D tensor with shape (batch_size, channels, height, width).
         """
-        filter_torch = self.low_pass_filter
+        filter_torch = self.low_pass_filter_unshifted
         return self._apply_filter(image, filter_torch)
 
     def _apply_filter(self, image, filter_torch):
-        batch_size, channels, height, width = image.shape
+        _, channels, _, _ = image.shape
         filtered_images = []
-        
+
+        # Preserve legacy behavior: apply filter to the first batch only.
         for i in range(channels):
-            fft_image = torch.fft.fft2(image[0, i, :, :])
-            fft_image_shifted = torch.fft.fftshift(fft_image)
-            filtered_fft_shifted = fft_image_shifted * filter_torch
-            filtered_fft = torch.fft.ifftshift(filtered_fft_shifted)
-            filtered_image = torch.fft.ifft2(filtered_fft)
+            fft_image = torch.fft.fft2(image[0, i], dim=(-2, -1))
+            filtered_fft = fft_image * filter_torch
+            filtered_image = torch.fft.ifft2(filtered_fft, dim=(-2, -1))
             filtered_images.append(torch.real(filtered_image))
-        
+
         return torch.stack(filtered_images, dim=0).unsqueeze(0)
 
 # Example for FrequencyFilter
@@ -419,4 +420,3 @@ if __name__ == "__main__X":
     
     blur = GaussianBlur((3, 3), 3)
     output = blur(tx)
-
