@@ -391,17 +391,12 @@ class FrequencyFilter:
         return self._apply_filter(image, filter_torch)
 
     def _apply_filter(self, image, filter_torch):
-        _, channels, _, _ = image.shape
-        filtered_images = []
-
         # Preserve legacy behavior: apply filter to the first batch only.
-        for i in range(channels):
-            fft_image = torch.fft.fft2(image[0, i], dim=(-2, -1))
-            filtered_fft = fft_image * filter_torch
-            filtered_image = torch.fft.ifft2(filtered_fft, dim=(-2, -1))
-            filtered_images.append(torch.real(filtered_image))
-
-        return torch.stack(filtered_images, dim=0).unsqueeze(0)
+        image0 = image[0]
+        fft_image = torch.fft.fft2(image0, dim=(-2, -1))
+        filtered_fft = fft_image * filter_torch
+        filtered_image = torch.fft.ifft2(filtered_fft, dim=(-2, -1))
+        return torch.real(filtered_image).unsqueeze(0)
 
 # Example for FrequencyFilter
 if __name__ == "__main__":
