@@ -248,6 +248,7 @@ def resize(input_img, resizing_factor=None, size=None, resample_method='bicubic'
     
     input_type = type(input_img)
     input_dtype = None
+    size_checked = False
     
     if force_device is not None:
         device = force_device
@@ -258,18 +259,27 @@ def resize(input_img, resizing_factor=None, size=None, resample_method='bicubic'
     
     if input_type == np.ndarray:
         input_dtype = input_img.dtype
-        input_img = input_img.copy()
+        if len(input_img.shape) not in (2, 3):
+            raise ValueError("input_type np.ndarray should be 2 or 3 dimensional!")
+        if (size is not None) and (resizing_factor is not None):
+            raise ValueError("Provide either size or downscaling_factor, not both.")
+        elif (size is None) and (resizing_factor is None):
+            raise ValueError("Either size or downscaling_factor must be provided.")
+        if size is None:
+            size = (int(input_img.shape[0] * resizing_factor), int(input_img.shape[1] * resizing_factor))
+        size_checked = True
+        if size == (input_img.shape[0], input_img.shape[1]):
+            resized_array = np.clip(np.round(input_img), 0, 255).astype(input_dtype)
+            return resized_array
         if len(input_img.shape) == 3:
             input_tensor = torch.as_tensor(input_img, dtype=torch.float, device=device).permute(2, 0, 1)
-        elif len(input_img.shape) == 2:
-            input_tensor = torch.as_tensor(input_img, dtype=torch.float, device=device).unsqueeze(0)
         else:
-            raise ValueError("input_type np.ndarray should be 2 or 3 dimensional!")
+            input_tensor = torch.as_tensor(input_img, dtype=torch.float, device=device).unsqueeze(0)
     elif input_type == Image.Image:
         input_tensor = torch.as_tensor(np.array(input_img), dtype=torch.float, device=device).permute(2, 0, 1)
     elif input_type == torch.Tensor:
         input_dtype = input_img.dtype
-        input_tensor = input_img.clone().to(dtype=torch.float, device=device)
+        input_tensor = input_img.to(dtype=torch.float, device=device)
         is_channels_last = False
         if input_tensor.dim() == 3 and input_tensor.shape[2] <= 3:
             is_channels_last = True
@@ -277,20 +287,15 @@ def resize(input_img, resizing_factor=None, size=None, resample_method='bicubic'
     else:
         raise TypeError("input_img should be of type np.ndarray, PIL.Image, or torch.Tensor")
     
-    if (size is not None) and (resizing_factor is not None):
-        raise ValueError("Provide either size or downscaling_factor, not both.")
-    elif (size is None) and (resizing_factor is None):
-        raise ValueError("Either size or downscaling_factor must be provided.")
-    if input_tensor.dim() == 4:
-        raise ValueError("resize() does not support batched images; expected a 3-dimensional tensor.")
-    if (size is not None) and (resizing_factor is not None):
-        raise ValueError("Provide either size or downscaling_factor, not both.")
-    elif (size is None) and (resizing_factor is None):
-        raise ValueError("Either size or downscaling_factor must be provided.")
-    elif size is not None:
-        size = size
-    else:
-        size = (int(input_tensor.shape[1] * resizing_factor), int(input_tensor.shape[2] * resizing_factor))
+    if not size_checked:
+        if (size is not None) and (resizing_factor is not None):
+            raise ValueError("Provide either size or downscaling_factor, not both.")
+        elif (size is None) and (resizing_factor is None):
+            raise ValueError("Either size or downscaling_factor must be provided.")
+        if input_tensor.dim() == 4:
+            raise ValueError("resize() does not support batched images; expected a 3-dimensional tensor.")
+        if size is None:
+            size = (int(input_tensor.shape[1] * resizing_factor), int(input_tensor.shape[2] * resizing_factor))
     
     resized_tensor = torch.nn.functional.interpolate(input_tensor.unsqueeze(0), size=size, mode=resample_method).squeeze(0)
     
@@ -299,11 +304,16 @@ def resize(input_img, resizing_factor=None, size=None, resample_method='bicubic'
             resized_tensor = resized_tensor.permute(1,2,0).cpu()
         elif len(input_img.shape) == 2:
             resized_tensor = resized_tensor.squeeze(0).cpu()
-        resized_array = np.clip(np.round(resized_tensor.numpy()), 0, 255).astype(input_dtype)
-        return resized_array
+        resized_array = resized_tensor.numpy()
+        np.rint(resized_array, out=resized_array)
+        np.clip(resized_array, 0, 255, out=resized_array)
+        return resized_array.astype(input_dtype, copy=False)
     elif input_type == Image.Image:
         resized_tensor = resized_tensor.permute(1,2,0).cpu()
-        resized_array = np.clip(np.round(resized_tensor.numpy()), 0, 255).astype('uint8')
+        resized_array = resized_tensor.numpy()
+        np.rint(resized_array, out=resized_array)
+        np.clip(resized_array, 0, 255, out=resized_array)
+        resized_array = resized_array.astype('uint8', copy=False)
         return Image.fromarray(resized_array, 'RGB')
     else:
         if 'is_channels_last' in locals() and is_channels_last:
