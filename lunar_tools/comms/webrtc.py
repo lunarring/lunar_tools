@@ -415,7 +415,10 @@ def _create_microphone_audio_track(
             if status:
                 logger.debug("Microphone stream status: %s", status)
             frame = np.copy(indata)
-            frame = frame.T
+            if frame.ndim == 1:
+                frame = frame.reshape(1, -1)
+            else:
+                frame = frame.T
             try:
                 self._queue.put_nowait(frame)
             except Full:
@@ -438,15 +441,17 @@ def _create_microphone_audio_track(
             frame = await loop.run_in_executor(None, self._queue.get)
             if frame is None:
                 raise asyncio.CancelledError
+            if not frame.flags.c_contiguous:
+                frame = np.ascontiguousarray(frame)
             audio_frame = AudioFrame.from_ndarray(
                 frame,
-                format="s16",
+                format="s16p",
                 layout="mono" if channels == 1 else "stereo",
             )
             audio_frame.sample_rate = sample_rate
             audio_frame.pts = self._timestamp
             audio_frame.time_base = self._time_base
-            self._timestamp += frame.shape[0]
+            self._timestamp += frame.shape[1]
             return audio_frame
 
         def stop(self):
@@ -509,9 +514,11 @@ def _create_sine_audio_track(
                 data = np.repeat(data[None, :], channels, axis=0)
             else:
                 data = data.reshape(1, -1)
+            if not data.flags.c_contiguous:
+                data = np.ascontiguousarray(data)
             audio_frame = AudioFrame.from_ndarray(
                 data,
-                format="s16",
+                format="s16p",
                 layout="mono" if channels == 1 else "stereo",
             )
             audio_frame.sample_rate = sample_rate
@@ -917,8 +924,11 @@ class WebRTCAudioPeer:
                 except Exception:
                     break
                 data = frame.to_ndarray()
-                if data.ndim == 2:
-                    data = data.T
+                if data.ndim == 1:
+                    data = data.reshape(-1, 1)
+                elif data.ndim == 2:
+                    if data.shape[1] > data.shape[0]:
+                        data = data.T
                 if data.dtype.kind == "f":
                     data = np.clip(data, -1.0, 1.0)
                     data = (data * 32767.0).astype(np.int16)
@@ -953,8 +963,11 @@ class WebRTCAudioPeer:
                 except Exception:
                     break
                 data = frame.to_ndarray()
-                if data.ndim == 2:
-                    data = data.T
+                if data.ndim == 1:
+                    data = data.reshape(-1, 1)
+                elif data.ndim == 2:
+                    if data.shape[1] > data.shape[0]:
+                        data = data.T
                 if self._monitor_on_frame is not None:
                     self._monitor_on_frame(data)
                 samples = data.shape[0]

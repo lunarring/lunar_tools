@@ -23,7 +23,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--session", default="audio-session", help="Session identifier shared with the receiver.")
     parser.add_argument("--no-server", action="store_true", help="Do not start the embedded signaling server.")
     parser.add_argument("--sample-rate", type=int, default=48000, help="Microphone sample rate (Hz).")
-    parser.add_argument("--channels", type=int, default=1, help="Number of microphone channels.")
+    parser.add_argument("--channels", type=int, default=2, help="Number of audio channels.")
     parser.add_argument("--frame-ms", type=float, default=20.0, help="Frame duration in milliseconds.")
     parser.add_argument(
         "--mic",
@@ -93,7 +93,8 @@ def main() -> None:
     print("Waiting for receiver to answer the WebRTC offer...")
     peer.connect()
     source = "microphone" if args.mic else "tone"
-    print(f"Audio streaming ({source}). Press Ctrl+C to stop.")
+    channel_label = "stereo" if args.channels == 2 else f"{args.channels}ch"
+    print(f"Audio streaming ({source}, {channel_label}). Press Ctrl+C to stop.")
 
     try:
         while True:

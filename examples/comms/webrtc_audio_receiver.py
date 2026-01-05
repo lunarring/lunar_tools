@@ -74,7 +74,7 @@ def main() -> None:
         latest_frame["data"] = frame
 
     peer.start_audio_monitor(on_stats=_print_stats, on_frame=_capture_frame, interval=1.0)
-    print("Ready. Audio track will be received but not played. Press Ctrl+C to stop.")
+    print("Ready. Audio track will be received but not played. Frames are (samples, channels).")
 
     try:
         while True:
