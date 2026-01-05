@@ -2,7 +2,7 @@ import asyncio
 import logging
 import threading
 from queue import Empty, Full, Queue
-from typing import Any, Dict, Iterable, Optional
+from typing import Any, Callable, Dict, Iterable, Optional
 
 from .webrtc_codec import EncodedMessage, decode_message, encode_message
 from .webrtc_signaling import RestSignalingClient
@@ -368,4 +368,617 @@ class WebRTCDataChannel:
             _on_open()
 
 
-__all__ = ["WebRTCDataChannel"]
+def _create_microphone_audio_track(
+    *,
+    sample_rate: int,
+    channels: int,
+    frame_duration: float,
+    device: Optional[int | str],
+    max_pending_frames: Optional[int],
+    drop_oldest_on_overflow: bool,
+    logger: logging.Logger,
+):
+    from fractions import Fraction
+    from queue import Queue
+
+    import numpy as np
+    import sounddevice as sd
+    from aiortc import MediaStreamTrack
+    from av import AudioFrame
+
+    samples_per_frame = max(1, int(sample_rate * frame_duration))
+    queue_size = 0 if not max_pending_frames or max_pending_frames <= 0 else int(max_pending_frames)
+
+    class MicrophoneAudioStreamTrack(MediaStreamTrack):
+        kind = "audio"
+
+        def __init__(self):
+            super().__init__()
+            self._queue: "Queue[Optional[np.ndarray]]" = Queue(maxsize=queue_size)
+            self._drop_oldest_on_overflow = drop_oldest_on_overflow
+            self._timestamp = 0
+            self._time_base = Fraction(1, sample_rate)
+            self._closed = False
+            self._stream = sd.InputStream(
+                samplerate=sample_rate,
+                channels=channels,
+                dtype="int16",
+                blocksize=samples_per_frame,
+                device=device,
+                callback=self._on_audio,
+            )
+            self._stream.start()
+
+        def _on_audio(self, indata, frames, time_info, status):
+            if self._closed:
+                return
+            if status:
+                logger.debug("Microphone stream status: %s", status)
+            frame = np.copy(indata)
+            frame = frame.T
+            try:
+                self._queue.put_nowait(frame)
+            except Full:
+                if self._drop_oldest_on_overflow:
+                    try:
+                        self._queue.get_nowait()
+                    except Empty:
+                        pass
+                    try:
+                        self._queue.put_nowait(frame)
+                        return
+                    except Full:
+                        pass
+                logger.warning("Dropping microphone frame: buffer full (max=%s)", queue_size)
+
+        async def recv(self):
+            if self.readyState != "live":
+                raise asyncio.CancelledError
+            loop = asyncio.get_running_loop()
+            frame = await loop.run_in_executor(None, self._queue.get)
+            if frame is None:
+                raise asyncio.CancelledError
+            audio_frame = AudioFrame.from_ndarray(
+                frame,
+                format="s16",
+                layout="mono" if channels == 1 else "stereo",
+            )
+            audio_frame.sample_rate = sample_rate
+            audio_frame.pts = self._timestamp
+            audio_frame.time_base = self._time_base
+            self._timestamp += frame.shape[0]
+            return audio_frame
+
+        def stop(self):
+            if self._closed:
+                return
+            self._closed = True
+            try:
+                self._stream.stop()
+                self._stream.close()
+            except Exception:
+                logger.debug("Microphone stream close error", exc_info=True)
+            try:
+                self._queue.put_nowait(None)
+            except Full:
+                pass
+            super().stop()
+
+    return MicrophoneAudioStreamTrack()
+
+
+def _create_sine_audio_track(
+    *,
+    sample_rate: int,
+    channels: int,
+    frame_duration: float,
+    frequency: float,
+    amplitude: float,
+    logger: logging.Logger,
+):
+    from fractions import Fraction
+
+    import numpy as np
+    import time
+    from aiortc import MediaStreamTrack
+    from av import AudioFrame
+
+    samples_per_frame = max(1, int(sample_rate * frame_duration))
+    phase_step = 2.0 * np.pi * frequency / sample_rate
+    amplitude = float(max(0.0, min(1.0, amplitude)))
+
+    class SineAudioStreamTrack(MediaStreamTrack):
+        kind = "audio"
+
+        def __init__(self):
+            super().__init__()
+            self._timestamp = 0
+            self._time_base = Fraction(1, sample_rate)
+            self._phase = 0.0
+            self._frame_count = 0
+            self._last_log = time.monotonic()
+
+        async def recv(self):
+            if self.readyState != "live":
+                raise asyncio.CancelledError
+            t = self._phase + phase_step * np.arange(samples_per_frame, dtype=np.float32)
+            tone = np.sin(t) * amplitude
+            self._phase = float(t[-1] + phase_step)
+            data = np.clip(tone * 32767.0, -32768, 32767).astype(np.int16)
+            if channels > 1:
+                data = np.repeat(data[None, :], channels, axis=0)
+            else:
+                data = data.reshape(1, -1)
+            audio_frame = AudioFrame.from_ndarray(
+                data,
+                format="s16",
+                layout="mono" if channels == 1 else "stereo",
+            )
+            audio_frame.sample_rate = sample_rate
+            audio_frame.pts = self._timestamp
+            audio_frame.time_base = self._time_base
+            self._timestamp += samples_per_frame
+            self._frame_count += 1
+            now = time.monotonic()
+            if now - self._last_log >= 1.0:
+                logger.info("Tone track frames sent: %s", self._frame_count)
+                self._last_log = now
+            await asyncio.sleep(frame_duration)
+            return audio_frame
+
+    return SineAudioStreamTrack()
+
+
+class WebRTCAudioPeer:
+    """WebRTC helper for streaming microphone audio tracks."""
+
+    def __init__(
+        self,
+        *,
+        role: str,
+        session_id: str,
+        signaling_url: str,
+        ice_servers: Optional[Iterable[Dict[str, Any]]] = None,
+        connect_timeout: float = 30.0,
+        request_timeout: float = 30.0,
+        ice_gathering_timeout: float = 5.0,
+        reconnect_delay: float = 2.0,
+        logger: Optional[logging.Logger] = None,
+        send_audio: bool = True,
+        receive_audio: bool = True,
+        audio_source: str = "mic",
+        sample_rate: int = 48000,
+        channels: int = 1,
+        frame_duration: float = 0.02,
+        audio_device: Optional[int | str] = None,
+        max_pending_frames: Optional[int] = None,
+        drop_oldest_on_overflow: bool = True,
+        tone_frequency: float = 440.0,
+        tone_amplitude: float = 0.2,
+    ) -> None:
+        if role not in {"offer", "answer"}:
+            raise ValueError("role must be 'offer' or 'answer'")
+        self._role = role
+        self._session_id = session_id
+        self._ice_servers = list(ice_servers) if ice_servers else []
+        self._connect_timeout = max(1.0, connect_timeout)
+        self._logger = logger or logging.getLogger(__name__)
+        self._signaling = RestSignalingClient(
+            base_url=signaling_url,
+            session_id=session_id,
+            role=role,
+            request_timeout=request_timeout,
+        )
+        self._loop: Optional[asyncio.AbstractEventLoop] = None
+        self._thread: Optional[threading.Thread] = None
+        self._worker_future: Optional[asyncio.Future] = None
+        self._pc = None
+        self._ready_event = threading.Event()
+        self._disconnect_event: Optional[asyncio.Event] = None
+        self._ice_gathering_timeout = max(1.0, ice_gathering_timeout)
+        self._reconnect_delay = max(0.0, reconnect_delay)
+        self._stopped = threading.Event()
+        self._send_audio = send_audio
+        self._receive_audio = receive_audio
+        self._audio_source = audio_source
+        self._sample_rate = sample_rate
+        self._channels = channels
+        self._frame_duration = frame_duration
+        self._audio_device = audio_device
+        self._max_pending_frames = max_pending_frames
+        self._drop_oldest_on_overflow = drop_oldest_on_overflow
+        self._tone_frequency = tone_frequency
+        self._tone_amplitude = tone_amplitude
+        self._local_audio_track = None
+        self._remote_audio_track = None
+        self._audio_track_event = threading.Event()
+        self._audio_track_async_event: Optional[asyncio.Event] = None
+        self._playback_enabled = False
+        self._playback_task: Optional[asyncio.Task] = None
+        self._monitor_task: Optional[asyncio.Task] = None
+        self._monitor_callback: Optional[Callable[[Dict[str, Any]], None]] = None
+        self._monitor_interval = 1.0
+
+    def connect(self, timeout: Optional[float] = None) -> None:
+        wait_timeout = timeout or self._connect_timeout
+        if self._loop is None:
+            self._start_loop()
+        if self._worker_future is not None and self._worker_future.done():
+            self._worker_future = None
+        if self._worker_future is None:
+            self._stopped.clear()
+            self._logger.info("WebRTC audio connect start (role=%s session=%s)", self._role, self._session_id)
+            self._worker_future = asyncio.run_coroutine_threadsafe(self._connection_worker(), self._loop)
+        if not self._ready_event.wait(wait_timeout):
+            raise TimeoutError("Timed out waiting for WebRTC audio connection to be ready")
+        if self._playback_enabled:
+            self._schedule_playback()
+        self._logger.info("WebRTC audio ready (role=%s)", self._role)
+
+    def close(self) -> None:
+        if self._loop is None:
+            return
+        self._logger.info("Closing WebRTC audio connection for session %s", self._session_id)
+        self._stopped.set()
+        if self._disconnect_event is not None:
+            self._loop.call_soon_threadsafe(self._disconnect_event.set)
+        if self._worker_future is not None:
+            self._worker_future.cancel()
+            try:
+                self._worker_future.result(timeout=5.0)
+            except Exception:
+                pass
+            self._worker_future = None
+        future = asyncio.run_coroutine_threadsafe(self._shutdown(), self._loop)
+        try:
+            future.result(timeout=5.0)
+        finally:
+            self._loop.call_soon_threadsafe(self._loop.stop)
+            if self._thread and self._thread.is_alive():
+                self._thread.join(timeout=1.0)
+            self._loop = None
+            self._thread = None
+            self._pc = None
+            self._ready_event.clear()
+            self._remote_audio_track = None
+            self._audio_track_event.clear()
+            self._audio_track_async_event = None
+
+    def __enter__(self):
+        self.connect()
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        self.close()
+        return False
+
+    def wait_for_remote_audio(self, timeout: Optional[float] = None):
+        if not self._audio_track_event.wait(timeout=timeout):
+            return None
+        return self._remote_audio_track
+
+    def get_connection_state(self) -> Optional[str]:
+        if self._pc is None:
+            return None
+        return getattr(self._pc, "connectionState", None)
+
+    def start_playback(self) -> None:
+        self._playback_enabled = True
+        self._schedule_playback()
+
+    def start_audio_monitor(
+        self,
+        *,
+        on_stats: Optional[Callable[[Dict[str, Any]], None]] = None,
+        interval: float = 1.0,
+    ) -> None:
+        self._monitor_callback = on_stats
+        self._monitor_interval = max(0.2, interval)
+        if self._loop is None:
+            return
+        asyncio.run_coroutine_threadsafe(self._ensure_monitor_task(), self._loop)
+
+    def _schedule_playback(self) -> None:
+        if self._loop is None:
+            return
+        asyncio.run_coroutine_threadsafe(self._ensure_playback_task(), self._loop)
+
+    def _start_loop(self) -> None:
+        loop = asyncio.new_event_loop()
+        self._loop = loop
+        self._thread = threading.Thread(target=self._run_loop, name="WebRTCAudioPeer", daemon=True)
+        self._thread.start()
+
+    def _run_loop(self) -> None:
+        assert self._loop is not None
+        asyncio.set_event_loop(self._loop)
+        self._loop.run_forever()
+        pending = asyncio.all_tasks(self._loop)
+        for task in pending:
+            task.cancel()
+        if pending:
+            self._loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+        self._loop.close()
+
+    async def _connection_worker(self) -> None:
+        while not self._stopped.is_set():
+            self._disconnect_event = asyncio.Event()
+            try:
+                await self._connect_once()
+                await self._wait_for_disconnect()
+            except asyncio.CancelledError:
+                break
+            except Exception as exc:
+                self._logger.warning("WebRTC audio connection loop error: %s", exc)
+            finally:
+                try:
+                    await self._shutdown()
+                except Exception:
+                    self._logger.debug("WebRTC audio shutdown error", exc_info=True)
+                self._pc = None
+                self._ready_event.clear()
+                self._remote_audio_track = None
+                self._audio_track_event.clear()
+                self._audio_track_async_event = None
+            if self._stopped.is_set():
+                break
+            if self._reconnect_delay > 0:
+                try:
+                    await asyncio.sleep(self._reconnect_delay)
+                except asyncio.CancelledError:
+                    break
+        self._disconnect_event = None
+
+    async def _wait_for_disconnect(self) -> None:
+        event = self._disconnect_event
+        if event is None:
+            return
+        while not self._stopped.is_set():
+            try:
+                await asyncio.wait_for(event.wait(), timeout=1.0)
+                return
+            except asyncio.TimeoutError:
+                continue
+
+    async def _connect_once(self) -> None:
+        RTCConfiguration, RTCIceServer, RTCPeerConnection, RTCSessionDescription = _load_aiortc()
+        configuration = RTCConfiguration(
+            [RTCIceServer(**server) for server in self._ice_servers] if self._ice_servers else []
+        )
+        pc = RTCPeerConnection(configuration)
+        self._pc = pc
+        loop = asyncio.get_running_loop()
+        self._audio_track_async_event = asyncio.Event()
+
+        @pc.on("connectionstatechange")
+        async def _on_connection_state_change():  # pragma: no cover - callback wiring
+            self._logger.info("WebRTC audio connection state: %s", pc.connectionState)
+            if pc.connectionState in {"connected", "completed"}:
+                self._ready_event.set()
+            if pc.connectionState in {"failed", "closed"}:
+                self._ready_event.clear()
+                if self._disconnect_event is not None and not self._disconnect_event.is_set():
+                    self._disconnect_event.set()
+
+        if self._receive_audio:
+            @pc.on("track")
+            def _on_track(track):  # pragma: no cover - callback wiring
+                if track.kind != "audio":
+                    return
+                self._remote_audio_track = track
+                self._audio_track_event.set()
+                if self._audio_track_async_event is not None and not self._audio_track_async_event.is_set():
+                    loop.call_soon_threadsafe(self._audio_track_async_event.set)
+
+        if self._send_audio:
+            if self._audio_source == "tone":
+                self._local_audio_track = _create_sine_audio_track(
+                    sample_rate=self._sample_rate,
+                    channels=self._channels,
+                    frame_duration=self._frame_duration,
+                    frequency=self._tone_frequency,
+                    amplitude=self._tone_amplitude,
+                    logger=self._logger,
+                )
+            else:
+                self._local_audio_track = _create_microphone_audio_track(
+                    sample_rate=self._sample_rate,
+                    channels=self._channels,
+                    frame_duration=self._frame_duration,
+                    device=self._audio_device,
+                    max_pending_frames=self._max_pending_frames,
+                    drop_oldest_on_overflow=self._drop_oldest_on_overflow,
+                    logger=self._logger,
+                )
+            pc.addTrack(self._local_audio_track)
+
+        if self._role == "offer":
+            offer = await pc.createOffer()
+            await pc.setLocalDescription(offer)
+            await self._wait_for_ice_gathering(pc)
+            local = pc.localDescription
+            assert local is not None
+            self._logger.info("Posting local offer for session %s", self._session_id)
+            await self._signaling.publish_local_description({"type": local.type, "sdp": local.sdp})
+            self._logger.info("Waiting for remote answer...")
+            remote = await self._signaling.wait_for_remote_description(timeout=self._connect_timeout)
+            await pc.setRemoteDescription(RTCSessionDescription(remote["sdp"], remote["type"]))
+        else:
+            self._logger.info("Waiting for remote offer for session %s", self._session_id)
+            remote = await self._signaling.wait_for_remote_description(timeout=self._connect_timeout)
+            await pc.setRemoteDescription(RTCSessionDescription(remote["sdp"], remote["type"]))
+            answer = await pc.createAnswer()
+            await pc.setLocalDescription(answer)
+            await self._wait_for_ice_gathering(pc)
+            local = pc.localDescription
+            assert local is not None
+            self._logger.info("Posting local answer for session %s", self._session_id)
+            await self._signaling.publish_local_description({"type": local.type, "sdp": local.sdp})
+
+    async def _shutdown(self) -> None:
+        if self._local_audio_track is not None:
+            try:
+                self._local_audio_track.stop()
+            except Exception:  # pragma: no cover - defensive close
+                pass
+            self._local_audio_track = None
+        if self._pc is not None:
+            await self._pc.close()
+
+    async def _wait_for_ice_gathering(self, pc) -> None:
+        if pc.iceGatheringState == "complete":
+            return
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + self._ice_gathering_timeout
+        while pc.iceGatheringState != "complete" and loop.time() < deadline:
+            await asyncio.sleep(0.1)
+
+    async def _ensure_playback_task(self) -> None:
+        if not self._receive_audio:
+            return
+        if self._playback_task is not None and not self._playback_task.done():
+            return
+        self._playback_task = asyncio.create_task(self._playback_loop())
+
+    async def _ensure_monitor_task(self) -> None:
+        if not self._receive_audio:
+            return
+        if self._monitor_task is not None and not self._monitor_task.done():
+            return
+        self._monitor_task = asyncio.create_task(self._monitor_loop())
+
+    async def _playback_loop(self) -> None:
+        try:
+            await self._run_playback_loop()
+        except asyncio.CancelledError:
+            return
+        except Exception as exc:
+            self._logger.warning("Audio playback error: %s", exc)
+
+    async def _run_playback_loop(self) -> None:
+        import numpy as np
+        import sounddevice as sd
+
+        logger = self._logger
+
+        class PlaybackBuffer:
+            def __init__(self, sample_rate: int, channels: int, blocksize: int):
+                self._queue = []
+                self._lock = threading.Lock()
+                self._stream = sd.OutputStream(
+                    samplerate=sample_rate,
+                    channels=channels,
+                    dtype="int16",
+                    blocksize=blocksize,
+                    callback=self._callback,
+                )
+                self._stream.start()
+
+            def _callback(self, outdata, frames, time_info, status):
+                if status:
+                    logger.debug("Playback stream status: %s", status)
+                with self._lock:
+                    data = np.empty((0, outdata.shape[1]), dtype=np.int16)
+                    while data.shape[0] < frames and self._queue:
+                        chunk = self._queue.pop(0)
+                        needed = frames - data.shape[0]
+                        data = np.vstack([data, chunk[:needed]])
+                        if chunk.shape[0] > needed:
+                            self._queue.insert(0, chunk[needed:])
+                    if data.shape[0] < frames:
+                        pad = np.zeros((frames - data.shape[0], outdata.shape[1]), dtype=np.int16)
+                        data = np.vstack([data, pad])
+                outdata[:] = data
+
+            def enqueue(self, data: np.ndarray):
+                if data.ndim == 1:
+                    data = data.reshape(-1, 1)
+                with self._lock:
+                    self._queue.append(data)
+
+            def close(self):
+                self._stream.stop()
+                self._stream.close()
+
+        event = self._audio_track_async_event
+        if event is not None and not event.is_set():
+            await event.wait()
+        track = self._remote_audio_track
+        if track is None:
+            return
+        playback = None
+        try:
+            while not self._stopped.is_set() and track.readyState == "live":
+                try:
+                    frame = await track.recv()
+                except Exception:
+                    break
+                data = frame.to_ndarray()
+                if data.ndim == 2:
+                    data = data.T
+                if data.dtype.kind == "f":
+                    data = np.clip(data, -1.0, 1.0)
+                    data = (data * 32767.0).astype(np.int16)
+                elif data.dtype != np.int16:
+                    data = data.astype(np.int16, copy=False)
+                if playback is None:
+                    sample_rate = frame.sample_rate or self._sample_rate
+                    playback = PlaybackBuffer(sample_rate, data.shape[1], data.shape[0])
+                playback.enqueue(data)
+        finally:
+            if playback is not None:
+                playback.close()
+
+    async def _monitor_loop(self) -> None:
+        import time
+        import numpy as np
+
+        event = self._audio_track_async_event
+        if event is not None and not event.is_set():
+            await event.wait()
+        track = self._remote_audio_track
+        if track is None:
+            return
+        total_samples = 0
+        total_frames = 0
+        last_report = time.monotonic()
+        last_samples = 0
+        try:
+            while not self._stopped.is_set() and track.readyState == "live":
+                frame = await track.recv()
+                data = frame.to_ndarray()
+                if data.ndim == 2:
+                    data = data.T
+                samples = data.shape[0]
+                total_samples += samples
+                total_frames += 1
+                now = time.monotonic()
+                if now - last_report >= self._monitor_interval:
+                    elapsed = now - last_report
+                    sample_rate = frame.sample_rate or self._sample_rate
+                    rms = float(np.sqrt(np.mean(np.square(data.astype(np.float32))))) if data.size else 0.0
+                    stats = {
+                        "frames": total_frames,
+                        "samples": total_samples,
+                        "recent_samples": total_samples - last_samples,
+                        "sample_rate": sample_rate,
+                        "rms": rms,
+                        "elapsed": elapsed,
+                    }
+                    if self._monitor_callback is not None:
+                        self._monitor_callback(stats)
+                    else:
+                        self._logger.info(
+                            "Audio stats: frames=%s samples=%s rate=%s rms=%.1f",
+                            total_frames,
+                            total_samples,
+                            sample_rate,
+                            rms,
+                        )
+                    last_report = now
+                    last_samples = total_samples
+        except asyncio.CancelledError:
+            return
+
+
+__all__ = ["WebRTCDataChannel", "WebRTCAudioPeer"]

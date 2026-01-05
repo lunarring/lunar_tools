@@ -135,13 +135,13 @@ Low-latency data channel built on WebRTC for streaming numpy arrays, JSON blobs,
 Sender (hosts an embedded signaling server and streams mixed payloads):
 
 ```bash
-python examples/comms/webrtc_sender.py --session demo
+python examples/comms/webrtc_data_sender.py --session demo
 ```
 
 Receiver (auto-discovers the sender session via the cached signaling endpoint):
 
 ```bash
-python examples/comms/webrtc_receiver.py --session demo
+python examples/comms/webrtc_data_receiver.py --session demo
 ```
 
 - `--sender-ip` defaults to the detected local address (via `lunar_tools.comms.utils.get_local_ip`).
