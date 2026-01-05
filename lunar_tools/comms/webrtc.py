@@ -956,11 +956,13 @@ class WebRTCAudioPeer:
         total_frames = 0
         last_report = time.monotonic()
         last_samples = 0
+        self._logger.debug("Audio monitor loop started (readyState=%s).", track.readyState)
         try:
             while not self._stopped.is_set() and track.readyState == "live":
                 try:
                     frame = await track.recv()
-                except Exception:
+                except Exception as exc:
+                    self._logger.warning("Audio monitor recv failed: %s", exc, exc_info=True)
                     break
                 data = frame.to_ndarray()
                 if data.ndim == 1:
@@ -969,7 +971,10 @@ class WebRTCAudioPeer:
                     if data.shape[1] > data.shape[0]:
                         data = data.T
                 if self._monitor_on_frame is not None:
-                    self._monitor_on_frame(data)
+                    try:
+                        self._monitor_on_frame(data)
+                    except Exception as exc:
+                        self._logger.warning("Audio monitor frame callback error: %s", exc, exc_info=True)
                 samples = data.shape[0]
                 total_samples += samples
                 total_frames += 1
@@ -987,7 +992,10 @@ class WebRTCAudioPeer:
                         "elapsed": elapsed,
                     }
                     if self._monitor_callback is not None:
-                        self._monitor_callback(stats)
+                        try:
+                            self._monitor_callback(stats)
+                        except Exception as exc:
+                            self._logger.warning("Audio monitor stats callback error: %s", exc, exc_info=True)
                     else:
                         self._logger.info(
                             "Audio stats: frames=%s samples=%s rate=%s rms=%.1f",
