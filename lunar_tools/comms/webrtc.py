@@ -441,17 +441,18 @@ def _create_microphone_audio_track(
             frame = await loop.run_in_executor(None, self._queue.get)
             if frame is None:
                 raise asyncio.CancelledError
+            if frame.ndim == 1:
+                frame = frame.reshape(1, -1)
             if not frame.flags.c_contiguous:
                 frame = np.ascontiguousarray(frame)
-            audio_frame = AudioFrame.from_ndarray(
-                frame,
-                format="s16p",
-                layout="mono" if channels == 1 else "stereo",
-            )
+            samples = frame.shape[1]
+            layout = "mono" if channels == 1 else "stereo"
+            audio_frame = AudioFrame(format="s16", layout=layout, samples=samples)
+            audio_frame.planes[0].update(frame.T.reshape(-1).tobytes())
             audio_frame.sample_rate = sample_rate
             audio_frame.pts = self._timestamp
             audio_frame.time_base = self._time_base
-            self._timestamp += frame.shape[1]
+            self._timestamp += samples
             return audio_frame
 
         def stop(self):
@@ -516,11 +517,10 @@ def _create_sine_audio_track(
                 data = data.reshape(1, -1)
             if not data.flags.c_contiguous:
                 data = np.ascontiguousarray(data)
-            audio_frame = AudioFrame.from_ndarray(
-                data,
-                format="s16p",
-                layout="mono" if channels == 1 else "stereo",
-            )
+            samples = data.shape[1]
+            layout = "mono" if channels == 1 else "stereo"
+            audio_frame = AudioFrame(format="s16", layout=layout, samples=samples)
+            audio_frame.planes[0].update(data.T.reshape(-1).tobytes())
             audio_frame.sample_rate = sample_rate
             audio_frame.pts = self._timestamp
             audio_frame.time_base = self._time_base

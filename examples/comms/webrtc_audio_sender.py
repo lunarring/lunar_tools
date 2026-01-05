@@ -60,6 +60,9 @@ def main() -> None:
         level=logging.INFO if args.verbose else logging.INFO,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
+    if args.channels > 1:
+        print("Note: stereo tone over WebRTC audio track is not supported in this example yet; using mono.")
+        args.channels = 1
 
     sender_ip = resolve_sender_ip(args.sender_ip)
     signaling_port = args.signaling_port
