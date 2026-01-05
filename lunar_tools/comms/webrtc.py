@@ -597,6 +597,7 @@ class WebRTCAudioPeer:
         self._playback_task: Optional[asyncio.Task] = None
         self._monitor_task: Optional[asyncio.Task] = None
         self._monitor_callback: Optional[Callable[[Dict[str, Any]], None]] = None
+        self._monitor_on_frame: Optional[Callable[[Any], None]] = None
         self._monitor_interval = 1.0
 
     def connect(self, timeout: Optional[float] = None) -> None:
@@ -670,9 +671,11 @@ class WebRTCAudioPeer:
         self,
         *,
         on_stats: Optional[Callable[[Dict[str, Any]], None]] = None,
+        on_frame: Optional[Callable[[Any], None]] = None,
         interval: float = 1.0,
     ) -> None:
         self._monitor_callback = on_stats
+        self._monitor_on_frame = on_frame
         self._monitor_interval = max(0.2, interval)
         if self._loop is None:
             return
@@ -945,10 +948,15 @@ class WebRTCAudioPeer:
         last_samples = 0
         try:
             while not self._stopped.is_set() and track.readyState == "live":
-                frame = await track.recv()
+                try:
+                    frame = await track.recv()
+                except Exception:
+                    break
                 data = frame.to_ndarray()
                 if data.ndim == 2:
                     data = data.T
+                if self._monitor_on_frame is not None:
+                    self._monitor_on_frame(data)
                 samples = data.shape[0]
                 total_samples += samples
                 total_frames += 1

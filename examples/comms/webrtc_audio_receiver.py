@@ -9,27 +9,20 @@ if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
 from lunar_tools.comms import WebRTCAudioPeer
-from lunar_tools.comms.utils import (
-    WEBRTC_SESSION_CACHE_PATH,
-    get_cached_webrtc_session_endpoint,
-)
-
-
-DEFAULT_PORT = 8787
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Receive microphone audio over WebRTC.")
     parser.add_argument(
         "--sender-ip",
-        default=None,
-        help="IP/host of the sender's signaling server (defaults to cached session info or localhost).",
+        default="127.0.0.1",
+        help="IP/host of the sender's signaling server.",
     )
     parser.add_argument(
         "--signaling-port",
         type=int,
-        default=None,
-        help=f"Port of the signaling server (defaults to cached session info or {DEFAULT_PORT}).",
+        default=8787,
+        help="Port of the signaling server.",
     )
     parser.add_argument("--session", default="audio-session", help="Session identifier shared with the sender.")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable debug logging.")
@@ -38,29 +31,12 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    if args.verbose:
-        logging.basicConfig(
-            level=logging.INFO,
-            format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        )
+    logging.basicConfig(
+        level=logging.INFO if args.verbose else logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    )
 
-    signaling_port = args.signaling_port if args.signaling_port is not None else DEFAULT_PORT
-    sender_ip = args.sender_ip
-    cache_entry = get_cached_webrtc_session_endpoint(args.session)
-    cache_used = False
-    if cache_entry is not None:
-        cache_host, cache_port = cache_entry
-        if sender_ip is None:
-            sender_ip = cache_host
-            cache_used = True
-        if args.signaling_port is None:
-            signaling_port = cache_port
-            cache_used = True
-    if sender_ip is None:
-        sender_ip = "127.0.0.1"
-    signaling_url = f"http://{sender_ip}:{signaling_port}"
-    if cache_used:
-        print(f"Cached signaling endpoint found in {WEBRTC_SESSION_CACHE_PATH}.")
+    signaling_url = f"http://{args.sender_ip}:{args.signaling_port}"
 
     peer = WebRTCAudioPeer(
         role="answer",
@@ -82,14 +58,22 @@ def main() -> None:
         print(f"Remote audio track received: kind={track.kind}")
     last_stats = {"time": time.monotonic()}
 
+    latest_frame = {"data": None}
+
     def _print_stats(stats):
         last_stats["time"] = time.monotonic()
+        frame = latest_frame["data"]
+        shape = frame.shape if frame is not None else None
+        dtype = frame.dtype if frame is not None else None
         print(
             f"[audio] frames={stats['frames']} samples={stats['samples']} "
-            f"rate={stats['sample_rate']} rms={stats['rms']:.1f}"
+            f"rate={stats['sample_rate']} rms={stats['rms']:.1f} shape={shape} dtype={dtype}"
         )
 
-    peer.start_audio_monitor(on_stats=_print_stats, interval=1.0)
+    def _capture_frame(frame):
+        latest_frame["data"] = frame
+
+    peer.start_audio_monitor(on_stats=_print_stats, on_frame=_capture_frame, interval=1.0)
     print("Ready. Audio track will be received but not played. Press Ctrl+C to stop.")
 
     try:

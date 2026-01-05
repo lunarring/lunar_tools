@@ -9,11 +9,7 @@ if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
 from lunar_tools.comms import SimpleWebRTCSignalingServer, WebRTCAudioPeer
-from lunar_tools.comms.utils import (
-    WEBRTC_SESSION_CACHE_PATH,
-    cache_webrtc_session_endpoint,
-    get_local_ip,
-)
+from lunar_tools.comms.utils import get_local_ip
 
 
 def parse_args() -> argparse.Namespace:
@@ -76,9 +72,7 @@ def main() -> None:
         if bound is not None:
             signaling_port = bound[1]
             signaling_url = f"http://{sender_ip}:{signaling_port}"
-        cache_webrtc_session_endpoint(args.session, sender_ip, signaling_port)
         print(f"Signaling server listening on {signaling_url}/session/{args.session}/<offer|answer>")
-        print(f"Session info cached in {WEBRTC_SESSION_CACHE_PATH} for receivers to reuse.")
 
     peer = WebRTCAudioPeer(
         role="offer",
