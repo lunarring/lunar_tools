@@ -446,6 +446,7 @@ def _create_microphone_audio_track(
 ):
     from fractions import Fraction
     from queue import Queue
+    import time
 
     import numpy as np
     import sounddevice as sd
