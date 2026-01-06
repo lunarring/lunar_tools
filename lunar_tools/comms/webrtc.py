@@ -376,6 +376,8 @@ def _create_microphone_audio_track(
     device: Optional[int | str],
     max_pending_frames: Optional[int],
     drop_oldest_on_overflow: bool,
+    blocksize: Optional[int],
+    log_cadence: bool,
     logger: logging.Logger,
 ):
     from fractions import Fraction
@@ -387,6 +389,7 @@ def _create_microphone_audio_track(
     from av import AudioFrame
 
     samples_per_frame = max(1, int(sample_rate * frame_duration))
+    effective_blocksize = int(blocksize) if blocksize and blocksize > 0 else samples_per_frame
     queue_size = 0 if not max_pending_frames or max_pending_frames <= 0 else int(max_pending_frames)
 
     class MicrophoneAudioStreamTrack(MediaStreamTrack):
@@ -399,21 +402,50 @@ def _create_microphone_audio_track(
             self._timestamp = 0
             self._time_base = Fraction(1, sample_rate)
             self._closed = False
+            self._cadence_last = None
+            self._cadence_frames = 0
+            self._cadence_samples = 0
             self._stream = sd.InputStream(
                 samplerate=sample_rate,
                 channels=channels,
                 dtype="int16",
-                blocksize=samples_per_frame,
+                blocksize=effective_blocksize,
                 device=device,
                 callback=self._on_audio,
             )
             self._stream.start()
+            logger.info(
+                "Microphone stream started (sample_rate=%s channels=%s blocksize=%s)",
+                sample_rate,
+                channels,
+                effective_blocksize,
+            )
 
         def _on_audio(self, indata, frames, time_info, status):
             if self._closed:
                 return
             if status:
                 logger.debug("Microphone stream status: %s", status)
+            if log_cadence:
+                now = time.monotonic()
+                if self._cadence_last is None:
+                    self._cadence_last = now
+                self._cadence_frames += 1
+                self._cadence_samples += frames
+                if now - self._cadence_last >= 1.0:
+                    elapsed = max(1e-6, now - self._cadence_last)
+                    fps = self._cadence_frames / elapsed
+                    effective_rate = self._cadence_samples / elapsed
+                    logger.info(
+                        "Mic cadence: frames=%s samples=%s fps=%.2f rate=%.1f",
+                        self._cadence_frames,
+                        self._cadence_samples,
+                        fps,
+                        effective_rate,
+                    )
+                    self._cadence_last = now
+                    self._cadence_frames = 0
+                    self._cadence_samples = 0
             frame = np.copy(indata)
             if frame.ndim == 1:
                 frame = frame.reshape(1, -1)
@@ -562,6 +594,8 @@ class WebRTCAudioPeer:
         drop_oldest_on_overflow: bool = True,
         tone_frequency: float = 440.0,
         tone_amplitude: float = 0.2,
+        mic_blocksize: Optional[int] = None,
+        mic_log_cadence: bool = False,
     ) -> None:
         if role not in {"offer", "answer"}:
             raise ValueError("role must be 'offer' or 'answer'")
@@ -596,6 +630,8 @@ class WebRTCAudioPeer:
         self._drop_oldest_on_overflow = drop_oldest_on_overflow
         self._tone_frequency = tone_frequency
         self._tone_amplitude = tone_amplitude
+        self._mic_blocksize = mic_blocksize
+        self._mic_log_cadence = mic_log_cadence
         self._local_audio_track = None
         self._remote_audio_track = None
         self._audio_track_event = threading.Event()
@@ -801,6 +837,8 @@ class WebRTCAudioPeer:
                     device=self._audio_device,
                     max_pending_frames=self._max_pending_frames,
                     drop_oldest_on_overflow=self._drop_oldest_on_overflow,
+                    blocksize=self._mic_blocksize,
+                    log_cadence=self._mic_log_cadence,
                     logger=self._logger,
                 )
             pc.addTrack(self._local_audio_track)
