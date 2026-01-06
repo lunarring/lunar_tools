@@ -537,6 +537,8 @@ def _create_sine_audio_track(
             self._cadence_last = time.monotonic()
             self._cadence_frames = 0
             self._cadence_samples = 0
+            self._start_time = self._cadence_last
+            self._frame_index = 0
 
         async def recv(self):
             if self.readyState != "live":
@@ -562,6 +564,7 @@ def _create_sine_audio_track(
             self._frame_count += 1
             self._cadence_frames += 1
             self._cadence_samples += samples_per_frame
+            self._frame_index += 1
             now = time.monotonic()
             if now - self._cadence_last >= 1.0:
                 elapsed = max(1e-6, now - self._cadence_last)
@@ -578,7 +581,10 @@ def _create_sine_audio_track(
                 self._cadence_last = now
                 self._cadence_frames = 0
                 self._cadence_samples = 0
-            await asyncio.sleep(frame_duration)
+            target_time = self._start_time + (self._frame_index * frame_duration)
+            sleep_for = target_time - time.monotonic()
+            if sleep_for > 0:
+                await asyncio.sleep(sleep_for)
             return audio_frame
 
     return SineAudioStreamTrack()
