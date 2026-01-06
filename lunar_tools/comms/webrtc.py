@@ -924,21 +924,26 @@ class WebRTCAudioPeer:
                 except Exception:
                     break
                 data = frame.to_ndarray()
-                channels = None
+                frame_channels = None
                 try:
-                    channels = int(frame.layout.channels)
+                    frame_channels = int(frame.layout.channels)
                 except Exception:
-                    channels = None
+                    frame_channels = None
+                expected_channels = int(getattr(self, "_channels", 0) or 0)
                 if data.ndim == 1:
-                    if channels and channels > 1 and data.size % channels == 0:
-                        data = data.reshape(-1, channels)
+                    target_channels = frame_channels or expected_channels or 1
+                    if target_channels > 1 and data.size % target_channels == 0:
+                        data = data.reshape(-1, target_channels)
+                    elif expected_channels > 1 and data.size % expected_channels == 0:
+                        data = data.reshape(-1, expected_channels)
                     else:
                         data = data.reshape(-1, 1)
                 elif data.ndim == 2:
-                    if channels:
-                        if data.shape[0] == channels and data.shape[1] != channels:
+                    target_channels = frame_channels or expected_channels or None
+                    if target_channels:
+                        if data.shape[0] == target_channels and data.shape[1] != target_channels:
                             data = data.T
-                        elif data.shape[1] != channels and data.shape[0] != channels and data.shape[1] > data.shape[0]:
+                        elif data.shape[1] != target_channels and data.shape[0] != target_channels and data.shape[1] > data.shape[0]:
                             data = data.T
                     elif data.shape[1] > data.shape[0]:
                         data = data.T
