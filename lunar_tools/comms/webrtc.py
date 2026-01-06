@@ -32,34 +32,41 @@ def _apply_opus_max_quality(pc, logger: logging.Logger) -> None:
         logger.debug("Opus tuning skipped (no transceivers): %s", exc)
         return
 
-    opus = None
-    try:
-        capabilities = RTCRtpSender.getCapabilities("audio")
-    except Exception as exc:
-        logger.debug("Opus tuning skipped (capabilities unavailable): %s", exc)
-        return
-    for codec in capabilities.codecs:
-        if codec.mimeType.lower() == "audio/opus":
-            opus = codec
-            break
-    if opus is None:
-        logger.debug("Opus tuning skipped (Opus codec not advertised).")
-        return
-
     max_bitrate = 510_000
-    params = dict(opus.parameters or {})
-    params["maxaveragebitrate"] = int(max_bitrate)
-    params["stereo"] = 1
-    params["sprop-stereo"] = 1
-    params["maxplaybackrate"] = 48_000
-    params["useinbandfec"] = 0
-    params["usedtx"] = 0
-    opus.parameters = params
 
     applied = 0
     for transceiver in transceivers:
         if getattr(transceiver, "kind", None) != "audio":
             continue
+        codecs = None
+        for attr in ("_codecs", "codecs"):
+            codecs = getattr(transceiver, attr, None)
+            if codecs:
+                break
+        if not codecs:
+            try:
+                capabilities = RTCRtpSender.getCapabilities("audio")
+                codecs = capabilities.codecs
+            except Exception as exc:
+                logger.debug("Opus tuning skipped (capabilities unavailable): %s", exc)
+                continue
+        opus = None
+        for codec in codecs:
+            if codec.mimeType.lower() == "audio/opus":
+                opus = codec
+                break
+        if opus is None:
+            logger.debug("Opus tuning skipped (Opus codec not advertised).")
+            continue
+        params = dict(opus.parameters or {})
+        params["maxaveragebitrate"] = int(max_bitrate)
+        params["stereo"] = 1
+        params["sprop-stereo"] = 1
+        params["maxplaybackrate"] = 48_000
+        params["useinbandfec"] = 0
+        params["usedtx"] = 0
+        params["cbr"] = 1
+        opus.parameters = params
         setter = getattr(transceiver, "setCodecPreferences", None)
         if callable(setter):
             try:
