@@ -605,6 +605,7 @@ class WebRTCAudioPeer:
         self._monitor_task: Optional[asyncio.Task] = None
         self._monitor_callback: Optional[Callable[[Dict[str, Any]], None]] = None
         self._monitor_on_frame: Optional[Callable[[Any], None]] = None
+        self._monitor_raw_frames = False
         self._monitor_interval = 1.0
 
     def connect(self, timeout: Optional[float] = None) -> None:
@@ -679,10 +680,12 @@ class WebRTCAudioPeer:
         *,
         on_stats: Optional[Callable[[Dict[str, Any]], None]] = None,
         on_frame: Optional[Callable[[Any], None]] = None,
+        raw_frames: bool = False,
         interval: float = 1.0,
     ) -> None:
         self._monitor_callback = on_stats
         self._monitor_on_frame = on_frame
+        self._monitor_raw_frames = raw_frames
         self._monitor_interval = max(0.2, interval)
         if self._loop is None:
             return
@@ -985,7 +988,6 @@ class WebRTCAudioPeer:
                 except Exception as exc:
                     self._logger.warning("Audio monitor recv failed: %s", exc, exc_info=True)
                     break
-                data = frame.to_ndarray()
                 frame_channels = None
                 try:
                     frame_channels = int(frame.layout.channels)
@@ -994,43 +996,52 @@ class WebRTCAudioPeer:
                 expected_channels = int(getattr(self, "_channels", 0) or 0)
                 target_channels = frame_channels or expected_channels or 1
                 samples = int(getattr(frame, "samples", 0) or 0)
-                if data.ndim == 1:
-                    if target_channels > 1 and data.size == samples * target_channels:
-                        data = data.reshape(samples, target_channels)
-                    elif target_channels > 1 and data.size % target_channels == 0:
-                        data = data.reshape(-1, target_channels)
+                data = None
+                if not self._monitor_raw_frames:
+                    data = frame.to_ndarray()
+                    if data.ndim == 1:
+                        if target_channels > 1 and data.size == samples * target_channels:
+                            data = data.reshape(samples, target_channels)
+                        elif target_channels > 1 and data.size % target_channels == 0:
+                            data = data.reshape(-1, target_channels)
+                        else:
+                            data = data.reshape(-1, 1)
+                    elif data.ndim == 2:
+                        if data.shape == (target_channels, samples):
+                            data = data.T
+                        elif data.shape == (samples, target_channels):
+                            pass
+                        elif target_channels > 1 and data.size == samples * target_channels:
+                            data = data.reshape(samples, target_channels)
+                        elif data.shape[1] > data.shape[0]:
+                            data = data.T
                     else:
-                        data = data.reshape(-1, 1)
-                elif data.ndim == 2:
-                    if data.shape == (target_channels, samples):
-                        data = data.T
-                    elif data.shape == (samples, target_channels):
-                        pass
-                    elif target_channels > 1 and data.size == samples * target_channels:
-                        data = data.reshape(samples, target_channels)
-                    elif data.shape[1] > data.shape[0]:
-                        data = data.T
-                else:
-                    if target_channels > 1 and data.size == samples * target_channels:
-                        data = data.reshape(samples, target_channels)
-                    elif target_channels > 1 and data.size % target_channels == 0:
-                        data = data.reshape(-1, target_channels)
-                    else:
-                        data = data.reshape(-1, 1)
+                        if target_channels > 1 and data.size == samples * target_channels:
+                            data = data.reshape(samples, target_channels)
+                        elif target_channels > 1 and data.size % target_channels == 0:
+                            data = data.reshape(-1, target_channels)
+                        else:
+                            data = data.reshape(-1, 1)
                 if self._monitor_on_frame is not None:
                     try:
-                        self._monitor_on_frame(data)
+                        if self._monitor_raw_frames:
+                            self._monitor_on_frame(frame)
+                        else:
+                            self._monitor_on_frame(data)
                     except Exception as exc:
                         self._logger.warning("Audio monitor frame callback error: %s", exc, exc_info=True)
                 if samples <= 0:
-                    samples = data.shape[0]
+                    if data is not None:
+                        samples = data.shape[0]
                 total_samples += samples
                 total_frames += 1
                 now = time.monotonic()
                 if now - last_report >= self._monitor_interval:
                     elapsed = now - last_report
                     sample_rate = frame.sample_rate or self._sample_rate
-                    rms = float(np.sqrt(np.mean(np.square(data.astype(np.float32))))) if data.size else 0.0
+                    rms = 0.0
+                    if data is not None and data.size:
+                        rms = float(np.sqrt(np.mean(np.square(data.astype(np.float32)))))
                     stats = {
                         "frames": total_frames,
                         "samples": total_samples,
