@@ -19,6 +19,70 @@ def _load_aiortc():
     return RTCConfiguration, RTCIceServer, RTCPeerConnection, RTCSessionDescription
 
 
+def _apply_opus_max_quality(pc, logger: logging.Logger) -> None:
+    try:
+        from aiortc import RTCRtpSender
+    except Exception as exc:  # pragma: no cover - optional dependency
+        logger.debug("Opus tuning skipped (aiortc not available): %s", exc)
+        return
+
+    try:
+        transceivers = pc.getTransceivers()
+    except Exception as exc:
+        logger.debug("Opus tuning skipped (no transceivers): %s", exc)
+        return
+
+    opus = None
+    try:
+        capabilities = RTCRtpSender.getCapabilities("audio")
+    except Exception as exc:
+        logger.debug("Opus tuning skipped (capabilities unavailable): %s", exc)
+        return
+    for codec in capabilities.codecs:
+        if codec.mimeType.lower() == "audio/opus":
+            opus = codec
+            break
+    if opus is None:
+        logger.debug("Opus tuning skipped (Opus codec not advertised).")
+        return
+
+    max_bitrate = 510_000
+    params = dict(opus.parameters or {})
+    params["maxaveragebitrate"] = int(max_bitrate)
+    params["stereo"] = 1
+    params["sprop-stereo"] = 1
+    params["maxplaybackrate"] = 48_000
+    params["useinbandfec"] = 0
+    params["usedtx"] = 0
+    opus.parameters = params
+
+    applied = 0
+    for transceiver in transceivers:
+        if getattr(transceiver, "kind", None) != "audio":
+            continue
+        setter = getattr(transceiver, "setCodecPreferences", None)
+        if callable(setter):
+            try:
+                setter([opus])
+                applied += 1
+            except Exception as exc:
+                logger.debug("Failed to set Opus codec preferences: %s", exc)
+        sender = getattr(transceiver, "sender", None)
+        if sender is not None:
+            get_params = getattr(sender, "getParameters", None)
+            set_params = getattr(sender, "setParameters", None)
+            if callable(get_params) and callable(set_params):
+                try:
+                    enc_params = get_params()
+                    if enc_params.encodings:
+                        enc_params.encodings[0].maxBitrate = int(max_bitrate)
+                        set_params(enc_params)
+                except Exception as exc:
+                    logger.debug("Failed to set Opus sender bitrate: %s", exc)
+    if applied:
+        logger.info("Applied Opus max-quality settings to %s audio transceiver(s).", applied)
+
+
 class WebRTCDataChannel:
     """Minimal helper around a WebRTC data channel for numpy/JSON/text payloads.
 
@@ -864,6 +928,7 @@ class WebRTCAudioPeer:
                     logger=self._logger,
                 )
             pc.addTrack(self._local_audio_track)
+            _apply_opus_max_quality(pc, self._logger)
 
         if self._role == "offer":
             offer = await pc.createOffer()
@@ -880,6 +945,7 @@ class WebRTCAudioPeer:
             self._logger.info("Waiting for remote offer for session %s", self._session_id)
             remote = await self._signaling.wait_for_remote_description(timeout=self._connect_timeout)
             await pc.setRemoteDescription(RTCSessionDescription(remote["sdp"], remote["type"]))
+            _apply_opus_max_quality(pc, self._logger)
             answer = await pc.createAnswer()
             await pc.setLocalDescription(answer)
             await self._wait_for_ice_gathering(pc)
