@@ -986,17 +986,44 @@ class WebRTCAudioPeer:
                     self._logger.warning("Audio monitor recv failed: %s", exc, exc_info=True)
                     break
                 data = frame.to_ndarray()
+                frame_channels = None
+                try:
+                    frame_channels = int(frame.layout.channels)
+                except Exception:
+                    frame_channels = None
+                expected_channels = int(getattr(self, "_channels", 0) or 0)
+                target_channels = frame_channels or expected_channels or 1
+                samples = int(getattr(frame, "samples", 0) or 0)
                 if data.ndim == 1:
-                    data = data.reshape(-1, 1)
+                    if target_channels > 1 and data.size == samples * target_channels:
+                        data = data.reshape(samples, target_channels)
+                    elif target_channels > 1 and data.size % target_channels == 0:
+                        data = data.reshape(-1, target_channels)
+                    else:
+                        data = data.reshape(-1, 1)
                 elif data.ndim == 2:
-                    if data.shape[1] > data.shape[0]:
+                    if data.shape == (target_channels, samples):
                         data = data.T
+                    elif data.shape == (samples, target_channels):
+                        pass
+                    elif target_channels > 1 and data.size == samples * target_channels:
+                        data = data.reshape(samples, target_channels)
+                    elif data.shape[1] > data.shape[0]:
+                        data = data.T
+                else:
+                    if target_channels > 1 and data.size == samples * target_channels:
+                        data = data.reshape(samples, target_channels)
+                    elif target_channels > 1 and data.size % target_channels == 0:
+                        data = data.reshape(-1, target_channels)
+                    else:
+                        data = data.reshape(-1, 1)
                 if self._monitor_on_frame is not None:
                     try:
                         self._monitor_on_frame(data)
                     except Exception as exc:
                         self._logger.warning("Audio monitor frame callback error: %s", exc, exc_info=True)
-                samples = data.shape[0]
+                if samples <= 0:
+                    samples = data.shape[0]
                 total_samples += samples
                 total_frames += 1
                 now = time.monotonic()
