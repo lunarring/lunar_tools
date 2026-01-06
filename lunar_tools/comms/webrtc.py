@@ -90,6 +90,47 @@ def _apply_opus_max_quality(pc, logger: logging.Logger) -> None:
         logger.info("Applied Opus max-quality settings to %s audio transceiver(s).", applied)
 
 
+def _patch_opus_sdp(sdp: str, logger: logging.Logger) -> str:
+    lines = sdp.splitlines()
+    opus_pt = None
+    for line in lines:
+        if line.startswith("a=rtpmap:") and "opus/48000" in line:
+            try:
+                opus_pt = line.split()[0].split(":", 1)[1]
+            except Exception:
+                opus_pt = None
+            if opus_pt:
+                break
+    if not opus_pt:
+        return sdp
+
+    fmtp_line = (
+        f"a=fmtp:{opus_pt} "
+        "maxaveragebitrate=510000;stereo=1;sprop-stereo=1;maxplaybackrate=48000;"
+        "useinbandfec=0;usedtx=0;cbr=1"
+    )
+
+    new_lines = []
+    inserted = False
+    for line in lines:
+        if line.startswith(f"a=fmtp:{opus_pt}"):
+            if not inserted:
+                new_lines.append(fmtp_line)
+                inserted = True
+            continue
+        new_lines.append(line)
+        if not inserted and line.startswith(f"a=rtpmap:{opus_pt}"):
+            new_lines.append(fmtp_line)
+            inserted = True
+    if not inserted:
+        return sdp
+    patched = "\r\n".join(new_lines)
+    if not patched.endswith("\r\n"):
+        patched += "\r\n"
+    logger.info("Patched Opus fmtp params for payload %s.", opus_pt)
+    return patched
+
+
 class WebRTCDataChannel:
     """Minimal helper around a WebRTC data channel for numpy/JSON/text payloads.
 
@@ -940,6 +981,9 @@ class WebRTCAudioPeer:
 
         if self._role == "offer":
             offer = await pc.createOffer()
+            offer_sdp = _patch_opus_sdp(offer.sdp, self._logger)
+            if offer_sdp != offer.sdp:
+                offer = RTCSessionDescription(offer_sdp, offer.type)
             await pc.setLocalDescription(offer)
             await self._wait_for_ice_gathering(pc)
             local = pc.localDescription
@@ -955,6 +999,9 @@ class WebRTCAudioPeer:
             await pc.setRemoteDescription(RTCSessionDescription(remote["sdp"], remote["type"]))
             _apply_opus_max_quality(pc, self._logger)
             answer = await pc.createAnswer()
+            answer_sdp = _patch_opus_sdp(answer.sdp, self._logger)
+            if answer_sdp != answer.sdp:
+                answer = RTCSessionDescription(answer_sdp, answer.type)
             await pc.setLocalDescription(answer)
             await self._wait_for_ice_gathering(pc)
             local = pc.localDescription
