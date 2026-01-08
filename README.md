@@ -33,13 +33,29 @@ sudo ln -s alsa-lib/libasound_module_conf_pulse.so libasound_module_conf_pulse.s
 
 ## API Keys
 
-Our system includes a convenient automatic mode for reading and writing API keys. This feature enables you to dynamically set your API key as needed, and the file will be stored on your local computer.
-However, if you prefer, you can specify your API keys in your shell configuration file (e.g. ~/.bash_profile or ~/.zshrc or ~/.bash_rc). In this case, paste the below lines with the API keys you want to add.
+Many features in lunar-tools require API keys from various services. Set these as environment variables in your shell configuration file (e.g. ~/.bash_profile or ~/.zshrc or ~/.bashrc):
+
 ```bash
-export OPENAI_API_KEY="XXX"
-export REPLICATE_API_TOKEN="XXX"
-export ELEVEN_API_KEY="XXX"
+# AI/LLM Services
+export OPENAI_API_KEY="XXX"          # For GPT models, DALL-E, TTS, and STT
+export GEMINI_API_KEY="XXX"          # For Google Gemini models
+export DEEPSEEK_API_KEY="XXX"        # For DeepSeek models
+
+# Image Generation
+export REPLICATE_API_TOKEN="XXX"     # For Replicate (SDXL models)
+export FAL_KEY="XXX"                 # For fal.ai (Flux models)
+export GLIF_API_KEY="XXX"            # For Glif API
+
+# Audio/Voice Services
+export ELEVEN_API_KEY="XXX"          # For ElevenLabs TTS
+export DEEPGRAM_API_KEY="XXX"        # For Deepgram speech-to-text
+
+# Health Monitoring
+export TELEGRAM_BOT_TOKEN="XXX"      # For Telegram health reporting
+export TELEGRAM_CHAT_ID="XXX"        # Your Telegram chat ID
 ```
+
+Only add the keys for services you plan to use. Each module will let you know if a required API key is missing.
 
 # Inputs
 Runnable input snippets live in [examples/inputs](examples/inputs). Launch them from the repo root
