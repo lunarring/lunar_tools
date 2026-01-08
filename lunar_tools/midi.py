@@ -514,7 +514,7 @@ if __name__ == "__main__":
         
     akai_lpd8.show()
                     
-if __name__ == "__main__x":
+if __name__ == "__main__":
     import lunar_tools as lt
     import time
     akai_midimix = MidiInput(device_name="akai_midimix")

@@ -716,7 +716,7 @@ class GridRenderer():
         else:
             return -1, -1
         
-if __name__ == '__main__z':
+if __name__ == '__main__':
     import time
     nmb_rows = 2
     nmb_cols = 2

@@ -11,8 +11,19 @@ class TelegramBot:
     def __init__(self, token=None, chat_id=None):
         if token is None:
             self.token = os.getenv("TELEGRAM_BOT_TOKEN")
+            if self.token is None:
+                raise ValueError("TELEGRAM_BOT_TOKEN environment variable not set and no token provided")
+        else:
+            self.token = token
+
         if chat_id is None:
-            self.chat_id = int(os.getenv("TELEGRAM_CHAT_ID"))
+            chat_id_str = os.getenv("TELEGRAM_CHAT_ID")
+            if chat_id_str is None:
+                raise ValueError("TELEGRAM_CHAT_ID environment variable not set and no chat_id provided")
+            self.chat_id = int(chat_id_str)
+        else:
+            self.chat_id = chat_id
+
         self.base_url = f"https://api.telegram.org/bot{self.token}"
         self.timeout = 5
         

@@ -153,8 +153,19 @@ class SimpleNumberBuffer:
         numpy.ndarray
             The buffer as a numpy array. If normalization is enabled, the values are scaled between 0 and 1.
         """
-        buffer_array = np.array(self.buffer)
-        if self.normalize:
+        if not self.buffer:
+            buffer_array = np.array(self.buffer)
+        else:
+            first_value = self.buffer[0]
+            if isinstance(first_value, np.float32):
+                buffer_array = np.fromiter(
+                    self.buffer,
+                    dtype=np.float32,
+                    count=len(self.buffer),
+                )
+            else:
+                buffer_array = np.array(self.buffer)
+        if self.normalize and buffer_array.size:
             min_val = np.min(buffer_array)
             max_val = np.max(buffer_array)
             if min_val != max_val:
@@ -351,4 +362,3 @@ if __name__ == "__main__":
     
     api_key_value = read_api_key('ELEVEN_API_KEY')
     delete_api_key_from_lunar_config('ELEVEN_API_KEY')
-

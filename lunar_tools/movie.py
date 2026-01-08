@@ -449,7 +449,7 @@ if __name__ == "__main__":
     ms.finalize()
 # 
 
-if __name__ == "__main__z":
+if __name__ == "__main__":
     fps = 2
     list_fp_movies = []
     for k in range(4):

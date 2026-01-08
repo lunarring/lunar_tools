@@ -448,7 +448,7 @@ if __name__ == "__main__":
 
 
 # Example for Gaussianblur
-if __name__ == "__main__X":
+if __name__ == "__main__":
     torch.manual_seed(0)
     tx = 255*torch.rand(1, 3, 100, 200)
     
