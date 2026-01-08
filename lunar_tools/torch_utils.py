@@ -7,6 +7,8 @@ from typing import List, Tuple, Optional
 import numpy as np
 from PIL import Image
 
+_RESIZE_RESAMPLE_METHODS = frozenset({"bilinear", "nearest", "bicubic", "lanczos"})
+
 def get_binary_kernel2d(
     window_size: tuple[int, int] | int, *, device: Optional[torch.device] = None, dtype: torch.dtype = torch.float32
 ) -> torch.Tensor:
@@ -241,23 +243,23 @@ def resize(input_img, resizing_factor=None, size=None, resample_method='bicubic'
     Returns:
         np.ndarray, PIL.Image, or torch.Tensor: The converted and resized image.
     """
-    supported_resample_methods = ['bilinear', 'nearest', 'bicubic', 'lanczos']
-    
-    if resample_method not in supported_resample_methods:
+    if resample_method not in _RESIZE_RESAMPLE_METHODS:
         raise ValueError(f"Unsupported resample method: {resample_method}. Choose from 'bilinear', 'nearest', 'bicubic', 'lanczos'.")
     
-    input_type = type(input_img)
+    is_numpy = isinstance(input_img, np.ndarray)
+    is_pil = isinstance(input_img, Image.Image)
+    is_tensor = isinstance(input_img, torch.Tensor)
     input_dtype = None
     size_checked = False
     
     if force_device is not None:
-        device = force_device
-    elif input_type == torch.Tensor:
+        device = torch.device(force_device)
+    elif is_tensor:
         device = input_img.device
     else:
         device = 'cpu'
     
-    if input_type == np.ndarray:
+    if is_numpy:
         input_dtype = input_img.dtype
         if len(input_img.shape) not in (2, 3):
             raise ValueError("input_type np.ndarray should be 2 or 3 dimensional!")
@@ -275,11 +277,13 @@ def resize(input_img, resizing_factor=None, size=None, resample_method='bicubic'
             input_tensor = torch.as_tensor(input_img, dtype=torch.float, device=device).permute(2, 0, 1)
         else:
             input_tensor = torch.as_tensor(input_img, dtype=torch.float, device=device).unsqueeze(0)
-    elif input_type == Image.Image:
+    elif is_pil:
         input_tensor = torch.as_tensor(np.array(input_img), dtype=torch.float, device=device).permute(2, 0, 1)
-    elif input_type == torch.Tensor:
+    elif is_tensor:
         input_dtype = input_img.dtype
-        input_tensor = input_img.to(dtype=torch.float, device=device)
+        input_tensor = input_img
+        if input_tensor.device != device or input_tensor.dtype != torch.float32:
+            input_tensor = input_tensor.to(dtype=torch.float, device=device)
         is_channels_last = False
         if input_tensor.dim() == 3 and input_tensor.shape[2] <= 3:
             is_channels_last = True
@@ -297,9 +301,9 @@ def resize(input_img, resizing_factor=None, size=None, resample_method='bicubic'
         if size is None:
             size = (int(input_tensor.shape[1] * resizing_factor), int(input_tensor.shape[2] * resizing_factor))
     
-    resized_tensor = torch.nn.functional.interpolate(input_tensor.unsqueeze(0), size=size, mode=resample_method).squeeze(0)
+    resized_tensor = F.interpolate(input_tensor.unsqueeze(0), size=size, mode=resample_method).squeeze(0)
     
-    if input_type == np.ndarray:
+    if is_numpy:
         if len(input_img.shape) == 3:
             resized_tensor = resized_tensor.permute(1,2,0).cpu()
         elif len(input_img.shape) == 2:
@@ -308,7 +312,7 @@ def resize(input_img, resizing_factor=None, size=None, resample_method='bicubic'
         np.rint(resized_array, out=resized_array)
         np.clip(resized_array, 0, 255, out=resized_array)
         return resized_array.astype(input_dtype, copy=False)
-    elif input_type == Image.Image:
+    elif is_pil:
         resized_tensor = resized_tensor.permute(1,2,0).cpu()
         resized_array = resized_tensor.numpy()
         np.rint(resized_array, out=resized_array)
@@ -318,7 +322,9 @@ def resize(input_img, resizing_factor=None, size=None, resample_method='bicubic'
     else:
         if 'is_channels_last' in locals() and is_channels_last:
             resized_tensor = resized_tensor.permute(1,2,0)
-        return resized_tensor.to(input_dtype)
+        if resized_tensor.dtype != input_dtype:
+            resized_tensor = resized_tensor.to(input_dtype)
+        return resized_tensor
     
 class FrequencyFilter:
     """
