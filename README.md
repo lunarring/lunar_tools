@@ -3,8 +3,20 @@ Welcome to Lunar Tools, a comprehensive toolkit designed to fascilitate the prog
 
 # Installation
 Make sure you have python>=3.10.
+
+## From PyPI (recommended)
 ```bash
-python -m pip install git+https://github.com/lunarring/lunar_tools
+pip install lunar-tools
+```
+
+For PyTorch-accelerated features (GPU rendering, torch tensor support):
+```bash
+pip install lunar-tools[torch]
+```
+
+## From GitHub (latest development version)
+```bash
+pip install git+https://github.com/lunarring/lunar_tools
 ```
 ## Ubuntu
 On Ubuntu, you may have to install additional dependencies for sound playback/recording.
@@ -130,7 +142,7 @@ python examples/comms/get_local_ip_example.py
 ```
 
 ## 🌐 WebRTC Data Channels
-Low-latency data channel built on WebRTC for streaming numpy arrays, JSON blobs, PNG previews, and log text. Requires the optional `aiortc` extra (`python -m pip install "lunar_tools[webrtc]"`).
+Low-latency data channel built on WebRTC for streaming numpy arrays, JSON blobs, PNG previews, and log text.
 
 Sender (hosts an embedded signaling server and streams mixed payloads):
 

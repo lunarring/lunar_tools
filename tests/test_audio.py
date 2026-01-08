@@ -2,12 +2,8 @@ import unittest
 import os
 import time
 from pydub import AudioSegment
-import sys
 import string
-sys.path.append(os.path.abspath('.'))
-sys.path.append(os.path.abspath('lunar_tools'))
-from audio import AudioRecorder, Speech2Text, Text2SpeechOpenAI
-import os
+from lunar_tools.audio import AudioRecorder, Speech2Text, Text2SpeechOpenAI
 
 class DummyAudioRecorder:
     """

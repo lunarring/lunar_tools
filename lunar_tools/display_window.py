@@ -4,7 +4,12 @@ import sys
 import ctypes
 import warnings
 import numpy as np
-import torch
+try:
+    import torch
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
+    torch = None
 from sys import platform
 from PIL import Image
 import cv2
@@ -382,8 +387,8 @@ class Renderer:
         return peripheralEvent
     
     def gl_render(self, image):
-        
-        if type(image) == torch.Tensor:
+
+        if TORCH_AVAILABLE and isinstance(image, torch.Tensor):
             image = image.cpu().numpy()
         else:
             if type(image) == np.ndarray:
@@ -438,9 +443,14 @@ class Renderer:
         return pressed_key_code        
 
     def cudagl_render(self, image):
-        
+        if not TORCH_AVAILABLE:
+            raise ImportError(
+                "cudagl_render requires PyTorch. Install it via 'pip install torch' "
+                "or 'pip install lunar-tools[torch]'."
+            )
+
         # first check if input data types are valid
-        if type(image) == torch.Tensor:
+        if isinstance(image, torch.Tensor):
             if image.device.type == 'cpu':
                 # force placement on GPU
                 image = image.to(f'cuda:{self.gpu_id}')
@@ -513,7 +523,7 @@ class Renderer:
         return pressed_key_code
         
     def cv2_render(self, image):
-        if type(image) == torch.Tensor:
+        if TORCH_AVAILABLE and isinstance(image, torch.Tensor):
             image = image.cpu().numpy()
         else:
             if type(image) == np.ndarray:
@@ -561,7 +571,7 @@ class Renderer:
         self.running = True
 
     def pygame_render(self, image):
-        if type(image) == torch.Tensor:
+        if TORCH_AVAILABLE and isinstance(image, torch.Tensor):
             image = image.cpu().numpy()
         else:
             if type(image) == np.ndarray:

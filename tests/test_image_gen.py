@@ -1,15 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import sys
-import os
-sys.path.append("../lunar_tools/")
-sys.path.append(os.path.join(os.getcwd(), 'lunar_tools'))
 import unittest
 from unittest.mock import patch, MagicMock
-from image_gen import Dalle3ImageGenerator
-from image_gen import SDXL_LCM
-from utils import read_api_key
+from lunar_tools.image_gen import Dalle3ImageGenerator, SDXL_LCM
+from lunar_tools.utils import read_api_key
 from PIL import Image
 from openai import OpenAI
 import replicate

@@ -25,4 +25,6 @@ simpleaudio
 sounddevice
 tqdm
 pyusb
-zmq
+pyzmq
+aiortc>=1.7.0
+aiohttp>=3.8.0

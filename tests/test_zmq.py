@@ -1,13 +1,9 @@
 import unittest
 import os
 import time
-import sys
 import string
-sys.path.append(os.path.abspath('.'))
-sys.path.append(os.path.abspath('lunar_tools'))
-sys.path.append(os.path.join(os.getcwd(), 'lunar_tools'))
 import numpy as np
-from comms import ZMQPairEndpoint 
+from lunar_tools.comms import ZMQPairEndpoint
 import time
 
 class TestZMQPairEndpoint(unittest.TestCase):

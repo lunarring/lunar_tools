@@ -1,0 +1,75 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lunar-tools"
+version = "0.2"
+description = "Lunar Ring auxiliary tools and modules for programming interactive exhibitions"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {file = "LICENSE"}
+authors = [
+    {name = "Lunar Ring", email = "info@lunarring.ai"}
+]
+keywords = ["multimedia", "interactive", "exhibitions", "audio", "video", "webrtc", "midi"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia",
+    "Topic :: Multimedia :: Graphics",
+    "Topic :: Multimedia :: Sound/Audio",
+    "Topic :: Multimedia :: Video",
+]
+
+dependencies = [
+    "fal-client",
+    "elevenlabs",
+    "ffmpeg",
+    "ffmpeg-python",
+    "matplotlib",
+    "moviepy",
+    "numpy",
+    "openai",
+    "opencv-python",
+    "Pillow",
+    "pygame",
+    "pynput",
+    "pydub",
+    "python-osc",
+    "PyOpenGL",
+    "PySDL2",
+    "PyYAML",
+    "pysdl2-dll",
+    "replicate",
+    "requests",
+    "rich",
+    "setuptools",
+    "simpleaudio",
+    "sounddevice",
+    "tqdm",
+    "pyusb",
+    "pyzmq",
+    "aiortc>=1.7.0",
+    "aiohttp>=3.8.0",
+]
+
+[project.optional-dependencies]
+torch = ["torch>=2.0.0"]
+dev = ["pytest", "pipreqs"]
+
+[project.urls]
+Homepage = "https://github.com/lunarring/lunar_tools"
+Repository = "https://github.com/lunarring/lunar_tools"
+Issues = "https://github.com/lunarring/lunar_tools/issues"
+
+[tool.setuptools]
+packages = ["lunar_tools"]
+
+[tool.setuptools.package-data]
+lunar_tools = ["midi_configs/*.yml"]

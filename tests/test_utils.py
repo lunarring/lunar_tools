@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import sys
 import os
 import unittest
-sys.path.append("../lunar_tools/")
-from utils import read_api_key, get_os_type
+from lunar_tools.utils import read_api_key, get_os_type
 
 class TestEnvVarAPIKeys(unittest.TestCase):
     def setUp(self):

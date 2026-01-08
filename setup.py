@@ -1,23 +1,34 @@
 from setuptools import setup, find_packages
+import os
 
-# Read requirements.txt and store its contents in a list
-with open('requirements.txt') as f:
-    required = f.read().splitlines()
+# Read requirements.txt if it exists (for backward compatibility)
+# When using pyproject.toml, dependencies are read from there instead
+required = []
+if os.path.exists('requirements.txt'):
+    with open('requirements.txt') as f:
+        required = f.read().splitlines()
+
+# Read README for long description
+long_description = ''
+if os.path.exists('README.md'):
+    with open('README.md') as f:
+        long_description = f.read()
 
 setup(
-    name='lunar_tools',
-    version='0.0.12',
+    name='lunar-tools',
+    version='0.2',
     packages=find_packages(),
     package_data={
-    'lunar_tools': ['midi_configs/*.yml'],
+        'lunar_tools': ['midi_configs/*.yml'],
     },
     url='https://github.com/lunarring/lunar_tools',
-    description='Lunar Ring auxiliary tools and modules',
-    long_description=open('README.md').read(),
-    install_requires=required,  # Use the list from requirements.txt here
+    description='Lunar Ring auxiliary tools and modules for programming interactive exhibitions',
+    long_description=long_description,
+    long_description_content_type='text/markdown',
+    python_requires='>=3.10',
+    install_requires=required,
     extras_require={
-        'webrtc': ['aiortc>=1.7.0'],
+        'torch': ['torch>=2.0.0'],
     },
-    dependency_links=[],
     include_package_data=True,
 )

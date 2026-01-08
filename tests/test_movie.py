@@ -2,13 +2,12 @@ import unittest
 import os
 import time
 from pydub import AudioSegment
-import sys
 import string
-sys.path.append(os.path.abspath('.'))
-sys.path.append(os.path.abspath('lunar_tools'))
-from movie import MovieSaver, concatenate_movies, add_sound, add_subtitles_to_video, MovieReader
 import numpy as np
-from lunar_tools.movie import interpolate_between_images, fill_up_frames_linear_interpolation
+from lunar_tools.movie import (
+    MovieSaver, concatenate_movies, add_sound, add_subtitles_to_video, MovieReader,
+    interpolate_between_images, fill_up_frames_linear_interpolation
+)
 
 def test_fill_frames_linear_interpolate():
     # Create a black and a white frame with smaller dimensions

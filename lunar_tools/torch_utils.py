@@ -1,20 +1,37 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
+try:
+    import torch
+    import torch.nn as nn
+    import torch.nn.functional as F
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
+    torch = None
+
 from typing import List, Tuple, Optional
 import numpy as np
 from PIL import Image
 
+def _check_torch():
+    """Helper to raise informative error when torch is not installed."""
+    if not TORCH_AVAILABLE:
+        raise ImportError(
+            "PyTorch support requires the 'torch' package. Install it via 'pip install torch' "
+            "or 'pip install lunar-tools[torch]'."
+        )
+
 _RESIZE_RESAMPLE_METHODS = frozenset({"bilinear", "nearest", "bicubic", "lanczos"})
 
 def get_binary_kernel2d(
-    window_size: tuple[int, int] | int, *, device: Optional[torch.device] = None, dtype: torch.dtype = torch.float32
-) -> torch.Tensor:
+    window_size: tuple[int, int] | int, *, device: Optional['torch.device'] = None, dtype: 'torch.dtype' = None
+) -> 'torch.Tensor':
     """Create a binary kernel to extract the patches.
     If the window size is HxW will create a (H*W)x1xHxW kernel.
     """
+    _check_torch()
+    if dtype is None:
+        dtype = torch.float32
     if isinstance(window_size, int):
         ky = kx = window_size
     else:
@@ -27,7 +44,7 @@ def get_binary_kernel2d(
     return kernel.view(window_range, 1, ky, kx)
 
 
-def interpolate_spherical(p0: torch.Tensor, p1: torch.Tensor, fract_mixing: float) -> torch.Tensor:
+def interpolate_spherical(p0: 'torch.Tensor', p1: 'torch.Tensor', fract_mixing: float) -> 'torch.Tensor':
     """
     Performs spherical interpolation between two tensors.
 
@@ -46,6 +63,7 @@ def interpolate_spherical(p0: torch.Tensor, p1: torch.Tensor, fract_mixing: floa
     Note:
         The tensors `p0` and `p1` must have the same shape, and `fract_mixing` must be a scalar.
     """
+    _check_torch()
 
     if p0.dtype == torch.float16:
         recast_to = 'fp16'
@@ -73,7 +91,7 @@ def interpolate_spherical(p0: torch.Tensor, p1: torch.Tensor, fract_mixing: floa
 
     return interp
 
-def interpolate_linear(p0: torch.Tensor, p1: torch.Tensor, fract_mixing: float) -> torch.Tensor:
+def interpolate_linear(p0: 'torch.Tensor', p1: 'torch.Tensor', fract_mixing: float) -> 'torch.Tensor':
     """
     Performs linear interpolation between two tensors.
 
@@ -92,6 +110,7 @@ def interpolate_linear(p0: torch.Tensor, p1: torch.Tensor, fract_mixing: float) 
     Note:
         The tensors `p0` and `p1` must have the same shape, and `fract_mixing` must be a scalar.
     """
+    _check_torch()
 
     if p0.dtype == torch.float16:
         recast_to = 'fp16'
@@ -134,6 +153,7 @@ class GaussianBlur(nn.Module):
     """
 
     def __init__(self, kernel_size: Tuple[int, int], sigma: float) -> None:
+        _check_torch()
         super(GaussianBlur, self).__init__()
         self.kernel_size: Tuple[int, int] = kernel_size
         self.sigma: float = sigma
@@ -195,6 +215,7 @@ class MedianBlur(nn.Module):
     """
 
     def __init__(self, kernel_size: Tuple[int, int]) -> None:
+        _check_torch()
         super(MedianBlur, self).__init__()
         self.kernel_size: Tuple[int, int] = kernel_size
         self.padding: Tuple[int, int] = self._compute_zero_padding(kernel_size)
@@ -243,6 +264,7 @@ def resize(input_img, resizing_factor=None, size=None, resample_method='bicubic'
     Returns:
         np.ndarray, PIL.Image, or torch.Tensor: The converted and resized image.
     """
+    _check_torch()
     if resample_method not in _RESIZE_RESAMPLE_METHODS:
         raise ValueError(f"Unsupported resample method: {resample_method}. Choose from 'bilinear', 'nearest', 'bicubic', 'lanczos'.")
     
@@ -345,6 +367,7 @@ class FrequencyFilter:
 
     """
     def __init__(self, size, radius, device='cpu'):
+        _check_torch()
         self.size = size
         self.radius = radius
         self.device = device
