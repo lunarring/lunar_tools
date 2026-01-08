@@ -14,7 +14,6 @@ from elevenlabs import Voice, VoiceSettings, play, save
 import sounddevice as sd
 import numpy as np
 import wave
-from pydub import AudioSegment
 from lunar_tools.utils import read_api_key
 import asyncio
 from datetime import datetime

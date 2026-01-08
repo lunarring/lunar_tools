@@ -48,7 +48,7 @@ class OpenAIWrapper:
         self.model = model
         self.available_models = ["gpt-4-1106-preview", "gpt-4-0613", "gpt-3.5-turbo-1106"]
 
-    def list_available_models(self):
+    def list_available_models(self) -> list[str]:
         """
         Lists the available GPT models.
 
@@ -57,7 +57,7 @@ class OpenAIWrapper:
         """
         return self.available_models
 
-    def set_model(self, model_name):
+    def set_model(self, model_name: str) -> None:
         """
         Sets the model to be used, if it is available in the list of models.
 
@@ -72,7 +72,7 @@ class OpenAIWrapper:
         else:
             raise ValueError(f"Model {model_name} is not available.")
 
-    def generate(self, prompt):
+    def generate(self, prompt: str) -> str:
         """
         Generates a response based on the given prompt using the selected GPT model.
 
@@ -130,7 +130,7 @@ class Gemini:
             "gemini-pro"
         ]
 
-    def list_available_models(self):
+    def list_available_models(self) -> list[str]:
         """
         Lists the available Gemini models.
 
@@ -139,7 +139,7 @@ class Gemini:
         """
         return self.available_models
 
-    def set_model(self, model_name):
+    def set_model(self, model_name: str) -> None:
         """
         Sets the model to be used, if it is available in the list of models.
 
@@ -154,7 +154,7 @@ class Gemini:
         else:
             raise ValueError(f"Model {model_name} is not available.")
 
-    def generate(self, prompt):
+    def generate(self, prompt: str) -> str:
         """
         Generates a response based on the given prompt using the selected Gemini model.
 
@@ -204,7 +204,7 @@ class Deepseek:
         self.model = model
         self.available_models = ["deepseek-chat", "deepseek-reasoner"]
 
-    def list_available_models(self):
+    def list_available_models(self) -> list[str]:
         """
         Lists the available DeepSeek models.
 
@@ -213,7 +213,7 @@ class Deepseek:
         """
         return self.available_models
 
-    def set_model(self, model_name):
+    def set_model(self, model_name: str) -> None:
         """
         Sets the model to be used, if it is available in the list of models.
 
@@ -228,7 +228,7 @@ class Deepseek:
         else:
             raise ValueError(f"Model {model_name} is not available.")
 
-    def generate(self, prompt):
+    def generate(self, prompt: str) -> str:
         """
         Generates a response based on the given prompt using the selected DeepSeek model.
 

@@ -1,5 +1,5 @@
 # Introduction
-Welcome to Lunar Tools, a comprehensive toolkit designed to fascilitate the programming of interactive exhibitions. Our suite of simple, modular tools is crafted to offer a seamless and hopefully bug-free experience for both exhibitors and visitors.
+Welcome to Lunar Tools, a comprehensive toolkit designed to facilitate the programming of interactive exhibitions. Our suite of simple, modular tools is crafted to offer a seamless and hopefully bug-free experience for both exhibitors and visitors.
 
 # Installation
 Make sure you have python>=3.10.

@@ -13,11 +13,8 @@ from openai import OpenAI
 import replicate
 from lunar_tools.logprint import LogPrint
 from lunar_tools.utils import read_api_key
-
 import fal_client
-from PIL import Image
-import requests
-from io import BytesIO
+from typing import Optional, Tuple
 
 
 class FluxImageGenerator:
@@ -31,7 +28,7 @@ class FluxImageGenerator:
         self.model = model
         self.last_result = None
 
-    def generate(self, prompt, image_size='landscape_4_3', num_inference_steps=4, seed=420):
+    def generate(self, prompt: str, image_size: str = 'landscape_4_3', num_inference_steps: int = 4, seed: int = 420) -> Image.Image:
         if image_size not in self.ALLOWED_IMAGE_SIZES:
             raise ValueError(f"Invalid image size. Allowed sizes are: {', '.join(self.ALLOWED_IMAGE_SIZES)}")
 
@@ -291,7 +288,7 @@ class Dalle3ImageGenerator:
         else:
             self.size = size_str
 
-    def generate(self, prompt, simulation=False):
+    def generate(self, prompt: str, simulation: bool = False) -> Tuple[Optional[Image.Image], Optional[str]]:
         if simulation:
             # Simulation mode: Generate a random image
             width, height = map(int, self.size.split('x'))

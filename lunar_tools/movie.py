@@ -43,8 +43,8 @@ class MovieSaver():
                 it should look the same or nearly the same as the input but it isn't technically lossless.
                 The range is exponential, so increasing the CRF value +6 results in
                 roughly half the bitrate / file size, while -6 leads to roughly twice the bitrate.
-            codec: int
-                Number of diffusion steps. Larger values will take more compute time.
+            codec: str
+                Video codec to use for encoding (e.g., 'libx264', 'libx265'). Default is 'libx264'.
             preset: str
                 Choose between ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow.
                 ffmpeg doc: A preset is a collection of options that will provide a certain encoding speed
