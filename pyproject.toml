@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lunar-tools"
-version = "0.2"
+version = "0.3"
 description = "Lunar Ring auxiliary tools and modules for programming interactive exhibitions"
 readme = "README.md"
 requires-python = ">=3.10"

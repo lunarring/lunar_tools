@@ -16,7 +16,7 @@ if os.path.exists('README.md'):
 
 setup(
     name='lunar-tools',
-    version='0.2',
+    version='0.3',
     packages=find_packages(),
     package_data={
         'lunar_tools': ['midi_configs/*.yml'],
