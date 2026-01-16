@@ -9,6 +9,12 @@ Make sure you have python>=3.10.
 pip install lunar-tools
 ```
 
+Sound playback via `SoundPlayer` requires `simpleaudio`, which is not installed by default.
+Install it manually if you need in-process playback:
+```bash
+pip install simpleaudio
+```
+
 For PyTorch-accelerated features (GPU rendering, torch tensor support):
 ```bash
 pip install lunar-tools[torch]
@@ -309,9 +315,4 @@ pip install pytest
 make sure you are in base folder
 ```python
 python -m pytest lunar_tools/tests/
-```
-
-## Get requirements
-```python
-pipreqs . --force
 ```

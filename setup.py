@@ -1,12 +1,8 @@
 from setuptools import setup, find_packages
 import os
 
-# Read requirements.txt if it exists (for backward compatibility)
-# When using pyproject.toml, dependencies are read from there instead
+# Dependencies are defined in pyproject.toml; keep this file for legacy tooling.
 required = []
-if os.path.exists('requirements.txt'):
-    with open('requirements.txt') as f:
-        required = f.read().splitlines()
 
 # Read README for long description
 long_description = ''

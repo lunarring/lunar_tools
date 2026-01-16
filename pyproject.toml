@@ -50,7 +50,6 @@ dependencies = [
     "requests",
     "rich",
     "setuptools",
-    "simpleaudio",
     "sounddevice",
     "tqdm",
     "pyusb",

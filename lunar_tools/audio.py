@@ -8,7 +8,10 @@ import os
 import time
 from openai import OpenAI
 from lunar_tools.logprint import LogPrint
-import simpleaudio
+try:
+    import simpleaudio
+except Exception:
+    simpleaudio = None
 from elevenlabs.client import ElevenLabs
 from elevenlabs import Voice, VoiceSettings, play, save
 import sounddevice as sd
@@ -448,6 +451,10 @@ class SoundPlayer:
         self.blocking_playback = blocking_playback
 
     def _play_sound_threaded(self, sound):
+        if simpleaudio is None:
+            raise ImportError(
+                "simpleaudio is not installed. Install it with `pip install simpleaudio` to enable SoundPlayer."
+            )
         self._playback_object = simpleaudio.play_buffer(
             sound.raw_data,
             num_channels=sound.channels,
@@ -457,6 +464,10 @@ class SoundPlayer:
         self._playback_object.wait_done()  # Wait until sound has finished playing
 
     def _start_playback(self, sound: AudioSegment, pan_value=0) -> None:
+        if simpleaudio is None:
+            raise ImportError(
+                "simpleaudio is not installed. Install it with `pip install simpleaudio` to enable SoundPlayer."
+            )
         # Stop any currently playing sound
         self.stop_sound()
 
