@@ -14,13 +14,29 @@ def get_local_ip():
     Returns:
         str | None: The detected IP address or None if nothing could be found.
     """
-    # Method 1: Parse ifconfig output (most accurate for Linux)
+    # Method 1: Use "ip route get" to infer the source address.
     try:
-        result = subprocess.run(['ifconfig'], capture_output=True, text=True, check=True)
+        result = subprocess.run(
+            ["ip", "route", "get", "1.1.1.1"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        match = re.search(r"\bsrc\s+(\d+\.\d+\.\d+\.\d+)", result.stdout)
+        if match:
+            local_ip = match.group(1)
+            if not local_ip.startswith("127."):
+                return local_ip
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        pass
+
+    # Method 2: Parse ifconfig output (most accurate for Linux)
+    try:
+        result = subprocess.run(["ifconfig"], capture_output=True, text=True, check=True)
         output = result.stdout
 
         # Split by interface blocks (starts with interface name + colon)
-        interface_blocks = re.split(r'\n(?=\w+:)', output)
+        interface_blocks = re.split(r"\n(?=\w+:)", output)
 
         candidate_ips = []
 
@@ -29,22 +45,22 @@ def get_local_ip():
                 continue
 
             # Check if interface is UP and RUNNING (active interface)
-            if 'UP' in block and 'RUNNING' in block:
+            if "UP" in block and "RUNNING" in block:
                 # Find inet addresses in this interface block
-                inet_pattern = r'inet (\d+\.\d+\.\d+\.\d+)'
+                inet_pattern = r"inet (\d+\.\d+\.\d+\.\d+)"
                 inet_matches = re.findall(inet_pattern, block)
 
                 for ip in inet_matches:
                     # Skip localhost
-                    if ip.startswith('127.'):
+                    if ip.startswith("127."):
                         continue
 
                     # Prioritize common private network ranges
-                    if ip.startswith('10.'):
+                    if ip.startswith("10."):
                         candidate_ips.insert(0, ip)  # Highest priority
-                    elif ip.startswith('192.168.'):
+                    elif ip.startswith("192.168."):
                         candidate_ips.append(ip)  # Medium priority
-                    elif ip.startswith('172.') and 16 <= int(ip.split('.')[1]) <= 31:
+                    elif ip.startswith("172.") and 16 <= int(ip.split(".")[1]) <= 31:
                         candidate_ips.append(ip)  # Medium priority
                     else:
                         candidate_ips.append(ip)  # Lowest priority
@@ -55,23 +71,23 @@ def get_local_ip():
     except (subprocess.CalledProcessError, FileNotFoundError, IndexError, ValueError):
         pass
 
-    # Method 2: Socket-based fallback (works on most systems)
+    # Method 3: Socket-based fallback (works on most systems)
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-            s.connect(('8.8.8.8', 80))
+            s.connect(("8.8.8.8", 80))
             local_ip = s.getsockname()[0]
 
-            if not local_ip.startswith('127.'):
+            if not local_ip.startswith("127."):
                 return local_ip
 
     except (socket.error, OSError):
         pass
 
-    # Method 3: Last resort - get hostname IP
+    # Method 4: Last resort - get hostname IP
     try:
         hostname = socket.gethostname()
         local_ip = socket.gethostbyname(hostname)
-        if not local_ip.startswith('127.'):
+        if not local_ip.startswith("127."):
             return local_ip
     except (socket.error, OSError):
         pass
