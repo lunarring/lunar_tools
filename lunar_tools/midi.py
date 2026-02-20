@@ -7,11 +7,11 @@ import time
 import os
 import yaml
 import threading
-import pkg_resources
 import inspect
 import json
 import subprocess
 import re
+from importlib import resources
 import usb.core     # pip install pyusb
 import platform
 from datetime import datetime
@@ -78,15 +78,15 @@ def check_midi_device_connected_pyusb(device_code):
 
 
 def check_any_midi_device_connected():
-    config_path = pkg_resources.resource_filename('lunar_tools', 'midi_configs')
-    for filename in os.listdir(config_path):
-        if filename.endswith(".yml"):
-            with open(os.path.join(config_path, filename), 'r') as file:
+    config_dir = resources.files("lunar_tools").joinpath("midi_configs")
+    for config_file in config_dir.iterdir():
+        if config_file.name.endswith(".yml"):
+            with config_file.open('r', encoding='utf-8') as file:
                 config = yaml.safe_load(file)
                 device_name = config['name_device']
                 device_ids = get_midi_device_vendor_product_ids(device_name)
                 if len(device_ids) > 0:
-                    return filename.split(".yml")[0]
+                    return os.path.splitext(config_file.name)[0]
     return None
 
 #%%
@@ -132,12 +132,12 @@ class MidiInput:
         config_filename = f"{self.device_name}.yml"
         if enforce_local_config:
             config_path = os.path.join("midi_configs", config_filename)
+            with open(config_path, 'r', encoding='utf-8') as file:
+                config = yaml.safe_load(file)
         else:
-            config_path = pkg_resources.resource_filename('lunar_tools', f'midi_configs/{config_filename}')
-
-        # Load the configuration from the YAML file
-        with open(config_path, 'r') as file:
-            config = yaml.safe_load(file)
+            config_ref = resources.files("lunar_tools").joinpath("midi_configs", config_filename)
+            with config_ref.open('r', encoding='utf-8') as file:
+                config = yaml.safe_load(file)
 
         # Set the device configuration from the YAML file
         self.system_device_name = config['name_device']
@@ -525,4 +525,3 @@ if __name__ == "__main__":
         a0 = akai_midimix.get("A0", val_min=3, val_max=6, val_default=5)
         ba = akai_midimix.get("A3", button_mode="toggle")
         print(ba)
-

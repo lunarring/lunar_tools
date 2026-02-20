@@ -1,13 +1,8 @@
-try:
-    from pynput import keyboard
-except Exception as e:
-    print(f"IMPORT FAIL: {e}")
 import numpy as np
 import time
 import os
 import yaml
 import threading
-import pkg_resources
 import inspect
 import json
 import subprocess
@@ -25,6 +20,17 @@ warnings.warn(
     DeprecationWarning,
     stacklevel=2
 )
+
+
+def _load_keyboard_backend():
+    try:
+        from pynput import keyboard as pynput_keyboard
+    except Exception as exc:
+        raise RuntimeError(
+            "Keyboard input backend unavailable. pynput requires an active GUI/X session "
+            "(or equivalent display backend). On headless SSH, use a MIDI device instead."
+        ) from exc
+    return pynput_keyboard
 
      
 #%%
@@ -51,7 +57,13 @@ class MetaInput:
         self.device_name = device_name
         
         if self.device_name == "keyboard":
-            self.control_device = KeyboardInput()
+            try:
+                self.control_device = KeyboardInput()
+            except RuntimeError as exc:
+                raise RuntimeError(
+                    "MetaInput fell back to keyboard mode, but keyboard capture is unavailable "
+                    "in this environment. This is expected on headless SSH hosts without X."
+                ) from exc
         else:
             self.control_device = MidiInput(self.device_name)
         self.last_values = {}
@@ -136,6 +148,7 @@ class KeyboardInput:
 
     def __init__(self):
         """ Initializes the keyboard listener and dictionaries to store pressed keys and their states. """
+        self.keyboard = _load_keyboard_backend()
         self.pressed_keys = {}
         self.key_last_time_pressed = {}
         self.key_last_time_released = {}
@@ -147,7 +160,7 @@ class KeyboardInput:
         self.pressed_once_ready = {}  # Tracks if key is ready to be pressed down once again
         self.active_slider = None
         self.slider_values = {}
-        self.listener = keyboard.Listener(on_press=self.on_press, on_release=self.on_release)
+        self.listener = self.keyboard.Listener(on_press=self.on_press, on_release=self.on_release)
         self.listener.start()
         self.nmb_steps = 64
         self.valid_button_modes = ['held_down', 'released_once', 'toggle', 'pressed_once']
@@ -169,12 +182,12 @@ class KeyboardInput:
             self.active_slider = key_name
         elif self.active_slider:
             slider_info = self.slider_values[self.active_slider]
-            if key == keyboard.Key.up:
+            if key == self.keyboard.Key.up:
                 self.slider_values[self.active_slider]['value'] = min(
                     slider_info['val_max'], 
                     slider_info['value'] + slider_info['step']
                 )
-            elif key == keyboard.Key.down:
+            elif key == self.keyboard.Key.down:
                 self.slider_values[self.active_slider]['value'] = max(
                     slider_info['val_min'], 
                     slider_info['value'] - slider_info['step']
