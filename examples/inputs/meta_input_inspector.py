@@ -11,7 +11,7 @@ import lunar_tools as lt
 
 DEVICE_BINDINGS = {
     "akai_lpd8": {"slider": "E0", "button": "A0"},
-    "akai_midimix": {"slider": "E0", "button": "A0"},
+    "akai_midimix": {"slider": "E0", "button": "A3"},
     "keyboard": {"slider": "1", "button": "space"},
     "default": {"slider": "A0", "button": "A1"},
 }
