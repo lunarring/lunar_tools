@@ -17,6 +17,17 @@ import platform
 from datetime import datetime
 
 
+def _ensure_linux_alsa_config_path():
+    """Fix common conda ALSA config mismatch on Linux hosts."""
+    if platform.system() != "Linux":
+        return
+    if os.environ.get("ALSA_CONFIG_PATH"):
+        return
+    fallback = "/usr/share/alsa/alsa.conf"
+    if os.path.exists(fallback):
+        os.environ["ALSA_CONFIG_PATH"] = fallback
+
+
 def get_midi_device_vendor_product_ids(system_device_name):
     # Initialize the result dictionary
     vendor_product_ids = {}
@@ -226,6 +237,7 @@ class MidiInput:
         
         
     def init_midi(self):
+        _ensure_linux_alsa_config_path()
         # Have a small safety loop for init
         for i in range(5):
             midi.quit()
