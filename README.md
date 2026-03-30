@@ -24,6 +24,11 @@ pip install lunar-tools[torch]
 ```bash
 pip install git+https://github.com/lunarring/lunar_tools
 ```
+
+For local development or when running examples from a checkout, prefer an editable install:
+```bash
+pip install -e .
+```
 ## Ubuntu
 On Ubuntu, you may have to install additional dependencies for sound playback/recording.
 
